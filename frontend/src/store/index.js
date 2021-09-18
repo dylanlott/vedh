@@ -398,6 +398,11 @@ const User = {
         loading: false,
         error: undefined,
     },
+    getters: {
+        authenticated: state => {
+            return  !!state.User.Token
+        },
+    },
     mutations: {
         setUser(state, payload) {
             state.User.Username = payload.Username

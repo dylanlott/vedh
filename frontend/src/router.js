@@ -1,6 +1,11 @@
 import Vue from 'vue';
 import Router from 'vue-router';
 
+// router and store access for authentication
+import router from '@/router.js';
+import store from '@/store/index.js';
+
+// router views
 import Landing from '@/components/Landing.vue';
 import Login from '@/components/Login.vue';
 import Signup from '@/components/Signup.vue';
@@ -35,6 +40,9 @@ export default new Router({
       path: '/games',
       name: 'games',
       component: Games,
+      meta: {
+        auth: true,
+      },
     },
     {
       path: '/games/404',
@@ -63,3 +71,20 @@ export default new Router({
     }
   ],
 });
+
+// handle auth before each route change
+router.beforeEach((to, from, next) => {
+  if ((to.matched.length > 0) && (to.matched[0].meta.auth)) {
+    const authed = store.getters.authenticated
+    if (!authed) {
+      return next({
+        path: '/login',
+        query: {
+          redirect: to.fullPath
+        }
+      })
+    }
+    return next()
+  }
+  return next()
+})
