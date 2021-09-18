@@ -23,6 +23,9 @@
           >
         </div>
       </div>
+      <div class="columns is-centered">
+        <div>Already a member? <a href="/login">Login.</a></div>
+      </div>
     </div>
   </div>
 </template>
