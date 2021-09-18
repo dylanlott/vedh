@@ -694,4 +694,20 @@ here like I thought I would.
 * Need to fix the Turn Tracker (again)
   * That might be the first thing I cut in my adventure to MVP
   * Stack handling would be better feature anyway I think
-* 
+
+6 Sep 2021
+==========
+
+* The front end is now the last real roadblock. Back end can go to production pretty much whenever. 
+* I wrote the scry implmentation 
+  * It works for Scry = 1 but doesn't handle scry > 1 yet.
+* Next features in rough order of importance:
+- [ ] Fetching / Tutoring 
+- [ ] Send card to X stack
+- [ ] Add return to hand / play functionality
+- [ ] Create Card (token)
+- [ ] Discard card
+- [ ] Reveal card 
+- [ ] Label card / Card counters
+- [ ] Gain Control of Card
+- [ ] Sacrifice card functionality
