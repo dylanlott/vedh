@@ -17,31 +17,35 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("processed config: %v", cfg)
 
 	db, err := persistence.NewAppDatabase("./persistence/migrations/", cfg.PostgresURL)
 	if err != nil {
 		log.Fatal(errs.Wrap(err))
 	}
+	log.Println("opened app database")
 
 	cardDB, err := persistence.NewSQLite("./persistence/AllPrintings.sqlite")
 	if err != nil {
 		log.Fatalf(errs.Wrap(err).Error())
 	}
+	log.Println("opened card database")
 
 	kv, err := persistence.NewRedis(cfg.RedisURL, "", nil)
 	if err != nil {
 		log.Fatalf("failed to start redis: %s", errs.Wrap(err))
 	}
+	log.Println("created new redis store")
 	s, err := server.NewGraphQLServer(kv, db, cardDB, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("graphQL server attempting to start")
 
 	err = s.Serve("/graphql", cfg.DefaultPort)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	fmt.Printf("serving /graphql at :%d", cfg.DefaultPort)
 	fmt.Printf("serving graphiql playground at :%d/playground", cfg.DefaultPort)
 }
