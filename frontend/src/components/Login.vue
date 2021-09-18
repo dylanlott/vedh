@@ -16,6 +16,9 @@
         </form>
       </div>
     </div>
+    <div class="columns is-centered">
+      <div>Not a member? <a href="/signup">Sign up.</a></div>
+    </div>
   </section>
 </template>
 <script>
