@@ -5,7 +5,7 @@
   "scripts": {
     "start": "vue-cli-service serve --open",
     "build": "vue-cli-service build --mode production",
-    "deploy": "vue-cli-service build --mode production && heroku static:deploy"
+    "deploy": "vue-cli-service build --mode production && heroku static:deploy --app edhgo-vue"
   },
   "dependencies": {
     "apollo-cache-inmemory": "^1.6.6",
