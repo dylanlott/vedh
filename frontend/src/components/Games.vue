@@ -92,6 +92,9 @@ export default {
       });
       return lib;
     },
+    decklist() {
+      return this.deck.library;
+    },
   },
   methods: {
     handleCreateGame() {

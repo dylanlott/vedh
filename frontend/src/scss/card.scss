@@ -2,6 +2,7 @@
   .power {
     margin: 0px;
   }
+
   .toughness {
     margin: 0px;
   }
@@ -32,6 +33,8 @@
 }
 
 .tapped {
+  width: 300px;
+  transform-origin: center !important;
   -webkit-transform: rotate(90deg);
   -moz-transform: rotate(90deg);
   -o-transform: rotate(90deg);
