@@ -4,7 +4,47 @@
     <div class="box"><TurnTracker :game="game" /></div>
     <!-- END TURN TRACKER -->
 
-    <!-- ### OPPONENTS BOARDSTATES ### -->
+    <!-- SCRY MODAL  -->
+    <b-modal :active="isScryModalOpen">
+      <div v-if="self" class="modal-card" width="400px">
+        <header class="modal-card-head"></header>
+        <section v-if="self.Library" class="modal-card-body">
+          <!-- TODO: Handle scry X instead of assuming just scry 1 -->
+          <Card v-if="isScryModalOpen" v-bind="self.Library[0]" />
+        </section>
+        <footer class="modal-card-foot">
+          <b-button @click="toggleScryModal()">Close</b-button>
+          <b-button @click="handleScryBottom()">Bottom</b-button>
+        </footer>
+      </div>
+    </b-modal>
+    <!-- END SCRY MODAL  -->
+    
+    <!-- CREATE TOKEN MODAL  -->
+    <b-modal :active="isCreateTokenModalOpen">
+      <div v-if="self" class="modal-card" width="400px">
+        <header class="modal-card-head"></header>
+        <section class="modal-card-body">
+         Create Token
+         Name:  
+         Type:   
+         Power:   <b-field>
+      <b-numberinput v-model="number"></b-numberinput>
+      </b-field>
+         Toughness: 
+          <b-field>
+      <b-numberinput v-model="number"></b-numberinput>
+    </b-field>
+        </section>
+        <footer class="modal-card-foot">
+          <b-button @click="toggleCreateTokenModal()">Close</b-button>
+        </footer>
+      </div>
+    </b-modal>
+    <!-- END CREATE TOKEN MODAL  -->
+
+    <!-- OPPONENTS BOARDSTATES -->
+    <div v-if="bs.length > 0">
     <div class="box" :key="player.ID" v-for="player in bs">
       <div class="columns" v-if="user.ID !== player.User.ID">
         <div class="title">{{ player.User.Username }}</div>
@@ -27,24 +67,16 @@
         </div>
       </div>
     </div>
-    <!-- ### END OF OPPONENTS BOARDSTATES ### -->
-
-    <div class="tabs">
-      <ul>
-        <li class="is-active"><a>Battlefield</a></li>
-        <li><a>Music</a></li>
-        <li><a>Videos</a></li>
-        <li><a>Documents</a></li>
-      </ul>
     </div>
+    <!-- END OF OPPONENTS BOARDSTATES -->
 
-    <!-- ### SELF BOARDSTATE - PUBLIC SECTION ### -->
-    <div class="columns is-flex" v-if="self">
+    <!-- SELF BOARDSTATE - PUBLIC SECTION -->
+    <p class="title is-6">Battlefield</p>
+    <div class="columns is-mobile is-desktop is-flex" v-if="self">
       <!-- SELF - BATTLEFIELD -->
-      <div class="column box is-align-content-flex-start">
-        <p class="title is-4">Battlefield</p>
+      <div class="column is-desktop is-mobile box is-flex">
         <draggable
-          class="columns is-mobile"
+          class="columns is-flex is-multiline is-mobile is-align-items-flex-start"
           @change="handleChange()"
           v-model="self.Field"
           group="people"
@@ -72,6 +104,14 @@
               <span>Draw</span>
             </button>
           </b-navbar-item>
+          <b-navbar-item @click="toggleScryModal()" href="#">
+            <button class="button is-primary">
+              <span class="icon">
+                <i class="fa fa-book"></i>
+              </span>
+              <span>Scry</span>
+            </button>
+          </b-navbar-item>
         </template>
 
         <template #end>
@@ -79,6 +119,7 @@
             <div class="buttons">
               <a @click="handleTapAll()" class="button is-dark"> <strong>Tap All</strong> </a>
               <a @click="handleUntapAll()" class="button is-light"> Untap All </a>
+              <a @click="toggleCreateTokenModal" class="button is-primary">Create Token</a>
             </div>
           </b-navbar-item>
         </template>
@@ -108,8 +149,6 @@
     </footer>
   </div>
 </template>
-  </div>
-</template>
 <script>
 import _ from 'lodash';
 import draggable from 'vuedraggable';
@@ -120,7 +159,10 @@ import { mapState } from 'vuex';
 export default {
   name: 'board',
   data() {
-    return {};
+    return {
+      isScryModalOpen: false,
+      isCreateTokenModalOpen: false,
+    };
   },
   created() {
     // load and sub to game
@@ -158,6 +200,22 @@ export default {
     },
     handleUntapAll() {
       this.$store.dispatch('untapAll', this.self);
+    },
+    toggleScryModal() {
+      this.isScryModalOpen = !this.isScryModalOpen;
+    },
+    toggleCreateTokenModal() {
+      this.isCreateTokenModalOpen = !this.isCreateTokenModalOpen
+    },
+    handleScryBottom() {
+      this.isScryModalOpen = false
+      const copy = Object.assign({}, this.self)
+      const card = copy.Library.shift()
+      if (card) {
+        // scrying an empty library causes nothing to happen
+        copy.Library.push(card)
+        return this.$store.dispatch('mutateBoardState', copy)
+      } 
     },
   },
   components: {

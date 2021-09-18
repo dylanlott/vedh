@@ -63,13 +63,15 @@ const BoardStates = {
     },
     actions: {
         // draw will draw a card into hand from the top of the board state's  
-        // library. if none exists, it errors and declares your loss.
+        // library. 
+        // * if none exists, it errors and declares your loss.
+        // * we always treat the "top" of the deck as the card at index 0
+        // * thus the bottom of the deck is the nth element of the array
         draw({ commit, dispatch }, boardstate) {
             const bs = Object.assign({}, boardstate)
             if (bs.Library.length < 1) {
                 // handle player losing issue
                 commit('error', 'you cannot draw from an empty library. you lose the game.')
-                console.error('cannot draw from an empty library.')
                 // TODO: Make it so that losing triggers a server event.
                 // Send the player to the score screen unless they override the 
                 // loss.
