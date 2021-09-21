@@ -832,3 +832,16 @@ export const login = gql`mutation($username: String!, $password: String!) {
     Token 
   }
 }`
+
+export const commanderQuery = gql`
+            query($name: String!) {
+              search(name: $name) {
+                Name
+                ID
+                Colors
+                ColorIdentity
+                CMC
+                ManaCost
+              }
+            }
+          `

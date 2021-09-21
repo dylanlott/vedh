@@ -45,6 +45,7 @@
 <script>
 import { mapState } from 'vuex';
 import gql from 'graphql-tag';
+import { commanderQuery } from '';
 
 export default {
   name: 'game',
@@ -133,18 +134,7 @@ export default {
 
       this.$apollo
         .query({
-          query: gql`
-            query($name: String!) {
-              search(name: $name) {
-                Name
-                ID
-                Colors
-                ColorIdentity
-                CMC
-                ManaCost
-              }
-            }
-          `,
+          query: commanderQuery,
           variables: {
             name: this.deck.commander,
           },
