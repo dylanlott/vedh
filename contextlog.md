@@ -711,3 +711,24 @@ here like I thought I would.
 - [ ] Label card / Card counters
 - [ ] Gain Control of Card
 - [ ] Sacrifice card functionality
+
+21 Sep 2021
+============
+* Fixed a bug with the scry implementation last night (20 sep 2021) that allowed
+the user to see the next card in their library after bottoming a card with scry.
+* Cleaned up the commander query into its own Card action. 
+* Working on bug fixing around authentication and redirection
+  * In order to join a game, we are going to require authentication
+  * This feels like the simpler case to handle than to add anonymous user features
+* Need to setup the client to refer to the EDH Go server and not localhost
+in production client builds.
+  * Need to add the .env.production file for secrets
+* Maybe a dockerfile is easiest way to deploy the frontend? 
+
+22 Sep 2021 
+============
+* Still trying to deploy the front end in a clean way 
+  * Docker seems like a good choice but has been a royal pain in the ass for some reason
+  * I think it might be easiest to try the Heroku static build pack.
+  * If that doesn't work, I might just have to create a dead simple Node app that just serves the static assets of the client app and deploy that to Heroku instead.
+  * 
