@@ -27,10 +27,9 @@ generate:
 # ALWAYS TEST MIGRATIONS LOCALLY FIRST.
 migrate:
 	migrate -path ./persistence/migrations -database $(DATABASE_URL) up
-
 # dev target requires watchexec to be installed
 dev:
-		watchexec $(GOCMD) run ./
+	watchexec $(GOCMD) run ./
 # builds a heroku compatible go binary
 build-heroku:
 	go build -o bin/edh-go -v .
@@ -41,7 +40,7 @@ build-ui:
 	docker build -f ./frontend/Dockerfile -t dylanlott/edhgo-ui:latest ./frontend
 build-server:
 	docker build -f ./Dockerfile -t dylanlott/edhgo:server .
-# pushes the most recently built image up to docker hub. 
+# pushes the most recently built image up to docker hub.
 # watchtower will detect the pushed container and pull it down so we should
 # only push tested and vetted containers.
 deploy-ui:
