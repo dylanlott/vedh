@@ -731,4 +731,22 @@ in production client builds.
   * Docker seems like a good choice but has been a royal pain in the ass for some reason
   * I think it might be easiest to try the Heroku static build pack.
   * If that doesn't work, I might just have to create a dead simple Node app that just serves the static assets of the client app and deploy that to Heroku instead.
-  * 
+* Need to add nginx ssl handling for edhgo 
+* Need to add the cards table to the database
+  * good chance to test our migrations process in prod
+  * import the sql file for all printings from mtgjson 
+  * script the process for updating that card database
+* https://www.digitalocean.com/community/tutorials/how-to-install-nginx-on-ubuntu-20-04#step-5-%E2%80%93-setting-up-server-blocks-(recommended)
+
+24 Sep 2021 
+===========
+
+* I deployed the site to DigitalOcean on 23 sep 2021 to DigitalOcean. 
+  * After fighting heroku for the better part of the day, I gave up and decided to just use my own small VPS to handle the static app 
+  * I ended up using `vtec2/watchtower` to watch for changes in containers from docker hub and then pulls those containers.
+  * This works out to be essentially a one-command deployment for the UI 
+* I need to write a script to import SQL into our database
+  * Need to remove the dependency on SQLite as well 
+  * And all of the printings files that I have in local 
+* Need to add GameLog table with JSONB column for game logs 
+  * Probably should write a spec document out for the Game Log anyway. 

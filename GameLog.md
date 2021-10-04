@@ -24,3 +24,11 @@ https://stackoverflow.com/questions/8572826/generic-deep-diff-between-two-object
 
 If we make the client handle the diffing, we can essentially act as just a storage layer for actions.
 This would take the burden off of us, but at the cost of being less secure - the baord states could be faked (technically).
+
+---
+
+# Version 2.0  - Game Log
+
+- After some consideration, I've started calling this the Game Log.
+- Events are logged in the game log. Any change or action is reflected in the game log.
+    - Even if the action doesn't change any board state, we should reflect the action in the game log.
