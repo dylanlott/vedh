@@ -39,13 +39,23 @@
           <b-button @click="handleCreateGame()" type="button" class="is-success">Start a new game</b-button>
         </div>
       </div>
+      <!-- MTG JSON Credit -->
+      <div class="columns is-mobile is-centered">
+        <a href="https://mtgjson.com" style="display: inline-flex; align-items: center;">
+          <img 
+            src="http://mtgjson.com/images/assets/logo-mtgjson-light-blue.svg" 
+            width="40px" 
+            title="MTGJSON logo">
+          <p class="is-size-6" style="margin-left: 10px">Powered by MTGJSON</p>
+        </a>
+      </div>
     </div>
   </div>
 </template>
 <script>
 import { mapState } from 'vuex';
 import gql from 'graphql-tag';
-import { commanderQuery } from '';
+import { commanderQuery } from '@/gqlQueries.js';
 
 export default {
   name: 'game',
