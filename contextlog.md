@@ -750,3 +750,51 @@ in production client builds.
   * And all of the printings files that I have in local 
 * Need to add GameLog table with JSONB column for game logs 
   * Probably should write a spec document out for the Game Log anyway. 
+
+3 Oct 2021
+==========
+
+* Need to add labels and counters to the data model
+* Should probably add the stack to it as well 
+  * Need to start sketching out stack priority features as we release the 
+    beta for the app
+
+
+4 Oct 2021
+==========
+
+* Make the landing page use a container div so it feels more natural on desktop.
+
+8 Oct 2021
+==========
+
+* Updated the server to remove the sqlite dependency and instead use the normal db handler for cards 
+  * This means I need to add a "cards" table to the main database with all of the MTGJSON cards
+* Write script for idempotent download and import of the most recent All Printings MTG JSON card database
+
+11 Oct 2021
+============
+
+* In the process of writing the card import script as part of our migration off
+of SQLite and onto Postgres fully.
+* This meant having to write an import script for the card database
+  * That took a lot longer than initially thought it would because Postgres does
+    not play nicely with any other flavor of SQL but its own. 
+* However, I did learn how to unzip a file and download a file in Go. 
+* And I now have a nearly idempotent import script.
+* Ended up using CSV to get the data, since the JSON was frustratingly unstructured.
+
+26 Oct 2021
+===========
+
+* Took a small break on the app to remodel the bathroom.
+* Had a chat with Brenden today about soft launching the app for the tiktok account launch
+  * Hiring him to do 10 mtg & edh videos for the tiktok account 
+* Upgraded the Postgres database in Heroku to be Hobby Basic for $9 a month 
+* Not sure if it's going to be worth scaling in Postgres - for now I'm just going to keep using them. 
+  * It might eventually be just worth it to transfer everything over to a beefy DigitalOcean droplet
+  * We have a docker-compose so high-avail setup wouldn't be too much more difficult
+* Trying to get the app redeployed with the upgraded database and all cards list loaded in by tonight.
+  * Did I hit this goal? ### Tune in to find out.
+  * Turns out, I did!
+* Need to run the import script against the new prod database
