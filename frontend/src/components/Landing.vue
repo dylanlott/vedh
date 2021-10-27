@@ -6,18 +6,14 @@
     <section class="hero is-medium is-primary is-bold welcome">
       <div class="hero-body">
         <div class="container">
-          <h1 class="title is-1">
-            Welcome to EDH-Go!
+          <h1 class="title is-1 has-text-centered">
+            Play Commander games on the go with EDH Go.
           </h1>
           <div class="subtitle">
               <!-- Begin Mailchimp Signup Form -->
-              <link
-                href="//cdn-images.mailchimp.com/embedcode/horizontal-slim-10_7.css"
-                rel="stylesheet"
-                type="text/css">
+              <link href="//cdn-images.mailchimp.com/embedcode/horizontal-slim-10_7.css" rel="stylesheet" type="text/css">
               <div id="mc_embed_signup">
-                <form
-                  action="https://gmail.us18.list-manage.com/subscribe/post?u=2c6b66f6b94ee6dfbf9524986&amp;id=36cf9e0d6c"
+                <form action="https://gmail.us18.list-manage.com/subscribe/post?u=2c6b66f6b94ee6dfbf9524986&amp;id=36cf9e0d6c"
                   method="post"
                   id="mc-embedded-subscribe-form"
                   name="mc-embedded-subscribe-form"
@@ -29,29 +25,13 @@
                       <p class="subtitle">Sign up now and get early access when we launch the Beta!</p>
                     </label>
                     <br>
-                  	<b-input
-                      type="email"
-                      value=""
-                      name="EMAIL"
-                      class="email"
-                      id="mce-EMAIL"
-                      placeholder="email address"
-                      required/>
+                  	<b-input type="email" value="" name="EMAIL" class="email" id="mce-EMAIL" placeholder="email address" required/>
                       <!-- real people should not fill this in and expect good things - do not remove this or risk form bot signups-->
                       <div style="position: absolute; left: -5000px;" aria-hidden="true">
-                        <input
-                        type="text"
-                        name="b_2c6b66f6b94ee6dfbf9524986_36cf9e0d6c"
-                        tabindex="-1"
-                        value="">
+                        <input type="text" name="b_2c6b66f6b94ee6dfbf9524986_36cf9e0d6c" tabindex="-1" value="">
                       </div>
                       <div class="clear">
-                        <input
-                        type="submit"
-                        value="Subscribe"
-                        name="subscribe"
-                        id="mc-embedded-subscribe"
-                        class="button subscribe-button is-success is-medium">
+                        <input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" class="button subscribe-button is-success is-medium is-block">
                       </div>
                     </div>
                   </form>
@@ -65,28 +45,28 @@
     <section class="columns benefits">
       <div class="column">
         <article class="tile is-child notification is-white box has-text-centered">
-          <h3><i class="fa fa-mobile fa-4x"></i></h3>
+          <h3><i class="fa fa-mobile fa-3x"></i></h3>
           <p class="title">Mobile First</p>
           <p class="subtitle">Play anytime, anywhere, on any device with an internet connection and a browser.</p>
         </article>
       </div>
       <div class="column">
         <article class="tile is-child notification is-white box has-text-centered">
-          <h3><i class="fa fa-arrows-alt fa-4x"></i></h3>
+          <h3><i class="fa fa-arrows-alt fa-3x"></i></h3>
           <p class="title">Flexible</p>
-          <p class="subtitle">Our gameplay engine allows for any format to be played, but we mostly focused on EDH.</p>
+          <p class="subtitle">Our boardstate engine allows for any format to be played, with a focus on EDH games.</p>
         </article>
       </div>
       <div class="column">
         <article class="tile is-child notification is-white box has-text-centered">
-          <h3><i class="fa fa-star fa-4x"></i></h3>
+          <h3><i class="fa fa-star fa-3x"></i></h3>
           <p class="title">Simple</p>
           <p class="subtitle">We worked hard to keep the interface intuitive and easy to use on mobile <i>and</i> desktop.</p>
         </article>
       </div>
       <div class="column">
         <article class="tile is-child notification is-white box has-text-centered">
-          <h3><i class="fa fa-tachometer-alt fa-4x"></i></h3>
+          <h3><i class="fa fa-tachometer-alt fa-3x"></i></h3>
           <p class="title">Fast</p>
           <p class="subtitle">The app is built from the ground up from scratch to be as small, fast, and reliable as possible.</p>
         </article>
@@ -95,7 +75,7 @@
     <section class="columns level screenshot">
       <div class="column">
         <article class="box levels">
-          <h1 class="title is-2 level-item">
+          <h1 class="title is-1 level-item">
           EDH-Go is the first Magic: The Gathering board state tracker of its kind.
           </h1>
           <a target="_blank" href="https://i.imgur.com/1YUGzki.png">
@@ -104,7 +84,7 @@
           <p class="level-item what-is-edhgo">
             <h1 class="title is-2 has-text-centered">What is EDH-Go?</h1>
             <p class="subtitle has-text-centered">
-              EDH-Go is a board state tracker that puts the power to control the game in the players hands.
+              EDH-Go is a boardstate tracker that puts the power to control the game in the players hands.
               We don't try to handle all the logic of every single card interaction in the game.
               Instead, we leave that up to the players and focus on tracking those changes in the cleanest, most efficient way possible.
               This allows us to serve mobile users with a robust platform that's still performant even on limited internet connections.
@@ -171,7 +151,7 @@ export default {
   width: 100%;
 }
 .benefits {
-  margin: .25rem;
+  margin: 2rem;
 }
 .screenshot {
   margin: .25rem;
