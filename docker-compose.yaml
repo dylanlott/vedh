@@ -9,9 +9,8 @@ services:
       - 9090:80
   server:
     build: .
-    environment:
-      REDIS_URL: redis:6379
-      POSTGRES_URL: postgres:5432
+    env_file:
+      - .env
     ports:
       - 8080:8080
     links:
