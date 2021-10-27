@@ -20,18 +20,13 @@ func main() {
 	if err != nil {
 		log.Fatal(errs.Wrap(err))
 	}
-	log.Println("opened app database")
-	cardDB, err := persistence.NewSQLite("./persistence/AllPrintings.sqlite")
-	if err != nil {
-		log.Fatalf(errs.Wrap(err).Error())
-	}
-	log.Println("opened card database")
-	kv, err := persistence.NewRedis(cfg.RedisURL, "", nil)
+	log.Println("successfully opened database connection")
+	kv, err := persistence.NewRedis(cfg.RedisURL, "", persistence.Config{})
 	if err != nil {
 		log.Fatalf("failed to start redis: %s", errs.Wrap(err))
 	}
 	log.Println("created new redis store")
-	s, err := server.NewGraphQLServer(kv, db, cardDB, cfg)
+	s, err := server.NewGraphQLServer(kv, db, db, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
