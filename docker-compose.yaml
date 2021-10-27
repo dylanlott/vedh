@@ -1,6 +1,12 @@
 version: "3.7"
 
 services:
+  web:
+    build: frontend/
+    links:
+      - server:server
+    ports:
+      - 9090:80
   server:
     build: .
     environment:
@@ -15,12 +21,14 @@ services:
     image: redis:latest
     volumes:
       - redis-data:/data
+    ports:
+      - 6378:6379
   postgres:
     image: bitnami/postgresql
     volumes:
       - postgres-data:/bitnami/postgresql
     ports:
-      - 5432:5432
+      - 5433:5432
     environment:
       - POSTGRESQL_USERNAME=edhgo
       - POSTGRESQL_PASSWORD=edhgo
