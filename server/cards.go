@@ -19,7 +19,7 @@ func (s *graphQLServer) Card(
 	if name == "" {
 		return nil, errs.New("must provide name for card")
 	}
-	rows, err := s.cardDB.Query(`SELECT "id", "name", "colors", "colorIdentity",
+	rows, err := s.db.Query(`SELECT "id", "name", "colors", "colorIdentity",
 		"convertedManaCost", "manaCost", "uuid", "power", "toughness", "types",
 		"subtypes", "supertypes", "isTextless", "text", "tcgplayerProductId", 
 		"scryfallIllustrationId" FROM "cards" WHERE "name" = ?`, name)
@@ -98,7 +98,7 @@ func (s *graphQLServer) Cards(ctx context.Context, list []string) ([]*Card, erro
 		return nil, errs.New("error formatting sqlx query")
 	}
 
-	rows, err := s.cardDB.Query(query, args...)
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, errs.New("error querying cards DB for list of cards")
 	}
@@ -168,11 +168,11 @@ func (s *graphQLServer) Search(
 	if *name == "" {
 		return nil, nil
 	}
-	n := fmt.Sprintf("%%%s%%", *name)
-	rows, err := s.cardDB.Query("SELECT id, name, colors FROM cards WHERE name LIKE ?", n)
+	n := fmt.Sprintf("'%s'", *name)
+	rows, err := s.db.Query("SELECT id, name, colors FROM cards WHERE name LIKE $1", n)
 	if err != nil {
 		log.Printf("error querying database: %s", err)
-		return nil, errs.New("failed to search cardDB: %s", err)
+		return nil, errs.New("failed to search db: %s", err)
 	}
 
 	cards := []*Card{}
