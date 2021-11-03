@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -113,4 +114,56 @@ func hashPassword(password string) (string, error) {
 func checkPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+// Users ...
+// TODO: Write the Users function to poll the db for a given User.
+// This should be public safe since it will be used for user profiles.
+func (s *graphQLServer) Users(ctx context.Context, id *string) ([]string, error) {
+	return nil, errors.New("not impl")
+}
+
+// UserJoined ...
+func (s *graphQLServer) UserJoined(ctx context.Context, user string, gameID string) (<-chan string, error) {
+	err := s.createUser(user)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("userJoined: %s", user)
+
+	// Create new channel for request
+	users := make(chan string, 1)
+	s.mutex.Lock()
+
+	// userChannels is a map of usernames to the channel we just created
+	s.userChannels[user] = users
+	s.mutex.Unlock()
+
+	// Wait for the Done event to fire, then clean up.
+	go func() {
+		<-ctx.Done()
+		s.mutex.Lock()
+		delete(s.userChannels, user)
+		s.mutex.Unlock()
+	}()
+
+	// Return the channel we created loaded with its cleanup instructions.
+	return users, nil
+}
+
+// createUser adds a temporary user in redis.
+// TODO: Update this to create a User in Postgres.
+func (s *graphQLServer) createUser(user string) error {
+	// Upsert user
+	if err := s.redisClient.SAdd("users", user).Err(); err != nil {
+		return err
+	}
+	// Notify new user joined
+	s.mutex.Lock()
+	for _, ch := range s.userChannels {
+		ch <- user
+	}
+	s.mutex.Unlock()
+	return nil
 }
