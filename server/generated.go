@@ -115,7 +115,6 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CreateDeck       func(childComplexity int, input *InputDeck) int
 		CreateGame       func(childComplexity int, input InputCreateGame) int
 		JoinGame         func(childComplexity int, input *InputJoinGame) int
 		Login            func(childComplexity int, username string, password string) int
@@ -166,7 +165,6 @@ type MutationResolver interface {
 	CreateGame(ctx context.Context, input InputCreateGame) (*Game, error)
 	JoinGame(ctx context.Context, input *InputJoinGame) (*Game, error)
 	UpdateGame(ctx context.Context, input InputGame) (*Game, error)
-	CreateDeck(ctx context.Context, input *InputDeck) (*BoardState, error)
 	UpdateBoardState(ctx context.Context, input InputBoardState) (*BoardState, error)
 }
 type QueryResolver interface {
@@ -534,18 +532,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Message.User(childComplexity), true
 
-	case "Mutation.createDeck":
-		if e.complexity.Mutation.CreateDeck == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_createDeck_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.CreateDeck(childComplexity, args["input"].(*InputDeck)), true
-
 	case "Mutation.createGame":
 		if e.complexity.Mutation.CreateGame == nil {
 			break
@@ -886,7 +872,6 @@ type Mutation {
   createGame(input: InputCreateGame!): Game!
   joinGame(input: InputJoinGame): Game!
   updateGame(input: InputGame!): Game!
-  createDeck(input: InputDeck): BoardState 
   updateBoardState(input: InputBoardState!): BoardState!
 }
 
@@ -1148,21 +1133,6 @@ func (ec *executionContext) dir_skip_args(ctx context.Context, rawArgs map[strin
 		}
 	}
 	args["if"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_createDeck_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 *InputDeck
-	if tmp, ok := rawArgs["input"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalOInputDeck2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐInputDeck(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["input"] = arg0
 	return args, nil
 }
 
@@ -3272,42 +3242,6 @@ func (ec *executionContext) _Mutation_updateGame(ctx context.Context, field grap
 	res := resTmp.(*Game)
 	fc.Result = res
 	return ec.marshalNGame2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐGame(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Mutation_createDeck(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Mutation_createDeck_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp := ec._fieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateDeck(rctx, args["input"].(*InputDeck))
-	})
-
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*BoardState)
-	fc.Result = res
-	return ec.marshalOBoardState2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐBoardState(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_updateBoardState(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -6130,8 +6064,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "createDeck":
-			out.Values[i] = ec._Mutation_createDeck(ctx, field)
 		case "updateBoardState":
 			out.Values[i] = ec._Mutation_updateBoardState(ctx, field)
 			if out.Values[i] == graphql.Null {
@@ -7242,13 +7174,6 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
-func (ec *executionContext) marshalOBoardState2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐBoardState(ctx context.Context, sel ast.SelectionSet, v *BoardState) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._BoardState(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -7508,14 +7433,6 @@ func (ec *executionContext) unmarshalOInputCounter2ᚖgithubᚗcomᚋdylanlott�
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputInputCounter(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalOInputDeck2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐInputDeck(ctx context.Context, v interface{}) (*InputDeck, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := ec.unmarshalInputInputDeck(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
