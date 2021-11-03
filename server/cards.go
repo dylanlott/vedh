@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math/rand"
 	"strconv"
@@ -57,7 +56,6 @@ func (s *graphQLServer) Card(
 		}
 
 		parsedID := strconv.Itoa(*id)
-
 		card := &Card{
 			ID:            parsedID,
 			Name:          *name,
@@ -165,18 +163,20 @@ func (s *graphQLServer) Search(
 	colorIdentity []*string,
 	keywords []*string,
 ) ([]*Card, error) {
-	if *name == "" {
+	// must have at least a name to search with
+	if name == nil {
 		return nil, nil
 	}
-	n := fmt.Sprintf("'%s'", *name)
-	rows, err := s.db.Query("SELECT id, name, colors FROM cards WHERE name LIKE $1", n)
+
+	// query the db for it
+	rows, err := s.db.Query("SELECT id, name, colors FROM cards WHERE name LIKE $1", name)
 	if err != nil {
 		log.Printf("error querying database: %s", err)
 		return nil, errs.New("failed to search db: %s", err)
 	}
 
+	// format the query results if we have anything
 	cards := []*Card{}
-
 	for rows.Next() {
 		var (
 			id     *int
