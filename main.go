@@ -16,7 +16,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	db, err := persistence.NewAppDatabase("./persistence/migrations/", cfg.PostgresURL)
+	db, err := persistence.NewDB(cfg.PostgresURL)
 	if err != nil {
 		log.Fatal(errs.Wrap(err))
 	}
@@ -26,7 +26,7 @@ func main() {
 		log.Fatalf("failed to start redis: %s", errs.Wrap(err))
 	}
 	log.Println("created new redis store")
-	s, err := server.NewGraphQLServer(kv, db, db, cfg)
+	s, err := server.NewGraphQLServer(kv, db, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

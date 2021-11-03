@@ -10,9 +10,10 @@ type redisDB struct {
 	client *redis.Client
 }
 
-type config struct {
-	RedisURL string `envconfig:"REDIS_URL"`
-}
+// CLEANUP
+// type Cfg struct {
+// 	RedisURL string `envconfig:"REDIS_URL"`
+// }
 
 type Config map[string]string
 
