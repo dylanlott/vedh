@@ -798,3 +798,22 @@ of SQLite and onto Postgres fully.
   * Did I hit this goal? ### Tune in to find out.
   * Turns out, I did!
 * Need to run the import script against the new prod database
+
+27 Oct 2021
+===========
+
+* Last night I imported all of the cards into the Postgres database 
+* Next up, need to enable auth and start bug fixing. 
+* Separating out all of the commits and work I've done in the last few weeks
+  * Need to push up a new update to mvp branch for Heroku deploy
+
+28 Oct 2021
+===========
+
+* _We're going live tonight_
+* Need to get commander selection right and make sure game logs are being collected but we're gucci after that 
+* Check heroku logs to see where we're at first 
+  * Check back: Build succeeded apparently 
+  * Now we fix commander selection locally and push to production and see if our fix worked! 
+  * After that, test auth.
+
