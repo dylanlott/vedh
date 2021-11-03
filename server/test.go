@@ -13,19 +13,15 @@ func testAPI(t *testing.T) *graphQLServer {
 		PostgresURL: "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable",
 		DefaultPort: 8080,
 	}
-	cardDB, err := persistence.NewSQLite("../persistence/AllPrintings.sqlite")
-	if err != nil {
-		t.Errorf("failed to open cardDB for games_test: %s", err)
-	}
 	kv, err := persistence.NewRedis("redis://localhost:6379", "", persistence.Config{})
 	if err != nil {
 		t.Errorf("failed to get kv from redis: %s", err)
 	}
-	appDB, err := persistence.NewAppDatabase("../persistence/migrations/", cfg.PostgresURL)
+	appDB, err := persistence.NewPostgres("../persistence/migrations/", cfg.PostgresURL)
 	if err != nil {
 		t.Errorf("failed to get migrated app instance: %s", err)
 	}
-	s, err := NewGraphQLServer(kv, appDB, cardDB, cfg)
+	s, err := NewGraphQLServer(kv, appDB, cfg)
 	if err != nil {
 		t.Errorf("failed to create new test server: %+v", err)
 	}
