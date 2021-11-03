@@ -5,3 +5,5 @@ persistence/mtgallcards.sqlite
 .DS_store
 bin/*
 *.env
+cards.csv
+scripts/db_import.go
