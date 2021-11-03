@@ -9,20 +9,21 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/zeebo/errs"
 )
 
 var (
+	// DefaultPGURl is exported for testing purposes
+	DefaultPGURL = "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable"
 	// Directory used for loading migrations
-	defaultMigrationsDir = "file://./persistence/migrations/"
-	defaultPGURL         = "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable"
+	defaultMigrationsDir = "./persistence/migrations/"
 )
 
-// NewAppDatabase returns a migrated app database or an error
-func NewAppDatabase(migdir, dbURL string) (*sql.DB, error) {
-	pg, err := NewPostgres(migdir, dbURL)
+// NewDB returns a migrated app database or an error. If it is passed an
+// empty string, it will attempt to connect to the default testing DB
+func NewDB(dbURL string) (*sql.DB, error) {
+	pg, err := NewPostgres(defaultMigrationsDir, dbURL)
 	if err != nil {
 		log.Printf("failed to get postgres: %s", err)
 		return nil, errs.Wrap(err)
@@ -84,56 +85,4 @@ func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
 
 	log.Printf("returning NewPostgres db: %+v", db)
 	return db, err
-}
-
-func applySqliteMigrations(db *sql.DB, migrationsDir string) (*sql.DB, error) {
-	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
-	if err != nil {
-		log.Printf("failed to create db instance: %s", err)
-		return nil, errs.Wrap(err)
-	}
-
-	m, err := migrate.NewWithDatabaseInstance(migrationsDir, "sqlite3", driver)
-	if err != nil {
-		log.Printf("failed to create migration with database instance: %s", err)
-		return nil, errs.Wrap(err)
-	}
-	err = m.Up()
-	if err != nil {
-		if err != migrate.ErrNoChange {
-			log.Printf("failed to migrate db: %s", err)
-			return nil, errs.Wrap(err)
-		}
-	}
-
-	return db, nil
-}
-
-// Query will return a *sql.Rows or an error from the database.
-// NB: This needs to handle it's clean up with rows.Close()
-func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
-	return db.db.Query(query, args...)
-}
-
-// Exec will run a statement and return the result or an error.
-// NB: Exec does not need cleanup.
-func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
-	log.Printf("DB: %+v", db)
-	return db.db.Exec(query, args...)
-}
-
-// Ping will return an error if it can't ping the database.
-func (db *DB) Ping() error {
-	return db.db.Ping()
-}
-
-// Stats returns a struct of DBStats, which is mostly used for debugging
-// and performance monitoring.
-func (db *DB) Stats() sql.DBStats {
-	return db.db.Stats()
-}
-
-// Prepare will return a formatted sql Stmt
-func (db *DB) Prepare(query string) (*sql.Stmt, error) {
-	return db.db.Prepare(query)
 }
