@@ -7,7 +7,6 @@ type Mutation {
   createGame(input: InputCreateGame!): Game!
   joinGame(input: InputJoinGame): Game!
   updateGame(input: InputGame!): Game!
-  createDeck(input: InputDeck): BoardState 
   updateBoardState(input: InputBoardState!): BoardState!
 }
 
