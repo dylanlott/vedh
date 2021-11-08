@@ -181,7 +181,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		cmdr := getCards(input.BoardState.Commander)
 		bs.Commander = []*Card{cmdr[0]}
 	} else {
-		bs.Commander = []*Card{commander[0]}
+		bs.Commander = []*Card{commander}
 	}
 
 	// shuffle their library for the start of the game
@@ -283,7 +283,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			inputCard := getCards(player.Commander)
 			bs.Commander = []*Card{inputCard[0]}
 		} else {
-			bs.Commander = []*Card{commander[0]}
+			bs.Commander = []*Card{commander}
 		}
 
 		shuff, err := Shuffle(bs.Library)
@@ -367,6 +367,7 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 		// NB: In the future, this should be optimized to be one query for all the cards
 		// instead of a query for each card in the deck.
 		name := record[1]
+		// TODO: Make this respect ID when fetching cards.
 		card, err := s.Card(ctx, name, nil)
 		if err != nil {
 			// handle lookup error
@@ -377,16 +378,11 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 			continue
 		}
 
-		if card == nil {
-			fmt.Printf("failed to find card: %s", name)
-		}
-
 		// happy path
 		var num int64 = 1
 		for num <= quantity {
 			// Fail gracefully if we can't find the card
-			if len(card) == 0 {
-				fmt.Printf("failed to find card- adding dummy card instead")
+			if card != nil {
 				cards = append(cards, &Card{
 					Name: name,
 				})
@@ -394,7 +390,7 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 			} else {
 				// add the first card that's returned from the database
 				// NB: This is going to need to be handled eventually
-				cards = append(cards, card[0])
+				cards = append(cards, card)
 				num++
 			}
 		}
