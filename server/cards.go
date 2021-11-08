@@ -2,157 +2,100 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"strconv"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/zeebo/errs"
 )
 
-func (s *graphQLServer) Card(
-	ctx context.Context,
-	name string,
-	id *string,
-) ([]*Card, error) {
-	if name == "" {
-		return nil, errs.New("must provide name for card")
-	}
-	rows, err := s.db.Query(`SELECT "id", "name", "colors", "colorIdentity",
-		"convertedManaCost", "manaCost", "uuid", "power", "toughness", "types",
-		"subtypes", "supertypes", "isTextless", "text", "tcgplayerProductId", 
-		"scryfallIllustrationId" FROM "cards" WHERE "name" = ?`, name)
-	if err != nil {
-		return nil, errs.New("failed to run query: %s", err)
-	}
-
-	cards := []*Card{}
-	for rows.Next() {
-		var (
-			id                     *int
-			name                   *string
-			colors                 *string
-			colorIdentity          *string
-			convertedManaCost      *string
-			manaCost               *string
-			uuid                   *string
-			power                  *string
-			toughness              *string
-			types                  *string
-			subtypes               *string
-			supertypes             *string
-			isTextless             *int
-			text                   *string
-			tcgplayerProductID     *int
-			scryfallIllustrationID *string
-		)
-
-		if err := rows.Scan(&id, &name, &colors, &colorIdentity,
-			&convertedManaCost, &manaCost, &uuid, &power, &toughness, &types,
-			&subtypes, &supertypes, &isTextless, &text,
-			&tcgplayerProductID, &scryfallIllustrationID); err != nil {
-			log.Printf("error scanning rows for card query: %s", err)
-			continue
-		}
-
-		parsedID := strconv.Itoa(*id)
-		card := &Card{
-			ID:            parsedID,
-			Name:          *name,
-			Colors:        colors,
-			ColorIdentity: colorIdentity,
-			Cmc:           convertedManaCost,
-			ManaCost:      manaCost,
-			UUID:          uuid,
-			Power:         power,
-			Toughness:     toughness,
-			Types:         types,
-			Subtypes:      subtypes,
-			Supertypes:    supertypes,
-			Text:          text,
-			ScryfallID:    scryfallIllustrationID,
-		}
-		cards = append(cards, card)
-	}
-	// TODO: return card with given id if *id is passed to args
-
-	if id != nil {
-		for _, c := range cards {
-			if c.ID == *id {
-				return []*Card{c}, nil
-			}
-		}
-	}
-
-	return cards, err
+// pgCard is a model used to reflect our internal Postgres model of a card.
+// We must serialize it to a *Card type provided by our GraphQL model before
+// returning it.
+type PGCard struct {
+	Id                     string
+	Artist                 string
+	Asciiname              string
+	Availability           string
+	Bordercolor            string
+	CardKingdomId          string
+	ColorIdentity          string
+	Colors                 string
+	ConvertedManaCost      string
+	FaceConvertedManaCost  string
+	FaceManaValue          string
+	FlavorName             string
+	FlavorText             string
+	Keywords               string
+	MtgJsonv4Id            string
+	Name                   string
+	Number                 string
+	OriginalText           string
+	OriginalType           string
+	Power                  string
+	ScryfallID             string
+	ScryfallIllustrationId string
+	ScryfallOracleId       string
+	SetCode                string
+	Side                   string
+	Subtypes               string
+	Supertypes             string
+	TcgplayerProductId     string
+	Text                   string
+	Toughness              string
+	Type                   string
+	Types                  string
+	Uuid                   string
 }
 
+// Card returns a single most-recently entered card by ID from the database that
+// exactly matches the provided `name`.
+// ! This does not currently respect the `id` parameter when passed.
+func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Card, error) {
+	// This will grab the single most recently inserted card that matches the name provided.
+	row := s.db.QueryRow(`SELECT name, id, colors, convertedmanacost, types,
+		power, toughness, text, subtypes, supertypes, tcgplayerproductid,
+		scryfallid, uuid FROM cards WHERE name = $1 ORDER BY id ASC LIMIT 1;`, name)
+	if row.Err() != nil {
+		return nil, fmt.Errorf("failed to query card %s: %w", name, row.Err())
+	}
+	c := &PGCard{}
+	err := row.Scan(&c.Name, &c.Id, &c.Colors, &c.ConvertedManaCost, &c.Types,
+		&c.Power, &c.Toughness, &c.Text, &c.Subtypes, &c.Supertypes,
+		&c.TcgplayerProductId, &c.ScryfallID, &c.Uuid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan card %s: %w", name, err)
+	}
+	return &Card{
+		Name:       c.Name,
+		ID:         c.Id,
+		Colors:     &c.Colors,
+		Cmc:        &c.ConvertedManaCost,
+		Types:      &c.Types,
+		Power:      &c.Power,
+		Toughness:  &c.Toughness,
+		Text:       &c.Text,
+		Subtypes:   &c.Subtypes,
+		Supertypes: &c.Supertypes,
+		Tcgid:      &c.TcgplayerProductId,
+		ScryfallID: &c.ScryfallID,
+		UUID:       &c.Uuid,
+	}, nil
+}
+
+// Cards optimizes for batched lookups or parameterized searches.
 func (s *graphQLServer) Cards(ctx context.Context, list []string) ([]*Card, error) {
-	// TODO: Process `list` to allow for split cards
-	query, args, err := sqlx.In(`SELECT "id", "name", "colors", "colorIdentity",
-		"convertedManaCost", "manaCost", "uuid", "power", "toughness", "types",
-		"subtypes", "supertypes", "isTextless", "text", "tcgplayerProductId" FROM cards WHERE name IN (?);`, list)
-	if err != nil {
-		return nil, errs.New("error formatting sqlx query")
-	}
-
-	rows, err := s.db.Query(query, args...)
-	if err != nil {
-		return nil, errs.New("error querying cards DB for list of cards")
-	}
-
+	combined := []error{}
 	cards := []*Card{}
-
-	for rows.Next() {
-		var (
-			id                 *int
-			name               *string
-			colors             *string
-			colorIdentity      *string
-			convertedManaCost  *string
-			manaCost           *string
-			uuid               *string
-			power              *string
-			toughness          *string
-			types              *string
-			subtypes           *string
-			supertypes         *string
-			isTextless         *int
-			text               *string
-			tcgplayerProductId *int
-		)
-
-		if err := rows.Scan(&id, &name, &colors, &colorIdentity,
-			&convertedManaCost, &manaCost, &uuid, &power, &toughness, &types,
-			&subtypes, &supertypes, &isTextless, &text,
-			&tcgplayerProductId); err != nil {
-			log.Printf("error scanning rows for card query: %s", err)
-			continue
+	for _, card := range list {
+		c, err := s.Card(ctx, card, nil)
+		if err != nil {
+			combined = append(combined, err)
 		}
-
-		parsedID := strconv.Itoa(*id)
-
-		card := &Card{
-			ID:            parsedID,
-			Name:          *name,
-			Colors:        colors,
-			ColorIdentity: colorIdentity,
-			Cmc:           convertedManaCost,
-			ManaCost:      manaCost,
-			UUID:          uuid,
-			Power:         power,
-			Toughness:     toughness,
-			Types:         types,
-			Subtypes:      subtypes,
-			Supertypes:    supertypes,
-			Text:          text,
-		}
-		cards = append(cards, card)
+		cards = append(cards, c)
 	}
-
-	defer rows.Close()
-
-	return cards, nil
+	return cards, errs.Combine(combined...)
 }
 
 // Search will search for card names in the database.
