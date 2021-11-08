@@ -130,6 +130,18 @@ func Test_graphQLServer_Card(t *testing.T) {
 				ID:   "62364",
 			},
 		},
+		{
+			name: "should handle apostrophes in card names",
+			args: args{
+				ctx:  context.Background(),
+				name: "Cho-Manno's Blessing",
+			},
+			wantErr: false,
+			want: &Card{
+				Name: "Cho-Manno's Blessing",
+				ID:   "37396",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
