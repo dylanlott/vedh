@@ -15,6 +15,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/gob"
+	"flag"
 	"io"
 	"log"
 	"net/http"
@@ -33,8 +34,7 @@ func init() {
 }
 
 const (
-	// DB_URL should eventually be loaded in from environment so this
-	// file can be checked into version control.
+	// DB_URL accesses a local Postgres instance running for local development.
 	DB_URL = "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable"
 )
 
@@ -58,6 +58,7 @@ type CSVCard struct {
 	FlavorText             string `csv:"flavorText"`
 	Keywords               string `csv:"keywords"`
 	MTGJSONV4ID            string `csv:"mtgjsonV4Id"`
+	FaceName               string `csv:"faceName"`
 	Name                   string `csv:"name"`
 	Number                 string `csv:"number"`
 	OriginalText           string `csv:"originalText"`
@@ -78,45 +79,54 @@ type CSVCard struct {
 	UUID                   string `csv:"uuid"`
 }
 
+// TODO: Make this a commandline utility.
 func main() {
-	// Connect to Postgres
-	conn, err := persistence.NewAppDatabase("./persistence/migrations/", DB_URL)
+	// declare flag variables
+	var refresh bool = false
+	var dburl string = DB_URL
+	var drop bool = false
+
+	// declare flags
+	flag.Bool("refresh", refresh, "refresh specifies whether the card database should be downloaded fresh. defaults to false.")
+	flag.StringVar(&dburl, "db", DB_URL, "import target database connection url. defaults to localhost:5432/edhgo")
+	flag.Bool("drop", drop, "if drop is enabled then the database table will be dropped before the new set is loaded")
+
+	// parse flags
+	flag.Parse()
+
+	// connect to Postgres
+	conn, err := persistence.NewDB(DB_URL)
 	if err != nil {
 		log.Fatalf("failed to connecto to postgres for import: %s", err)
 	}
 
-	// // Let's take a stab at CSV rendering
-	// // Download the CSV AllPrintings zip file
-	// err := DownloadFile("./allprintings.csv.zip", "https://mtgjson.com/api/v5/AllPrintingsCSVFiles.zip")
-	// if err != nil {
-	// 	log.Fatalf("failed to download file: %s", err)
-	// }
+	// handle refresh
+	if refresh {
+		updateAndUnzip()
+	}
 
-	// // Commented out until cleanup is written.
-	// // Unzip the CSV file and get the path
-	// err := unzipFile("./allprintings.csv.zip")
-	// if err != nil {
-	// 	log.Fatalf("failed to unzip file: %s", err)
-	// }
-	// log.Printf("unzipped file successfully")
-
+	// open up the file for reading
 	f, err := os.Open("./cards.csv")
 	if err != nil {
 		log.Fatalf("failed to open file: %s", err)
 	}
 	defer f.Close()
 
+	// build a csv reader
 	cards := []*CSVCard{}
 	err = gocsv.Unmarshal(f, &cards)
 	if err != nil {
 		log.Fatalf("failed to unmarshal csv: %s", err)
 	}
+	log.Printf("attempting to insert %d cards into postgres", len(cards))
+	success := 0
 	for _, c := range cards {
+		// insert each card that we read in
 		_, err := conn.Exec(insertSQL, c.ID, c.Artist, c.AsciiName, c.Availability,
 			c.BorderColor, c.CardKingdomId, c.ColorIdentity, c.ColorIndicator,
 			c.Colors, c.ConvertedManaCost, c.FaceConvertedManaCost,
 			c.FaceManaValue, c.FlavorName, c.FlavorText, c.Keywords,
-			c.MTGJSONV4ID, c.Name, c.Number, c.OriginalText, c.OriginalType,
+			c.MTGJSONV4ID, c.Name, c.FaceName, c.Number, c.OriginalText, c.OriginalType,
 			c.Power, c.ScryfallID, c.ScryfallIllustrationID, c.ScryfallOracleID,
 			c.SetCode, c.Side, c.Subtypes, c.Supertypes, c.TCGPlayerProductID,
 			c.Text, c.Toughness, c.Type, c.Types, c.UUID,
@@ -125,22 +135,26 @@ func main() {
 			log.Printf("failed to insert card [%s]: %s", c.Name, err)
 			continue
 		}
+		log.Printf("successfully imported %v", c.Name)
+		success++
 	}
-	log.Printf("finished import")
+	log.Printf("imported %d cards", success)
 }
 
 var insertSQL string = `INSERT INTO cards (
 	ID, Artist, AsciiName, Availability, BorderColor, CardKingdomId,
 	ColorIdentity, ColorIndicator, Colors, ConvertedManaCost,
 	FaceConvertedManaCost, FaceManaValue, FlavorName, FlavorText, Keywords,
-	MTGJSONV4ID, Name, Number, OriginalText, OriginalType, Power, ScryfallID,
+	MTGJSONV4ID, Name, FaceName, Number, OriginalText, OriginalType, Power, ScryfallID,
 	ScryfallIllustrationID, ScryfallOracleID, SetCode, Side, Subtypes,
-	Supertypes, TCGPLayerProductID, Text, Toughness, Type, Types, UUID) 
+	Supertypes, TCGPLayerProductID, Text, Toughness, Type, Types, UUID)
 
 	VALUES(
 		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
 		$17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
-		$31, $32, $33, $34);`
+		$31, $32, $33, $34, $35)
+	ON CONFLICT (id) DO 
+		UPDATE SET facename = EXCLUDED.facename;`
 
 // DownloadURL will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory.
@@ -244,8 +258,7 @@ func UnzipFile(path string) error {
 // DownloadFile will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory.
 func DownloadFile(filepath string, url string) error {
-
-	// Get the data
+	// Get the request data at `url`
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -262,4 +275,21 @@ func DownloadFile(filepath string, url string) error {
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
 	return err
+}
+func updateAndUnzip() {
+	log.Printf("refreshing allprintings.csv file")
+	// Let's take a stab at CSV rendering
+	// Download the CSV AllPrintings zip file
+	err := DownloadFile("./allprintings.csv.zip", "https://mtgjson.com/api/v5/AllPrintingsCSVFiles.zip")
+	if err != nil {
+		log.Fatalf("failed to download file: %s", err)
+	}
+
+	// // Commented out until cleanup is written.
+	// // Unzip the CSV file and get the path
+	err = UnzipFile("./allprintings.csv.zip")
+	if err != nil {
+		log.Fatalf("failed to unzip file: %s", err)
+	}
+	log.Printf("unzipped allprintings.csv file successfully")
 }
