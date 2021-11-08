@@ -817,3 +817,14 @@ of SQLite and onto Postgres fully.
   * Now we fix commander selection locally and push to production and see if our fix worked! 
   * After that, test auth.
 
+7 Nov 2021
+==========
+
+* Turns out, that was a joke! 
+* We're not live yet.
+  * The cards service queries relied on on sqlite-specific query syntax for fuzzy search. 
+  * Must reimplement the entire cards service to work with moving the cards into the Postgres database.
+* Cards service is now passing tests.
+  * However, I have a few edge cases I need to handle. 
+  * Maybe I should delay this until after launch but oh well. 
+  * I handled it tonight and I hope that isn't me being stupid as usual. 
