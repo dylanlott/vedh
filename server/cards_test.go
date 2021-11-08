@@ -106,6 +106,30 @@ func Test_graphQLServer_Card(t *testing.T) {
 				ID:   "31511",
 			},
 		},
+		{
+			name: "should handle // syntax",
+			args: args{
+				ctx:  context.Background(),
+				name: "Rough // Tumble",
+			},
+			wantErr: false,
+			want: &Card{
+				Name: "Rough // Tumble",
+				ID:   "43091",
+			},
+		},
+		{
+			name: "should handle mdfc cards",
+			args: args{
+				ctx:  context.Background(),
+				name: "Beyeen Veil",
+			},
+			wantErr: false,
+			want: &Card{
+				Name: "Beyeen Veil // Beyeen Coast",
+				ID:   "62364",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
