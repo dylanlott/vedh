@@ -139,10 +139,16 @@ func Test_graphQLServer_Cards(t *testing.T) {
 		{
 			name: "should return a card",
 			args: args{
-				ctx:  context.Background(),
-				list: []string{"Kykar, Wind's Fury"},
+				ctx: context.Background(),
+				list: []string{
+					"Kykar, Wind's Fury",
+					"Jarad, Golgari Lich Lord",
+				},
 			},
-			want:    []*Card{},
+			want: []*Card{
+				{Name: "Kykar, Wind's Fury"},
+				{Name: "Jarad, Golgari Lich Lord"},
+			},
 			wantErr: false,
 		},
 	}
@@ -154,8 +160,11 @@ func Test_graphQLServer_Cards(t *testing.T) {
 				t.Errorf("graphQLServer.Cards() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("graphQLServer.Cards() = %v, want %v", got, tt.want)
+			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(Card{},
+				"ID", "Colors", "Cmc", "UUID", "Power", "Toughness", "Subtypes",
+				"Supertypes", "Types", "Text", "Tcgid", "ScryfallID")); diff != "" {
+				t.Logf("%s", diff)
+				t.Fail()
 			}
 		})
 	}
