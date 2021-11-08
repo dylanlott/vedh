@@ -38,7 +38,6 @@ type Card struct {
 	Types         *string    `json:"Types"`
 	Subtypes      *string    `json:"Subtypes"`
 	Supertypes    *string    `json:"Supertypes"`
-	IsTextless    *string    `json:"IsTextless"`
 	Text          *string    `json:"Text"`
 	Tcgid         *string    `json:"TCGID"`
 	ScryfallID    *string    `json:"ScryfallID"`

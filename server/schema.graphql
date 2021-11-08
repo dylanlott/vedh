@@ -15,7 +15,7 @@ type Query {
   users(userID: String): [String!]!
   games(gameID: String): [Game!]!
   boardstates(gameID: String!, userID: String): [BoardState!]!
-  card(name: String!, id: String): [Card!]
+  card(name: String!, id: String): Card
   cards(list: [String!]): [Card!]!
   search(name: String, colors: [String], colorIdentity: [String], keywords: [String]): [Card]
 }
@@ -43,6 +43,8 @@ type Card {
   Counters: [Counter] 
   Colors: String
   ColorIdentity: String
+  FaceManaValue: String
+  FaceConvertedManaCost: String
   CMC: String
   ManaCost: String
   UUID: String
@@ -51,7 +53,6 @@ type Card {
   Types: String
   Subtypes: String
   Supertypes: String
-  IsTextless: String
   Text: String
   TCGID: String
   ScryfallID: String

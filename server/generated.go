@@ -70,7 +70,6 @@ type ComplexityRoot struct {
 		Counters      func(childComplexity int) int
 		Flipped       func(childComplexity int) int
 		ID            func(childComplexity int) int
-		IsTextless    func(childComplexity int) int
 		ManaCost      func(childComplexity int) int
 		Name          func(childComplexity int) int
 		Power         func(childComplexity int) int
@@ -172,7 +171,7 @@ type QueryResolver interface {
 	Users(ctx context.Context, userID *string) ([]string, error)
 	Games(ctx context.Context, gameID *string) ([]*Game, error)
 	Boardstates(ctx context.Context, gameID string, userID *string) ([]*BoardState, error)
-	Card(ctx context.Context, name string, id *string) ([]*Card, error)
+	Card(ctx context.Context, name string, id *string) (*Card, error)
 	Cards(ctx context.Context, list []string) ([]*Card, error)
 	Search(ctx context.Context, name *string, colors []*string, colorIdentity []*string, keywords []*string) ([]*Card, error)
 }
@@ -321,13 +320,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Card.ID(childComplexity), true
-
-	case "Card.IsTextless":
-		if e.complexity.Card.IsTextless == nil {
-			break
-		}
-
-		return e.complexity.Card.IsTextless(childComplexity), true
 
 	case "Card.ManaCost":
 		if e.complexity.Card.ManaCost == nil {
@@ -880,7 +872,7 @@ type Query {
   users(userID: String): [String!]!
   games(gameID: String): [Game!]!
   boardstates(gameID: String!, userID: String): [BoardState!]!
-  card(name: String!, id: String): [Card!]
+  card(name: String!, id: String): Card
   cards(list: [String!]): [Card!]!
   search(name: String, colors: [String], colorIdentity: [String], keywords: [String]): [Card]
 }
@@ -916,7 +908,6 @@ type Card {
   Types: String
   Subtypes: String
   Supertypes: String
-  IsTextless: String
   Text: String
   TCGID: String
   ScryfallID: String
@@ -2397,35 +2388,6 @@ func (ec *executionContext) _Card_Supertypes(ctx context.Context, field graphql.
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Card_IsTextless(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Card",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.IsTextless, nil
-	})
-
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _Card_Text(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -3463,9 +3425,9 @@ func (ec *executionContext) _Query_card(ctx context.Context, field graphql.Colle
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.([]*Card)
+	res := resTmp.(*Card)
 	fc.Result = res
-	return ec.marshalOCard2ᚕᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐCardᚄ(ctx, field.Selections, res)
+	return ec.marshalOCard2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐCard(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_cards(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -5847,8 +5809,6 @@ func (ec *executionContext) _Card(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._Card_Subtypes(ctx, field, obj)
 		case "Supertypes":
 			out.Values[i] = ec._Card_Supertypes(ctx, field, obj)
-		case "IsTextless":
-			out.Values[i] = ec._Card_IsTextless(ctx, field, obj)
 		case "Text":
 			out.Values[i] = ec._Card_Text(ctx, field, obj)
 		case "TCGID":
@@ -7226,46 +7186,6 @@ func (ec *executionContext) marshalOCard2ᚕᚖgithubᚗcomᚋdylanlottᚋedhᚑ
 				defer wg.Done()
 			}
 			ret[i] = ec.marshalOCard2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐCard(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-	return ret
-}
-
-func (ec *executionContext) marshalOCard2ᚕᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐCardᚄ(ctx context.Context, sel ast.SelectionSet, v []*Card) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNCard2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐCard(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
