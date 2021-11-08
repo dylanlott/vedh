@@ -56,7 +56,12 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 	// This will grab the single most recently inserted card that matches the name provided.
 	row := s.db.QueryRow(`SELECT name, id, colors, convertedmanacost, types,
 		power, toughness, text, subtypes, supertypes, tcgplayerproductid,
-		scryfallid, uuid FROM cards WHERE name = $1 ORDER BY id ASC LIMIT 1;`, name)
+		scryfallid, uuid 
+		FROM cards 
+		WHERE name = $1 
+		OR facename = $1
+		ORDER BY id ASC 
+		LIMIT 1;`, name)
 	if row.Err() != nil {
 		return nil, fmt.Errorf("failed to query card %s: %w", name, row.Err())
 	}
