@@ -825,7 +825,8 @@ mutation ($username: String!, $password: String!) {
 }
 `
 
-export const login = gql`mutation($username: String!, $password: String!) {
+export const login = gql`
+mutation($username: String!, $password: String!) {
   login(username: $username, password: $password) {
     Username
     ID
@@ -834,14 +835,27 @@ export const login = gql`mutation($username: String!, $password: String!) {
 }`
 
 export const commanderQuery = gql`
-            query($name: String!) {
-              search(name: $name) {
-                Name
-                ID
-                Colors
-                ColorIdentity
-                CMC
-                ManaCost
-              }
-            }
-          `
+  query($name: String!) {
+    search(name: $name) {
+      Name
+      ID
+      Colors
+      ColorIdentity
+      CMC
+      ManaCost
+    }
+  }
+`
+
+export const cardQuery = gql`
+  query{
+    card(name: String!) {
+      Name
+      ID
+      Colors
+      ColorIdentity
+      CMC
+      ManaCost
+    }
+  }
+`
