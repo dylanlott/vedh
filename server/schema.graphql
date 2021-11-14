@@ -35,6 +35,7 @@ type Message {
 }
 
 type Card {
+  FaceName: String
   Name: String!
   ID: String!
   Quantity: Int

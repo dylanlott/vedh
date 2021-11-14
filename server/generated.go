@@ -64,25 +64,28 @@ type ComplexityRoot struct {
 	}
 
 	Card struct {
-		Cmc           func(childComplexity int) int
-		ColorIdentity func(childComplexity int) int
-		Colors        func(childComplexity int) int
-		Counters      func(childComplexity int) int
-		Flipped       func(childComplexity int) int
-		ID            func(childComplexity int) int
-		ManaCost      func(childComplexity int) int
-		Name          func(childComplexity int) int
-		Power         func(childComplexity int) int
-		Quantity      func(childComplexity int) int
-		ScryfallID    func(childComplexity int) int
-		Subtypes      func(childComplexity int) int
-		Supertypes    func(childComplexity int) int
-		Tapped        func(childComplexity int) int
-		Tcgid         func(childComplexity int) int
-		Text          func(childComplexity int) int
-		Toughness     func(childComplexity int) int
-		Types         func(childComplexity int) int
-		UUID          func(childComplexity int) int
+		Cmc                   func(childComplexity int) int
+		ColorIdentity         func(childComplexity int) int
+		Colors                func(childComplexity int) int
+		Counters              func(childComplexity int) int
+		FaceConvertedManaCost func(childComplexity int) int
+		FaceManaValue         func(childComplexity int) int
+		FaceName              func(childComplexity int) int
+		Flipped               func(childComplexity int) int
+		ID                    func(childComplexity int) int
+		ManaCost              func(childComplexity int) int
+		Name                  func(childComplexity int) int
+		Power                 func(childComplexity int) int
+		Quantity              func(childComplexity int) int
+		ScryfallID            func(childComplexity int) int
+		Subtypes              func(childComplexity int) int
+		Supertypes            func(childComplexity int) int
+		Tapped                func(childComplexity int) int
+		Tcgid                 func(childComplexity int) int
+		Text                  func(childComplexity int) int
+		Toughness             func(childComplexity int) int
+		Types                 func(childComplexity int) int
+		UUID                  func(childComplexity int) int
 	}
 
 	Counter struct {
@@ -306,6 +309,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Card.Counters(childComplexity), true
+
+	case "Card.FaceConvertedManaCost":
+		if e.complexity.Card.FaceConvertedManaCost == nil {
+			break
+		}
+
+		return e.complexity.Card.FaceConvertedManaCost(childComplexity), true
+
+	case "Card.FaceManaValue":
+		if e.complexity.Card.FaceManaValue == nil {
+			break
+		}
+
+		return e.complexity.Card.FaceManaValue(childComplexity), true
+
+	case "Card.FaceName":
+		if e.complexity.Card.FaceName == nil {
+			break
+		}
+
+		return e.complexity.Card.FaceName(childComplexity), true
 
 	case "Card.Flipped":
 		if e.complexity.Card.Flipped == nil {
@@ -892,6 +916,7 @@ type Message {
 }
 
 type Card {
+  FaceName: String
   Name: String!
   ID: String!
   Quantity: Int
@@ -900,6 +925,8 @@ type Card {
   Counters: [Counter] 
   Colors: String
   ColorIdentity: String
+  FaceManaValue: String
+  FaceConvertedManaCost: String
   CMC: String
   ManaCost: String
   UUID: String
@@ -1918,6 +1945,35 @@ func (ec *executionContext) _BoardState_Counters(ctx context.Context, field grap
 	return ec.marshalOCounter2ᚕᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐCounterᚄ(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Card_FaceName(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FaceName, nil
+	})
+
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Card_Name(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2146,6 +2202,64 @@ func (ec *executionContext) _Card_ColorIdentity(ctx context.Context, field graph
 	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.ColorIdentity, nil
+	})
+
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Card_FaceManaValue(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FaceManaValue, nil
+	})
+
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Card_FaceConvertedManaCost(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FaceConvertedManaCost, nil
 	})
 
 	if resTmp == nil {
@@ -5771,6 +5885,8 @@ func (ec *executionContext) _Card(ctx context.Context, sel ast.SelectionSet, obj
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Card")
+		case "FaceName":
+			out.Values[i] = ec._Card_FaceName(ctx, field, obj)
 		case "Name":
 			out.Values[i] = ec._Card_Name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -5793,6 +5909,10 @@ func (ec *executionContext) _Card(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._Card_Colors(ctx, field, obj)
 		case "ColorIdentity":
 			out.Values[i] = ec._Card_ColorIdentity(ctx, field, obj)
+		case "FaceManaValue":
+			out.Values[i] = ec._Card_FaceManaValue(ctx, field, obj)
+		case "FaceConvertedManaCost":
+			out.Values[i] = ec._Card_FaceConvertedManaCost(ctx, field, obj)
 		case "CMC":
 			out.Values[i] = ec._Card_CMC(ctx, field, obj)
 		case "ManaCost":

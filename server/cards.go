@@ -10,7 +10,7 @@ import (
 	"github.com/zeebo/errs"
 )
 
-// pgCard is a model used to reflect our internal Postgres model of a card.
+// PGCard is a model used to reflect our internal Postgres model of a card.
 // We must serialize it to a *Card type provided by our GraphQL model before
 // returning it.
 type PGCard struct {
@@ -117,7 +117,9 @@ func (s *graphQLServer) Search(
 	}
 
 	// query the db for it
-	rows, err := s.db.Query("SELECT id, name, colors FROM cards WHERE name LIKE $1", name)
+	rows, err := s.db.Query(`SELECT id, name, colors, convertedmanacost, types,
+	power, toughness, text, subtypes, supertypes, tcgplayerproductid,
+	scryfallid, uuid FROM cards  WHERE name LIKE $1`, name)
 	if err != nil {
 		log.Printf("error querying database: %s", err)
 		return nil, errs.New("failed to search db: %s", err)
@@ -127,26 +129,47 @@ func (s *graphQLServer) Search(
 	cards := []*Card{}
 	for rows.Next() {
 		var (
-			id     *int
-			name   *string
-			colors *string
+			id                 *int
+			name               *string
+			colors             *string
+			convertedmanacost  *string
+			types              *string
+			power              *string
+			toughness          *string
+			text               *string
+			subtypes           *string
+			supertypes         *string
+			tcgplayerproductid *string
+			scryfallid         *string
+			uuid               *string
 		)
 
-		if err := rows.Scan(&id, &name, &colors); err != nil {
+		if err := rows.Scan(&id, &name, &colors, &convertedmanacost, &types,
+			&power, &toughness, &text, &subtypes, &supertypes,
+			&tcgplayerproductid, &scryfallid, &uuid); err != nil {
 			log.Printf("ERROR: failed to scan card into struct: %s", err)
 			continue
 		}
 
 		parsedID := strconv.Itoa(*id)
 		card := &Card{
-			ID:     parsedID,
-			Name:   *name,
-			Colors: colors,
+			ID:         parsedID,
+			Name:       *name,
+			Colors:     colors,
+			Cmc:        convertedmanacost,
+			Types:      types,
+			Power:      power,
+			Toughness:  toughness,
+			Text:       text,
+			Subtypes:   subtypes,
+			Supertypes: supertypes,
+			Tcgid:      tcgplayerproductid,
+			ScryfallID: scryfallid,
+			UUID:       uuid,
 		}
 
 		cards = append(cards, card)
 	}
-
 	return cards, nil
 }
 

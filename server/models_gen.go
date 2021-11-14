@@ -22,25 +22,28 @@ type BoardState struct {
 }
 
 type Card struct {
-	Name          string     `json:"Name"`
-	ID            string     `json:"ID"`
-	Quantity      *int       `json:"Quantity"`
-	Tapped        *bool      `json:"Tapped"`
-	Flipped       *bool      `json:"Flipped"`
-	Counters      []*Counter `json:"Counters"`
-	Colors        *string    `json:"Colors"`
-	ColorIdentity *string    `json:"ColorIdentity"`
-	Cmc           *string    `json:"CMC"`
-	ManaCost      *string    `json:"ManaCost"`
-	UUID          *string    `json:"UUID"`
-	Power         *string    `json:"Power"`
-	Toughness     *string    `json:"Toughness"`
-	Types         *string    `json:"Types"`
-	Subtypes      *string    `json:"Subtypes"`
-	Supertypes    *string    `json:"Supertypes"`
-	Text          *string    `json:"Text"`
-	Tcgid         *string    `json:"TCGID"`
-	ScryfallID    *string    `json:"ScryfallID"`
+	FaceName              *string    `json:"FaceName"`
+	Name                  string     `json:"Name"`
+	ID                    string     `json:"ID"`
+	Quantity              *int       `json:"Quantity"`
+	Tapped                *bool      `json:"Tapped"`
+	Flipped               *bool      `json:"Flipped"`
+	Counters              []*Counter `json:"Counters"`
+	Colors                *string    `json:"Colors"`
+	ColorIdentity         *string    `json:"ColorIdentity"`
+	FaceManaValue         *string    `json:"FaceManaValue"`
+	FaceConvertedManaCost *string    `json:"FaceConvertedManaCost"`
+	Cmc                   *string    `json:"CMC"`
+	ManaCost              *string    `json:"ManaCost"`
+	UUID                  *string    `json:"UUID"`
+	Power                 *string    `json:"Power"`
+	Toughness             *string    `json:"Toughness"`
+	Types                 *string    `json:"Types"`
+	Subtypes              *string    `json:"Subtypes"`
+	Supertypes            *string    `json:"Supertypes"`
+	Text                  *string    `json:"Text"`
+	Tcgid                 *string    `json:"TCGID"`
+	ScryfallID            *string    `json:"ScryfallID"`
 }
 
 type Counter struct {

@@ -1,7 +1,9 @@
 <template>
   <div class="container is-fluid" v-if="user && game">
     <!-- TURN TRACKER -->
-    <div class="box"><TurnTracker :game="game" /></div>
+    <div class="box">
+      <TurnTracker :game="game"/>
+    </div>
     <!-- END TURN TRACKER -->
 
     <!-- SCRY MODAL  -->
@@ -21,6 +23,7 @@
     <!-- END SCRY MODAL  -->
     
     <!-- CREATE TOKEN MODAL  -->
+    <!-- TODO: Implement the create token modal.
     <b-modal :active="isCreateTokenModalOpen">
       <div v-if="self" class="modal-card" width="400px">
         <header class="modal-card-head"></header>
@@ -29,18 +32,18 @@
          Name:  
          Type:   
          Power:   <b-field>
-      <b-numberinput v-model="number"></b-numberinput>
+      <b-numberinput v-model="power"></b-numberinput>
       </b-field>
          Toughness: 
           <b-field>
-      <b-numberinput v-model="number"></b-numberinput>
+      <b-numberinput v-model="toughness"></b-numberinput>
     </b-field>
         </section>
         <footer class="modal-card-foot">
           <b-button @click="toggleCreateTokenModal()">Close</b-button>
         </footer>
       </div>
-    </b-modal>
+    </b-modal> -->
     <!-- END CREATE TOKEN MODAL  -->
 
     <!-- OPPONENTS BOARDSTATES -->
