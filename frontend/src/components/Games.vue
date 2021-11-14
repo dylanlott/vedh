@@ -1,54 +1,30 @@
 <template>
-  <div class="" v-if="gameID == ''">
-    <div class="container">
-      <div class="columns is-mobile is-centered">
-        <div class="column is-half">
-          <h1 class="title is-1">Welcome, {{ user.Username }}</h1>
-          <p class="title is-4">Pick your commander</p>
-          <!-- <p class="content" v-if="!!selected"><b>Commander:</b> {{ selected.name }}</p> -->
-          <b-field label="Select a Commander">
-            <b-autocomplete
-              :data="data"
-              v-model="deck.commander"
-              clearable
-              field="name"
-              placeholder="e.g. Jarad, Golgari Lich Lord"
-              @typing="queryCommanders"
-              @select="(option) => (selected = option)"
-            >
-              <template slot="empty">No results found</template>
-            </b-autocomplete>
-          </b-field>
-          <h3 class="title is-4">Add the 99.</h3>
-          <p>
-            We recommend using <a href="www.archidekt.com">Archidekt</a> to generate your decklists so that spelling
-            errors and quantities aren't an issue. Select "CSV" on Export.
-          </p>
-          <br />
-          <p>
-            <b>Note</b>: There must be exactly 99 cards in this list, they need to be spelled exactly correct, and there
-            can't be duplicates except for Basic Lands.
-          </p>
-          <br />
-          <p>Enter cards in CSV Format: <code>1, Card Name</code></p>
-          <br />
-          <b-field label="Paste your decklist here.">
-            <b-input maxlength="200000" v-model="deck.library" type="textarea"></b-input>
-          </b-field>
-
-          <b-button @click="handleCreateGame()" type="button" class="is-success">Start a new game</b-button>
-        </div>
+  <div class="container">
+    <div class="columns is-mobile is-centered">
+      <div class="column is-half" v-if="user">
+          <div class="box decklist">
+        <h1 class="title is-1">Hi, {{ user.Username }}.</h1>
+        <h1 class="title is-3">Start a game</h1>
+            <p>1. Copy a decklist from <a href="https://www.archidekt.com">Archidekt</a>. <i>Make sure to select CSV format when you export it.</i></p>
+            </br>
+            <p>2. Paste your decklist here.</p>
+            </br>
+            <b-field label="Decklist" :label-position="labelPosition">
+              <b-input v-model="decklist" maxlength="20000" type="textarea"></b-input>
+            </b-field>
+            <b-button type="is-success" expanded @click="handleCreateGame">Go</b-button>
+          </div>
       </div>
-      <!-- MTG JSON Credit -->
-      <div class="columns is-mobile is-centered">
-        <a href="https://mtgjson.com" style="display: inline-flex; align-items: center;">
-          <img 
-            src="http://mtgjson.com/images/assets/logo-mtgjson-light-blue.svg" 
-            width="40px" 
-            title="MTGJSON logo">
-          <p class="is-size-6" style="margin-left: 10px">Powered by MTGJSON</p>
-        </a>
-      </div>
+    </div>
+    <!-- MTG JSON Credit -->
+    <div class="columns is-mobile is-centered">
+      <a href="https://mtgjson.com" style="display: inline-flex; align-items: center;">
+        <img 
+          src="http://mtgjson.com/images/assets/logo-mtgjson-light-blue.svg" 
+          width="40px" 
+          title="MTGJSON logo">
+        <p class="is-size-6" style="margin-left: 10px">Powered by MTGJSON</p>
+      </a>
     </div>
   </div>
 </template>
@@ -61,51 +37,14 @@ export default {
   name: 'game',
   data() {
     return {
-      id: '',
-      gameID: '',
-      joinGameID: '',
-      selected: '',
-      results: [],
-      loading: false,
-      deck: {
-        library: '',
-        commander: '',
-        decklist: '',
-      },
-      data: [],
+      labelPosition: 'on-border',
+      decklist: "",
     };
   },
   computed: {
     ...mapState({
       user: (state) => state.User.User,
     }),
-    commanderList() {
-      this.queryCommanders()
-        .then((data) => {
-          return data;
-        })
-        .catch((err) => console.error(err));
-    },
-    // NB: We use computed values to run validation and sanitization
-    commander() {
-      const trimmed = this.deck.commander.trim();
-      const list = [
-        {
-          Name: trimmed,
-        },
-      ];
-      return list;
-    },
-    library() {
-      const split = this.deck.library.split('\n');
-      const lib = split.map((card) => {
-        return { Name: card };
-      });
-      return lib;
-    },
-    decklist() {
-      return this.deck.library;
-    },
   },
   methods: {
     handleCreateGame() {
@@ -116,15 +55,14 @@ export default {
           Phase: 'setup',
           Number: 0,
         },
-        Players: [
-          {
+        Players: [{
             GameID: '',
             User: {
               Username: this.user.Username,
               ID: this.user.ID,
             },
             Life: 40,
-            Commander: this.commander,
+            Commander: [],
             Library: [],
             Decklist: this.decklist,
             Graveyard: [],
@@ -133,41 +71,17 @@ export default {
             Hand: [],
             Revealed: [],
             Controlled: [],
-          },
-        ],
+          }],
       })
-    },
-    queryCommanders() {
-      if (this.deck.commander === '') {
-        return;
-      }
-
-      this.$apollo
-        .query({
-          query: commanderQuery,
-          variables: {
-            name: this.deck.commander,
-          },
-        })
-        .then((resp) => {
-          this.data = resp.data.search.map((item) => {
-            return { name: item.Name };
-          });
-          return this.data;
-        })
-        .catch((err) => {
-          console.error('error querying commanders: ', err);
-          return err;
-        })
-        .finally(() => {
-          this.loading = false;
-        });
     },
   },
 };
 </script>
 <style>
 .shell {
+  margin: 0.5rem;
+}
+.decklist {
   margin: 0.5rem;
 }
 </style>
