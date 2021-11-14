@@ -112,6 +112,47 @@ func TestCreateGame(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "should allow for game created with no commanders",
+			input: &InputCreateGame{
+				ID: "deadbeef",
+				Players: []*InputBoardState{
+					{
+						User: &InputUser{
+							ID:       &id,
+							Username: "shakezula",
+						},
+						Life:      40,
+						Decklist:  decklist(),
+						Commander: []*InputCard{},
+					},
+				},
+				Turn: &InputTurn{
+					Player: "shakezula",
+					Phase:  "pregame",
+					Number: 0,
+				},
+			},
+			want: &Game{
+				ID: "deadbeef",
+				PlayerIDs: []*User{
+					{
+						ID:       "0xACAB",
+						Username: "shakezula",
+					},
+				},
+				Turn: &Turn{
+					Player: "shakezula",
+					Phase:  "pregame",
+					Number: 0,
+				},
+				Rules: []*Rule{
+					{Name: "format", Value: "EDH"},
+					{Name: "deck_size", Value: "99"},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range cases {
