@@ -22,7 +22,6 @@ query($gameID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID  
     }
@@ -39,7 +38,6 @@ query($gameID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID  
     }
@@ -56,7 +54,6 @@ query($gameID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID  
     }
@@ -73,7 +70,6 @@ query($gameID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID   
     }
@@ -92,7 +88,6 @@ query($gameID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID  
     }
@@ -109,7 +104,6 @@ query($gameID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -126,7 +120,6 @@ query($gameID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -145,7 +138,6 @@ query($gameID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -177,7 +169,6 @@ export const updateBoardStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -194,7 +185,6 @@ export const updateBoardStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -211,7 +201,6 @@ export const updateBoardStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -228,7 +217,6 @@ export const updateBoardStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -247,7 +235,6 @@ export const updateBoardStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -264,7 +251,6 @@ export const updateBoardStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -281,7 +267,6 @@ export const updateBoardStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -300,7 +285,6 @@ export const updateBoardStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       } 
@@ -328,7 +312,6 @@ subscription($boardstate: InputBoardState!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID  
     }
@@ -345,7 +328,6 @@ subscription($boardstate: InputBoardState!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID  
     }
@@ -362,7 +344,6 @@ subscription($boardstate: InputBoardState!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID  
     }
@@ -379,7 +360,6 @@ subscription($boardstate: InputBoardState!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID   
     }
@@ -398,7 +378,6 @@ subscription($boardstate: InputBoardState!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID  
     }
@@ -415,7 +394,6 @@ subscription($boardstate: InputBoardState!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -432,7 +410,6 @@ subscription($boardstate: InputBoardState!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -451,7 +428,6 @@ subscription($boardstate: InputBoardState!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -479,7 +455,6 @@ export const selfStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -496,7 +471,6 @@ export const selfStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -513,7 +487,6 @@ export const selfStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -530,7 +503,6 @@ export const selfStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -549,7 +521,6 @@ export const selfStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -566,7 +537,6 @@ export const selfStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -585,7 +555,6 @@ export const selfStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       }
@@ -602,7 +571,6 @@ export const selfStateQuery = gql`
         Types 
         Subtypes 
         Supertypes 
-        IsTextless 
         TCGID 
         ScryfallID 
       } 
@@ -650,7 +618,6 @@ subscription($obsID: String!, $userID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -667,7 +634,6 @@ subscription($obsID: String!, $userID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -684,7 +650,6 @@ subscription($obsID: String!, $userID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -701,7 +666,6 @@ subscription($obsID: String!, $userID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -720,7 +684,6 @@ subscription($obsID: String!, $userID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -737,7 +700,6 @@ subscription($obsID: String!, $userID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -756,7 +718,6 @@ subscription($obsID: String!, $userID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     }
@@ -773,7 +734,6 @@ subscription($obsID: String!, $userID: String!) {
       Types 
       Subtypes 
       Supertypes 
-      IsTextless 
       TCGID 
       ScryfallID 
     } 
@@ -848,8 +808,8 @@ export const commanderQuery = gql`
 `
 
 export const cardQuery = gql`
-  query{
-    card(name: String!) {
+  query($name: String!) {
+    card(name: $name) {
       Name
       ID
       Colors

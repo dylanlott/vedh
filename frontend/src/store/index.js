@@ -7,15 +7,21 @@ import { ToastProgrammatic as Toast } from 'buefy'
 import api from '@/gqlclient'
 import router from '@/router'
 import {
+    // auth
     login,
     signup,
+    // cards
+    cardQuery,
+    commanderQuery,
+    // games
     gameQuery,
     gameUpdateQuery,
     updateGame,
+    // boardstates
     boardstates,
     boardstateSubscription,
+    updateBoardStateQuery,
 } from '@/gqlQueries'
-import { updateBoardStateQuery } from '../gqlQueries';
 
 Vue.use(Vuex)
 
@@ -44,8 +50,9 @@ const BoardStates = {
                 type: "is-danger",
             })
         },
-        // takes an array of boardstates and updates each of them
-        // payload is iterated over and checked for it's user's ID
+        // * updateBoardStates takes an array of boardstates and updates each 
+        // boardstate in our local state.
+        // * payload is iterated over and checked for it's user's ID
         // and then assigned to the boardstates object keyed by that ID
         updateBoardStates(state, payload) {
             // update each boardstate by player ID
@@ -143,7 +150,6 @@ const BoardStates = {
                 })
                 .then((resp) => {
                     resp.data.boardstates.forEach((boardstate) => {
-                        console.log('subAllBoardstates#boardstate: ', boardstate)
                         // dispatch boardstate subscription here
                         dispatch('subToBoardstate', {
                             obsID: obsID,
@@ -170,7 +176,6 @@ const BoardStates = {
         // is the current user's ID and the userID is the ID of the user whose 
         // boardstate is being subscribed.
         subToBoardstate({ rootState, commit }, payload) {
-            console.log('subscribing to boardstate', payload)
             const sub = api.subscribe({
                 query: boardstateSubscription,
                 variables: {
@@ -483,18 +488,60 @@ const User = {
 const Cards = {
     state: {
         list: [],
-        error: undefined,
     },
-    mutations: {},
-    actions: {},
+    mutations: {
+        setList: function(state, payload) {
+            console.log('setting cards#list: ', payload)
+            state.list = payload
+        }
+    },
+    actions: {
+        fetchCard({ commit }, name) {
+            return new Promise((resolve, reject) => {
+                return api.query({
+                    query: cardQuery,
+                    variables: {
+                        name: name,
+                    }
+                })
+                .then((resp) => {
+                    resolve(resp.data.card)
+                    commit('setList', resp.data.card)
+                })
+                .catch((err) => reject(err))
+            })
+        },
+        searchByName({commit}, name) {
+            api.query({
+                query: commanderQuery,
+                variables: {
+                    name: name,
+                },
+            })
+            .then((resp) => {
+                const cards = resp.data.search.map((item) => {
+                    const card = Object.assign({}, item)
+                    console.log("searchByName found card: ", card)
+                    return card
+                })
+                commit('setList', cards)
+                return cards
+            })
+            .catch((err) => {
+                console.error('error searching cards by name: ', err);
+                commit('error', err)
+                return err;
+            })
+        }
+    },
 }
 
 const store = new Vuex.Store({
     modules: {
+        Cards,
         BoardStates,
         Game,
         User,
-        Cards,
     }
 })
 
