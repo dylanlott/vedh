@@ -167,21 +167,16 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		bs.Library = library
 	}
 
-	// TODO: This will eventually have to check the rules of the game to see if it's a
-	// Commander game, but for now this works for EDH MVP.
-	if len(input.BoardState.Commander) == 0 {
-		return nil, errs.New("must supply a Commander for your deck.")
-	}
-
-	// TODO: Make this handle multiple commanders?
-	commander, err := s.Card(ctx, input.BoardState.Commander[0].Name, nil)
-	if err != nil {
-		log.Printf("error getting commander for deck: %+v", err)
-		// fail gracefully and use their card name so they can still play a game
-		cmdr := getCards(input.BoardState.Commander)
-		bs.Commander = []*Card{cmdr[0]}
-	} else {
-		bs.Commander = []*Card{commander}
+	// NB: Commented out while we figure out how to handle Commander selection.
+	if len(input.BoardState.Commander) > 0 {
+		for _, card := range input.BoardState.Commander {
+			commander, err := s.Card(ctx, card.Name, nil)
+			if err != nil {
+				log.Printf("error getting commander for deck: %+v", err)
+				continue
+			}
+			bs.Commander = append(bs.Commander, commander)
+		}
 	}
 
 	// shuffle their library for the start of the game
@@ -215,7 +210,12 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 
 // createGame is untested currently
 func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGame) (*Game, error) {
-	// accept a game ID but create one if it isn't assigned
+	// don't allow a game to be created with an existing name
+	if _, exists := s.games[inputGame.ID]; exists {
+		return nil, fmt.Errorf("game already exists with ID %s", inputGame.ID)
+	}
+
+	// assign an ID if none is provided
 	if inputGame.ID == "" {
 		inputGame.ID = uuid.New().String()
 	}
@@ -266,6 +266,8 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		if inputGame.Players[0].Decklist != nil {
 			decklist = string(*inputGame.Players[0].Decklist)
 		}
+
+		// hyrdate the decklist for the player
 		library, err := s.createLibraryFromDecklist(ctx, decklist)
 		if err != nil {
 			// Fail gracefully and still populate basic cards
@@ -276,14 +278,16 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			bs.Library = library
 		}
 
-		commander, err := s.Card(ctx, player.Commander[0].Name, nil)
-		if err != nil {
-			log.Printf("error getting commander for deck: %+v", err)
-			// fail gracefully and use their card name so they can still play a game
-			inputCard := getCards(player.Commander)
-			bs.Commander = []*Card{inputCard[0]}
-		} else {
-			bs.Commander = []*Card{commander}
+		if len(player.Commander) > 0 {
+			commander, err := s.Card(ctx, player.Commander[0].Name, nil)
+			if err != nil {
+				log.Printf("error getting commander for deck: %+v", err)
+				// fail gracefully and use their card name so they can still play a game
+				inputCard := getCards(player.Commander)
+				bs.Commander = []*Card{inputCard[0]}
+			} else {
+				bs.Commander = []*Card{commander}
+			}
 		}
 
 		shuff, err := Shuffle(bs.Library)
