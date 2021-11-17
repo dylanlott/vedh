@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -48,6 +47,7 @@ func (s *graphQLServer) Signup(ctx context.Context, username string, password st
 }
 
 func (s *graphQLServer) Login(ctx context.Context, username string, password string) (*User, error) {
+	log.Printf("login hit: %s - %s", username, password)
 	if password == "" {
 		return nil, errs.New("must provide a password for authentication")
 	}
@@ -56,15 +56,13 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	}
 
 	// TODO: We need to enforce uniqueness as a constraint on username in the DB
-	q := `SELECT "uuid", "username", "password" FROM "users" WHERE username=$1`
+	q := `SELECT "uuid", "username", "password" FROM "users" WHERE username=$1;`
 	rows, err := s.db.Query(q, username)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			fmt.Println("Zero rows found")
-			return nil, errs.New("user not found")
-		} else {
-			return nil, errs.Wrap(err)
+			return nil, fmt.Errorf("user not found")
 		}
+		return nil, fmt.Errorf("failed to find rows: %w", err)
 	}
 
 	defer rows.Close()
@@ -116,11 +114,24 @@ func checkPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-// Users ...
-// TODO: Write the Users function to poll the db for a given User.
-// This should be public safe since it will be used for user profiles.
+// Users...
 func (s *graphQLServer) Users(ctx context.Context, id *string) ([]string, error) {
-	return nil, errors.New("not impl")
+	limit := 10000
+	offset := 0
+	rows, err := s.db.Query(`select * from users limit $1 offset $2;`, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query users: %w", err)
+	}
+	users := []string{}
+	for rows.Next() {
+		var s string
+		err := rows.Scan(&s)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, s)
+	}
+	return users, nil
 }
 
 // UserJoined ...
