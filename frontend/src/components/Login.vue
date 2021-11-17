@@ -1,23 +1,26 @@
 <template>
   <section class="shell">
     <div class="columns is-centered">
-      <div class="column is-4">
-        <form v-on:keyup.enter="onLoginClick()">
-          <h1 class="title">Login</h1>
-          <b-field label="Username">
-            <b-input v-on:keyup.enter="onLoginClick()" v-model="username"></b-input>
+      <div class="column is-4 is-mobile">
+        <div class="box">
+          <h1 class="title is-1">Login to EDH-Go</h1>
+          <b-field label="Username" :label-position="labelPosition">
+            <b-input v-model="username"></b-input>
           </b-field>
-          <b-field label="Password">
-            <b-input type="password" v-on:keyup.enter="onLoginClick()" v-model="password"></b-input>
+          <b-field
+            v-on:keyup.enter="handleSignup()"
+            @submit="handleSignup()"
+            label="Password"
+            :label-position="labelPosition">
+            <b-input type="password" v-model="password"></b-input>
           </b-field>
-          <b-button v-on:keyup.enter="onLoginClick()" @click="onLoginClick()" type="submit" class="is-primary"
-            >Log In</b-button
-          >
-        </form>
+          <b-button @submit="onLoginClick()" @click="onLoginClick()" 
+          v-on:keyup.enter="onLoginClick()" type="is-primary">
+            Login
+          </b-button>
+          <div class="not-a-member">Not a member? <a href="/signup">Sign up.</a></div>
+        </div>
       </div>
-    </div>
-    <div class="columns is-centered">
-      <div>Not a member? <a href="/signup">Sign up.</a></div>
     </div>
   </section>
 </template>
@@ -28,6 +31,7 @@ export default {
     return {
       username: '',
       password: '',
+      labelPosition: "on-border",
     };
   },
   computed: {
@@ -69,5 +73,9 @@ export default {
 .form {
   max-width: 480px;
   margin: 0 auto;
+}
+
+.not-a-member {
+  margin-top: 15px;
 }
 </style>
