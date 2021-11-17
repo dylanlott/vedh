@@ -821,10 +821,86 @@ of SQLite and onto Postgres fully.
 ==========
 
 * Turns out, that was a joke! 
-* We're not live yet.
+  * We're not live yet, but we _are_ close.
   * The cards service queries relied on on sqlite-specific query syntax for fuzzy search. 
   * Must reimplement the entire cards service to work with moving the cards into the Postgres database.
 * Cards service is now passing tests.
   * However, I have a few edge cases I need to handle. 
   * Maybe I should delay this until after launch but oh well. 
   * I handled it tonight and I hope that isn't me being stupid as usual. 
+* Updated the `db_import` script to upsert facename on key conflicts. 
+  * Need to mirror this change in production 
+  * This required a migration that I wrote and checked in `a68f220..9209853`
+
+
+9 Nov 2021
+==========
+* deploy latest cards service updates
+* import new `facename` column into production Heroku Postgres
+* test card service
+* hook vuex cards service to the cards graphql endpoint 
+* test auth features
+  * test login
+  * test signup
+* test boardstate features
+* soft launch
+* it's been over a year and a half since the creation of this context log! 
+  * that's crazy,
+
+11 Nov 2021
+===========
+* Need to deploy and test latest cards changes 
+* Test cards service
+
+12 Nov 2021
+============
+
+* Refreshed the card db in prod 
+* Discord streams with Brenden 
+  * doing that for launch would be good content
+* Wrote the vuex actions for card fetching 
+* Updated the cards service query to return a full card model 
+* Design note: I didn't tie Boardstates into Game objects because it's easier
+to handle privacy and authentication if boardstates are their own resource.
+  * It's more effort to maintain because it creates a whole new resource that
+  must be managed, but the benefit is far more fine grained permissions for 
+  BoardStates from the server, and Game objects can be entirely public.
+  * If we had attached boardstates to games conceptually we would've had to edit
+  each Game object for each user requesting it and that would've been hell.
+
+13 Nov 2021
+===========
+
+* I decided to refactor the entire Games page
+  * I think we should instead ask for the entire decklist and have the player 
+  pick their commander during the Mulligan / Setup phase.
+  * If they're copying from Archidekt, we can assume they have all 100 
+  cards in their list from Archidekt.
+  * It doesn't make sense to make them find and remove their commander from the 
+  list and then have to search for it. The deck is already decided by the list.
+* Need to hook the game creation flow up to the store and the new form.
+
+14 Nov 2021
+===========
+
+* Got the new Games page fixed and working now
+* Need to test join game features
+* BUG: Cards aren't dragging from hand to battlefield correctly anymore.
+  * Not sure what the issue here is but it seems that it needs to have a default
+  size that can trigger the drag and drop target.
+  * Test: Try giving the battlefield box a min-height to see if that fixes it.
+  * Update: FIXED. Refactored the classes on the battlefield box and that 
+  fixed it.
+
+16 Nov 2021
+===========
+
+* I setup a Matomo instance today during work meetings as my little pet project
+* Was able to get it setup at analytics.edhgo.com
+
+## Mini Dev Ops Hackathon for EDH Go in prep for going to prod
+- [ ] add matomo vue to the front end 
+- [ ] deploy a new version of the app so that we can start collecting metrics 
+- [ ] start prometheus exporter node on edhgo nginx droplet
+- [ ] add prometheus exporter to the server
+- [ ] start collecting data into grafana by setting up data sources for above
