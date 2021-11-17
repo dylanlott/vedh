@@ -1,33 +1,30 @@
 <template>
-  <div class="container">
-    <div class="section">
-      <div class="columns is-mobile is-centered">
-        <div class="column is-half">
+  <section class="shell">
+    <div class="columns is-centered">
+      <div class="column is-4 is-mobile">
+        <div class="box">
           <h1 class="title is-1">Signup for EDH-Go</h1>
-
           <b-field label="Username" :label-position="labelPosition">
             <b-input v-model="username"></b-input>
           </b-field>
-
           <b-field
             v-on:keyup.enter="handleSignup()"
             @submit="handleSignup()"
             label="Password"
-            :label-position="labelPosition"
-          >
+            :label-position="labelPosition">
             <b-input type="password" v-model="password"></b-input>
           </b-field>
-
-          <b-button @submit="handleSignup()" @click="handleSignup()" v-on:keyup.enter="handleSignup()" type="is-primary"
-            >Sign Up</b-button
-          >
+          <b-button @submit="handleSignup()" @click="handleSignup()" 
+          v-on:keyup.enter="handleSignup()" type="is-primary">
+            Sign Up
+          </b-button>
+          <div class="already-a-member">
+            Already a member? <a href="/login">Login.</a>
+          </div>
         </div>
       </div>
-      <div class="columns is-centered">
-        <div>Already a member? <a href="/login">Login.</a></div>
-      </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <script>
@@ -60,4 +57,6 @@ export default {
 </script>
 
 <style lang="sass">
+.already-a-member
+  margin-top: 15px
 </style>
