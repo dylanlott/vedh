@@ -43,19 +43,19 @@ type graphQLServer struct {
 	// TODO: make sure the games and boards maps are moved to redis so we can
 	// survive a restart without losing game state.
 
+	// TODO: Write a function for recovering boardstates and game channels
+	// if we consider them currently active.
+
 	// games holds a reference to *FullGames in the server.
+	// * games rely on both Game and Board channels.
 	games map[string]*FullGame
+
 	// boards holds references to *FullBoards which track BoardObservers
 	boards map[string]*FullBoardstate
 
-	// TODO: Write a function for recovering boardstates and game channels
-	// if we consider them currently active.
 	// Update channels are only stored in memory.
 	// If the server crashes, we'll need to setup all the channels for
 	// existing games again.
-	// * Channels are declared per resource to achieve realtime.
-	// * Games rely on both Game and Board channels.
-	boardChannels   map[string]chan *BoardState
 	messageChannels map[string]chan *Message
 	userChannels    map[string]chan string
 }
@@ -92,7 +92,6 @@ func NewGraphQLServer(
 		boards:          map[string]*FullBoardstate{},
 		messageChannels: map[string]chan *Message{},
 		userChannels:    map[string]chan string{},
-		boardChannels:   map[string]chan *BoardState{},
 	}, nil
 }
 
