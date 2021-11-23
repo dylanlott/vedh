@@ -47,7 +47,6 @@ func (s *graphQLServer) Signup(ctx context.Context, username string, password st
 }
 
 func (s *graphQLServer) Login(ctx context.Context, username string, password string) (*User, error) {
-	log.Printf("login hit: %s - %s", username, password)
 	if password == "" {
 		return nil, errs.New("must provide a password for authentication")
 	}
@@ -141,7 +140,7 @@ func (s *graphQLServer) UserJoined(ctx context.Context, user string, gameID stri
 		return nil, err
 	}
 
-	fmt.Printf("userJoined: %s", user)
+	// fmt.Printf("userJoined: %s", user)
 
 	// Create new channel for request
 	users := make(chan string, 1)
