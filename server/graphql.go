@@ -10,11 +10,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dylanlott/edh-go/persistence"
+
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/99designs/gqlgen/handler"
-	"github.com/dylanlott/edh-go/persistence"
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"github.com/tinrab/retry"
 	"github.com/zeebo/errs"
@@ -109,7 +111,10 @@ func (s *graphQLServer) Serve(route string, port int) error {
 		),
 	)
 	h := cors.AllowAll().Handler(s.auth(mux))
+	// serve the graphql playground
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
+	// serve prometheus metrics
+	mux.Handle("/prometheus", promhttp.Handler())
 	log.Printf("serving graphiql at localhost:%d/playground", port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), h)
 }

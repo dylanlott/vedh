@@ -16,6 +16,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/looplab/fsm v0.3.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.6
+	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/segmentio/ksuid v1.0.3
 	github.com/stretchr/testify v1.7.0
