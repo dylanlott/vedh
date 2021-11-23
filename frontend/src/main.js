@@ -9,6 +9,7 @@ import router from './router'
 import App from './App.vue'
 import store from './store'
 import { AuthPlugin } from './auth'
+import VueMatomo from 'vue-matomo'
 
 Vue.use(Buefy)
 Vue.use(VueCookies)
@@ -19,6 +20,14 @@ const apolloProvider = new VueApollo({
 });
 Vue.use(VueApollo)
 Vue.use(AuthPlugin)
+Vue.use(VueMatomo, {
+  router: router,
+  host: 'https://analytics.edhgo.com/',
+  siteId: 1,
+  requireConsent: true,
+  requireCookieConsent: true,
+  enableHeartBeatTimer: true,
+})
 
 const vm = new Vue({
   router,
