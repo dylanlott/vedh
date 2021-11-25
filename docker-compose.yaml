@@ -2,13 +2,13 @@ version: "3.7"
 
 services:
   web:
-    build: frontend/
+    build: frontend/Dockerfile
     links:
       - server:server
     ports:
       - 9090:80
   server:
-    build: .
+    build: ./Dockerfile
     env_file:
       - .env
     ports:
