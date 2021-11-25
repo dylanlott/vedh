@@ -39,8 +39,8 @@ type graphQLServer struct {
 	mutex sync.RWMutex
 
 	// Persistence layers
-	redisClient *redis.Client
-	db          *sql.DB
+	rc *redis.Client
+	db *sql.DB
 
 	// TODO: make sure the games and boards maps are moved to redis so we can
 	// survive a restart without losing game state.
@@ -89,7 +89,7 @@ func NewGraphQLServer(
 	return &graphQLServer{
 		mutex:           sync.RWMutex{},
 		db:              db,
-		redisClient:     client,
+		rc:              client,
 		games:           map[string]*FullGame{},
 		boards:          map[string]*FullBoardstate{},
 		messageChannels: map[string]chan *Message{},
@@ -115,11 +115,13 @@ func (s *graphQLServer) Serve(route string, port int) error {
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
 	// serve prometheus metrics
 	mux.Handle("/prometheus", promhttp.Handler())
+	// start the server
 	log.Printf("serving graphiql at localhost:%d/playground", port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), h)
 }
 
-// auth is a middleware responsible for passing header and cookie info to context
+// auth is a middleware responsible for passing header and cookie info to the
+// context
 func (s *graphQLServer) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)

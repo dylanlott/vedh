@@ -39,9 +39,11 @@ build-linux:
 build-ui:
 	docker build -f ./frontend/Dockerfile -t dylanlott/edhgo-ui:latest ./frontend
 build-server:
-	docker build -f ./Dockerfile -t dylanlott/edhgo:server .
+	docker build -f ./Dockerfile -t dylanlott/edhgo-server .
 # pushes the most recently built image up to docker hub.
 # watchtower will detect the pushed container and pull it down so we should
 # only push tested and vetted containers.
 deploy-ui:
 	docker push dylanlott/edhgo-ui
+deploy-server:
+	docker push dylanlott/edhgo-server
