@@ -6,11 +6,11 @@ services:
     links:
       - server:server
     ports:
-      - 9090:80
+      - 8081:80
   server:
     build: ./Dockerfile
     env_file:
-      - .env
+      - .edhgo.env
     ports:
       - 8080:8080
     links:
@@ -28,10 +28,8 @@ services:
       - postgres-data:/bitnami/postgresql
     ports:
       - 5433:5432
-    environment:
-      - POSTGRESQL_USERNAME=edhgo
-      - POSTGRESQL_PASSWORD=edhgo
-      - POSTGRESQL_DATABASE=edhgo
+    env_file:
+      - ./.pg.env
 volumes:
   redis-data:
   postgres-data:
