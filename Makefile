@@ -14,6 +14,7 @@ short:
 		$(GOTEST) -v -short ./...
 test-api:
 		$(GOTEST) -v ./server/... -race
+test: test-api
 clean:
 		$(GOCLEAN)
 		rm -f $(BINARY_NAME)

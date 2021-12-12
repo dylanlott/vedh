@@ -29,7 +29,7 @@ func testAPI(t *testing.T) *graphQLServer {
 	// prepare server after everything is connected
 	// - clear redis before each test for clear environment
 	// - TODO: clear postgresql before returning TestAPI
-	_, err = s.redisClient.Do("FLUSHALL").Result()
+	_, err = s.rc.Do("FLUSHALL").Result()
 	if err != nil {
 		t.Fatalf("failed to flush redis for tests: %s", err)
 	}

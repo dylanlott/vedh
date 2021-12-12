@@ -32,21 +32,21 @@ func (s *graphQLServer) Set(key string, value interface{}) error {
 		return err
 	}
 
-	return s.redisClient.Set(key, p, exp).Err()
+	return s.rc.Set(key, p, exp).Err()
 }
 
 // Get returns a value from Redis client to `dest` and returns an error, if any.
 // If they key is not found, it will return an error.
 // If the key exists but is empty, it will return empty.
 func (s *graphQLServer) Get(key string, dest interface{}) error {
-	exists, err := s.redisClient.Exists(key).Result()
+	exists, err := s.rc.Exists(key).Result()
 	if err != nil {
 		return errs.Wrap(err)
 	}
 	if exists < 1 {
 		return fmt.Errorf("key [%s] does not exist", key)
 	}
-	p, err := s.redisClient.Get(key).Result()
+	p, err := s.rc.Get(key).Result()
 	if err != nil {
 		log.Printf("failed to get key from redis: %s", err)
 		return err
