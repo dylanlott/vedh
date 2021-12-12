@@ -96,7 +96,7 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	user.Password = nil
 
 	// set token in redis for session comparison - expires every 2 weeks
-	s.redisClient.Set(user.Username, t, time.Duration(time.Hour*24*14))
+	s.rc.Set(user.Username, t, time.Duration(time.Hour*24*14))
 
 	user.Token = &t
 
@@ -166,7 +166,7 @@ func (s *graphQLServer) UserJoined(ctx context.Context, user string, gameID stri
 // TODO: Update this to create a User in Postgres.
 func (s *graphQLServer) createUser(user string) error {
 	// Upsert user
-	if err := s.redisClient.SAdd("users", user).Err(); err != nil {
+	if err := s.rc.SAdd("users", user).Err(); err != nil {
 		return err
 	}
 	// Notify new user joined
