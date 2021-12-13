@@ -57,8 +57,6 @@ your tests or configure your environment to fit with the provided
 Postgres for the application data 
 SQLite is used for querying card data.
 Redis is used for fast and efficient storing of BoardStates and Games.
-Using an SQL based storage solution for the BoardStates would have been clunky.
-
 
 ## Documentation & Resources:
 How to connect to a postgres instance inside of docker
@@ -75,29 +73,13 @@ https://gist.github.com/hone/24b06869b4c1eca701f9
 
 # Deployment 
 
+We run our deployments through docker-compose using vtec2/watchtower 
+
 ## Front end
 
-Deployment of the front end is triggered by updates pushed to `mvp` right now. 
-However, we need to find a better way to detect the front end changes.
-
-Prerequisites 
-- `node@v15`
-- `yarn`
-- `vue-cli`
-- Heroku toolbelt
-- Heroku static buildpack (see https://gist.github.com/hone/24b06869b4c1eca701f9)
-
-Follow this guide for how we deploy front end updates.
-https://gist.github.com/hone/24b06869b4c1eca701f9
-
-Official Heroku documentation for the static buildpack
-https://github.com/heroku/heroku-buildpack-static
-
-
-`heroku static:deploy` will deploy the vue app to heroku. 
-You can also run `npm run deploy` and this will run the same thing.
-
+`make deploy-ui` will build and push a docker image of the front end 
 
 ## Server
-- Heroku will build and deploy any push to GitHub.
-- Environment variables are handled in Heroku.
+
+`docker-compose.yml` declares our deployment stack. 
+`make deploy-server` will build and push a docker image of the server. 
