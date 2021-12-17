@@ -36,7 +36,7 @@ build-ui:
 build-server:
 	docker build -f ./Dockerfile -t dylanlott/edhgo-server:latest .
 deploy: deploy-server deploy-ui
-deploy-ui:
+deploy-ui: build-ui
 	docker push dylanlott/edhgo-ui:latest 
-deploy-server:
+deploy-server: build-server
 	docker push dylanlott/edhgo-server:latest
