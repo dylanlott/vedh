@@ -8,8 +8,6 @@ services:
       - 8080:80
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-    environment:
-      - WATCHTOWER_POLL_INTERVAL=60
   server:
     image: dylanlott/edhgo-server
     env_file:
