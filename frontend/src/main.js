@@ -28,7 +28,7 @@ Vue.use(VueMatomo, {
   requireCookieConsent: true,
   enableHeartBeatTimer: true,
 })
-
+  
 const vm = new Vue({
   router,
   store,
