@@ -9,7 +9,6 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/zeebo/errs"
 )
 
@@ -32,24 +31,6 @@ func NewDB(dbURL string) (*sql.DB, error) {
 		return nil, errs.Wrap(err)
 	}
 	return pg, nil
-}
-
-// NewSQLite returns a DB object to persist data for the application.
-func NewSQLite(path string) (*sql.DB, error) {
-	log.Printf("opening SQLite3 database connection at %s\n", path)
-	db, err := sql.Open("sqlite3", path)
-	if err != nil {
-		log.Printf("error opening sqlite3 database: %+v\n", err)
-		return nil, errs.Wrap(err)
-	}
-
-	err = db.Ping()
-	if err != nil {
-		log.Printf("error pinging database: %s", err)
-		return nil, errs.Wrap(err)
-	}
-
-	return db, nil
 }
 
 // NewPostgres returns a migrated sql.DB with a Postgres database connection
