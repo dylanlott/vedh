@@ -15,6 +15,8 @@ Vue.use(Buefy)
 Vue.use(VueCookies)
 Vue.$cookies.config('7d')
 Vue.config.productionTip = false
+console.log('connecting to API @ ', process.env.VUE_APP_BASE_URL)
+console.debug('api: ', api)
 const apolloProvider = new VueApollo({
   defaultClient: api,
 });
@@ -28,7 +30,6 @@ Vue.use(VueMatomo, {
   requireCookieConsent: true,
   enableHeartBeatTimer: true,
 })
-  
 const vm = new Vue({
   router,
   store,

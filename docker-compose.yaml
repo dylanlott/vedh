@@ -17,6 +17,8 @@ services:
     links:
       - redis:redis
       - postgres:postgres
+    volumes:
+      - "./persistence/migrations/:/app/persistence/migrations/"
     depends_on:
       - postgres
       - redis
