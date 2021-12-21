@@ -34,11 +34,13 @@ services:
       - postgres-data:/bitnami/postgresql
     env_file:
       - ./.pg.env
+    ports:
+      - 6375:5432
   watchtower:
     image: v2tec/watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /root/.docker/config.json:/config.json
+      # - /root/.docker/config.json:/config.json
     command: --interval 3
 volumes:
   redis-data:
