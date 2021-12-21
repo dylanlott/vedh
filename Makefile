@@ -26,8 +26,9 @@ generate:
 # Migrate will run migrations at your env's DATABASE_URL value.
 # This is how we run prod migrations, so BE CAREFUL ABOUT RUNNING THIS COMMAND.
 # ALWAYS TEST MIGRATIONS LOCALLY FIRST.
-migrate:
-	migrate -path ./persistence/migrations -database $(DATABASE_URL) up
+migrate-prod:
+	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
+	migrate -path ./persistence/migrations -database $(EDHGO_PG_URL) up
 build: build-ui build-server
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
