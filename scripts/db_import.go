@@ -35,7 +35,8 @@ func init() {
 
 const (
 	// DB_URL accesses a local Postgres instance running for local development.
-	DB_URL = "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable"
+	// DB_URL = "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable"
+	DB_URL = os.Getenv("EDHGO_PG_URL")
 )
 
 // CSVCard is a struct that exactly follows the structure of the AllPrintingsCSV
