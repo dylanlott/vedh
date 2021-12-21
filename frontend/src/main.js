@@ -13,10 +13,9 @@ import VueMatomo from 'vue-matomo'
 
 Vue.use(Buefy)
 Vue.use(VueCookies)
-Vue.$cookies.config('7d')
+Vue.$cookies.config('30d', null, null, null, 'Strict')
 Vue.config.productionTip = false
 console.log('connecting to API @ ', process.env.VUE_APP_BASE_URL)
-console.debug('api: ', api)
 const apolloProvider = new VueApollo({
   defaultClient: api,
 });
