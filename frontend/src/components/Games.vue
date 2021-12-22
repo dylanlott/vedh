@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <div class="columns is-mobile is-centered">
-      <div class="column is-half" v-if="user">
+      <div class="column is-half-desktop is-full-mobile" v-if="user">
           <div class="box decklist">
         <h1 class="title is-1">Hi, {{ user.Username }}.</h1>
         <h1 class="title is-3">Start a game</h1>
