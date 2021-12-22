@@ -899,8 +899,26 @@ to handle privacy and authentication if boardstates are their own resource.
 * Was able to get it setup at analytics.edhgo.com
 
 ## Mini Dev Ops Hackathon for EDH Go in prep for going to prod
-- [ ] add matomo vue to the front end 
-- [ ] deploy a new version of the app so that we can start collecting metrics 
-- [ ] start prometheus exporter node on edhgo nginx droplet
-- [ ] add prometheus exporter to the server
-- [ ] start collecting data into grafana by setting up data sources for above
+- [x] add matomo vue to the front end 
+- [x] deploy a new version of the app so that we can start collecting metrics 
+- [x] start prometheus exporter node on edhgo nginx droplet
+- [x] add prometheus exporter to the server
+- [x] start collecting data into grafana by setting up data sources for above
+
+21 Dec 2021
+===========
+
+* Fixed the web sockets bug in production 
+  * Nginx needed to be told to properly forward requests to `/graphql`
+* Importing cards into the production database right now 
+  * Need to setup recurring backups for prod db
+  * [This seems like it could be easily scriptable](https://stackoverflow.com/questions/24718706/backup-restore-a-dockerized-postgresql-database)
+* Trying to fix prometheus and grafana now.
+  * I think it's rooted in the same problem as the websockets
+  - [ ] Create a specific endpoint for prometheus in nginx.conf
+  -  I tried a specific endpoint for it and that doesn't work either.
+* Need to find out why matomo doesn't persist between restarts.
+  * Nevermind, it does, but anytime it upgrades itself it makes you go through
+  setup process again. That's not too bad, though, it just congratulates you.
+
+* I think we're pretty close to ready for launch.
