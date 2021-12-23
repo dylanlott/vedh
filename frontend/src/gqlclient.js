@@ -1,3 +1,4 @@
+import fetch from 'unfetch';
 import { ApolloClient } from 'apollo-client';
 import { HttpLink } from 'apollo-link-http';
 import { WebSocketLink } from 'apollo-link-ws';
@@ -10,6 +11,7 @@ const cache = new InMemoryCache({
 })
 const httpLink = new HttpLink({
     uri: process.env.VUE_APP_BASE_URL || "http://localhost:8080/graphql",
+    fetch: fetch
 });
 const wsLink = new WebSocketLink({
     uri: process.env.VUE_APP_WEBSOCKET_URL || "ws://localhost:8080/graphql",
