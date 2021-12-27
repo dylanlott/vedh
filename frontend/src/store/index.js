@@ -167,7 +167,6 @@ const BoardStates = {
                 })
                 .catch((err) => {
                     console.error('GET BOARDSTATES FAILED: ', err)
-                    commit('boardstates subscription error: ', err)
                     return reject(err)
                 })
             })
@@ -392,7 +391,6 @@ const Game = {
     },
 }
 
-
 const User = {
     state: {
         User: {
@@ -491,7 +489,6 @@ const Cards = {
     },
     mutations: {
         setList: function(state, payload) {
-            console.log('setting cards#list: ', payload)
             state.list = payload
         }
     },
@@ -536,7 +533,7 @@ const Cards = {
     },
 }
 
-const store = new Vuex.Store({
+export default new Vuex.Store({
     modules: {
         Cards,
         BoardStates,
@@ -544,5 +541,3 @@ const store = new Vuex.Store({
         User,
     }
 })
-
-export default store
