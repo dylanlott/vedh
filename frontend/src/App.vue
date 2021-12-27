@@ -1,4 +1,4 @@
-<template>
+<template id="edhgo">
   <div>
     <Navbar></Navbar>
       <router-view/>

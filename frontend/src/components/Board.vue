@@ -75,7 +75,7 @@
 
     <!-- SELF BOARDSTATE - PUBLIC SECTION -->
     <p class="title is-6">Battlefield</p>
-    <div class="columns is-mobile is-desktop is-flex" v-if="self">
+    <div class="columns is-mobile is-desktop is-flex" id="selfBattlefield" v-if="self">
       <!-- SELF - BATTLEFIELD -->
       <div class="column is-desktop is-mobile box is-flex">
         <draggable
