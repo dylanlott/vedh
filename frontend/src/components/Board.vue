@@ -87,8 +87,11 @@
           @end="drag = false"
         >
           <!-- Note: Cards can only be tapped on the battlefield -->
-          <div v-on:dblclick="handleTap(card)" class="column" v-for="card in self.Field" :key="card.id">
-            <Card v-bind="card"></Card>
+          <div v-on:dblclick="handleTap(card)" 
+            class="column" 
+            v-for="card in self.Field" 
+            :key="card.id">
+              <Card v-bind="card"></Card>
           </div>
         </draggable>
       </div>
@@ -181,10 +184,10 @@ export default {
     });
   },
   computed: mapState({
-    game: (state) => state.Game.game,
-    bs: (state) => state.BoardStates.boardstates,
-    self: (state) => state.BoardStates.self,
-    user: (state) => state.User.User,
+    game: (state) => state.Games.game,
+    bs: (state) => state.Boardstates.boardstates,
+    self: (state) => state.Boardstates.self,
+    user: (state) => state.Users.User,
   }),
   methods: {
     handleDraw() {
