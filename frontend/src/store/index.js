@@ -27,7 +27,7 @@ Vue.use(Vuex)
 
 const ls = window.localStorage
 
-const BoardStates = {
+export const Boardstates = {
     // BoardStates should only ever be updated by push from the server, we 
     // don't normally want to update these ourselves. 
     state: {
@@ -66,9 +66,51 @@ const BoardStates = {
         },
         updateSelf(state, payload) {
             state.self = payload
-        }
+        },
     },
     actions: {
+        // move is a low level )function designed to be a base unit of card 
+        // manipulation in our application. 
+        // * complex actions should (*eventually) be composed of different moves
+        // * move should be atomic.
+        // * all card actions should be able to be expressed via a `move` 
+        // invocation given the proper arguments.
+        // * move only moves cards around a users Boardstate.
+        // * if a card needs to move between _players_, `give` should be used.
+        move({ state, dispatch }, { userID, src, dest, target })  {
+            // snapshot what our current boardstate is so that we're not 
+            // mutating state outside of commits
+            const self = Object.assign({}, state.boardstates[userID])
+            // map all card movements onto that snapshot
+            if (!self.User.ID) {
+                // require a User.ID to be set or we error
+                return dispatch('error', 'failed to find boardstate')
+            }
+            const from = self[src]
+            if (!from) {
+                return dispatch('error', 'failed to find target source')
+            }
+            const to = self[dest]
+            if (!to) {
+                return dispatch('error', 'failed to find target destination')
+            }
+            // lookup by the index card.ID
+            var selected;
+            var foundIdx = from.findIndex(x => x.ID === target)
+            if (foundIdx === 0) {
+                return dispatch('error', 'failed to find target ', target)
+            }
+            var selected = from[foundIdx]
+            from.splice(foundIdx, 1)
+            to.push(selected)
+
+            // assign source and destination
+            self[src] = [...from]
+            self[dest] = [...to]
+
+            // finally, dispatch our self update as a single action.
+            dispatch('mutateBoardState', self)
+        },
         // draw will draw a card into hand from the top of the board state's  
         // library. 
         // * if none exists, it errors and declares your loss.
@@ -200,7 +242,7 @@ const BoardStates = {
     },
 }
 
-const Game = {
+export const Games = {
     state: {
         // game should be identical in structure to the object we get 
         // back from the server. Thus the capitalization.
@@ -391,7 +433,7 @@ const Game = {
     },
 }
 
-const User = {
+export const Users = {
     state: {
         User: {
             Username: Cookies.get("username") || ls.getItem("username"),
@@ -483,7 +525,7 @@ const User = {
     }
 }
 
-const Cards = {
+export const Cards = {
     state: {
         list: [],
     },
@@ -532,12 +574,3 @@ const Cards = {
         }
     },
 }
-
-export default new Vuex.Store({
-    modules: {
-        Cards,
-        BoardStates,
-        Game,
-        User,
-    }
-})

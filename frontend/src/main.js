@@ -1,4 +1,5 @@
 import Vue from 'vue'
+import Vuex from 'Vuex'
 import VueApollo from 'vue-apollo'
 import api from '@/gqlclient'
 import Buefy from 'buefy'
@@ -7,7 +8,7 @@ import './scss/custom.scss'
 import VueCookies from 'vue-cookies'
 import router from './router'
 import App from './App.vue'
-import store from './store'
+import { Cards, Boardstates, Games, Users } from './store'
 import { AuthPlugin } from './auth'
 import VueMatomo from 'vue-matomo'
 
@@ -28,6 +29,14 @@ Vue.use(VueMatomo, {
   requireConsent: true,
   requireCookieConsent: true,
   enableHeartBeatTimer: true,
+})
+var store = new Vuex.Store({
+  modules: {
+    Boardstates,
+    Cards,
+    Games,
+    Users,
+  }
 })
 const vm = new Vue({
   router,
