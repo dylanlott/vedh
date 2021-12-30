@@ -50,7 +50,7 @@ import { mapState } from 'vuex';
 export default {
   name: 'navbar',
   computed: mapState({
-      user: state => state.User.User
+      user: state => state.Users.User
   }),
   methods: {
       handleLogout() {
