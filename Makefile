@@ -1,3 +1,4 @@
+.PHONY: dev persistence clean test test-api
 # Go parameters
 GOCMD=go
 GOBUILD=$(GOCMD) build
@@ -41,3 +42,5 @@ deploy-ui: build-ui
 	docker push dylanlott/edhgo-ui:latest 
 deploy-server: build-server
 	docker push dylanlott/edhgo-server:latest
+persistence:
+	 docker-compose -f dev.docker-compose.yml up postgres redis
