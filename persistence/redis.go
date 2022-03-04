@@ -10,16 +10,9 @@ type redisDB struct {
 	client *redis.Client
 }
 
-// CLEANUP
-// type Cfg struct {
-// 	RedisURL string `envconfig:"REDIS_URL"`
-// }
-
-type Config map[string]string
-
 // NewRedis returns a new Redis Persistence that can be used
 // in the application to persist and update state.
-func NewRedis(url string, pass string, opts Config) (*redisDB, error) {
+func NewRedis(url string, pass string) (*redisDB, error) {
 	if url == "" {
 		// use default
 		url = "redis://localhost:6379"
