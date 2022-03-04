@@ -33,11 +33,9 @@ func init() {
 	gob.Register([]interface{}{})
 }
 
-const (
-	// DB_URL accesses a local Postgres instance running for local development.
-	// DB_URL = "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable"
-	DB_URL = os.Getenv("EDHGO_PG_URL")
-)
+// DBURL accesses a local Postgres instance running for local development.
+// DBURL = "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable"
+var DBURL = os.Getenv("EDHGO_PG_URL")
 
 // CSVCard is a struct that exactly follows the structure of the AllPrintingsCSV
 // file that we get from MTGJSON.
@@ -82,26 +80,21 @@ type CSVCard struct {
 
 // TODO: Make this a commandline utility.
 func main() {
-	// declare flag variables
 	var refresh bool = false
-	var dburl string = DB_URL
+	var dburl string = DBURL
 	var drop bool = false
 
-	// declare flags
 	flag.Bool("refresh", refresh, "refresh specifies whether the card database should be downloaded fresh. defaults to false.")
-	flag.StringVar(&dburl, "db", DB_URL, "import target database connection url. defaults to localhost:5432/edhgo")
+	flag.StringVar(&dburl, "db", DBURL, "import target database connection url. defaults to localhost:5432/edhgo")
 	flag.Bool("drop", drop, "if drop is enabled then the database table will be dropped before the new set is loaded")
 
-	// parse flags
 	flag.Parse()
 
-	// connect to Postgres
-	conn, err := persistence.NewDB(DB_URL)
+	conn, err := persistence.NewDB(DBURL)
 	if err != nil {
 		log.Fatalf("failed to connecto to postgres for import: %s", err)
 	}
 
-	// handle refresh
 	if refresh {
 		updateAndUnzip()
 	}
