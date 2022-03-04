@@ -13,7 +13,7 @@ func testAPI(t *testing.T) *graphQLServer {
 		PostgresURL: "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable",
 		DefaultPort: 8080,
 	}
-	kv, err := persistence.NewRedis("redis://localhost:6379", "", persistence.Config{})
+	kv, err := persistence.NewRedis("redis://localhost:6379", "")
 	if err != nil {
 		t.Errorf("failed to get kv from redis: %s", err)
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewRedis(t *testing.T) {
-	r, err := NewRedis("localhost:6379", "", nil)
+	r, err := NewRedis("localhost:6379", "")
 	if err != nil {
 		t.Logf("FAILED: %s", err)
 		t.Fail()
