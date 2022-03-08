@@ -922,3 +922,17 @@ to handle privacy and authentication if boardstates are their own resource.
   setup process again. That's not too bad, though, it just congratulates you.
 
 * I think we're pretty close to ready for launch.
+
+4 March 2022
+=============
+
+* Working on cleaning up and refactoring the codebase. 
+* I've decided to open source the project and host it as a community oriented platform.
+* I still have the docker-compose all setup. We never deleted that code. 
+* Cleaned up the config struct in the redis persistence package. 
+
+7 March 2022
+============
+
+* More cleaning up and refactoring 
+* Added a method for publishing boardstate changes into the gamelog
