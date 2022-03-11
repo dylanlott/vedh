@@ -915,7 +915,6 @@ to handle privacy and authentication if boardstates are their own resource.
   * [This seems like it could be easily scriptable](https://stackoverflow.com/questions/24718706/backup-restore-a-dockerized-postgresql-database)
 * Trying to fix prometheus and grafana now.
   * I think it's rooted in the same problem as the websockets
-  - [ ] Create a specific endpoint for prometheus in nginx.conf
   -  I tried a specific endpoint for it and that doesn't work either.
 * Need to find out why matomo doesn't persist between restarts.
   * Nevermind, it does, but anytime it upgrades itself it makes you go through
@@ -936,3 +935,22 @@ to handle privacy and authentication if boardstates are their own resource.
 
 * More cleaning up and refactoring 
 * Added a method for publishing boardstate changes into the gamelog
+
+10 Mar 2020 
+===========
+
+* Working on docker-compose deployment
+* Kubernetes is maybe worthwhile but too much complexity right now. 
+  * And still had a hard time figuring out how to deliver the most recent code.
+  * Watchtower actually solves that problem really well for our use case.
+* Part of our problem is that we're not correctly handling our long lived server connections
+  * https://www.nginx.com/blog/websocket-nginx/ details the long-lived connection problem.
+    * This resource was really helpful in explaining the problem set and helping me get close to fixing it. 
+  * https://stackoverflow.com/questions/10550558/nginx-tcp-websockets-timeout-keepalive-config 
+
+
+## Today's View
+  - [ ] Fix websockets connection in nginx 
+  - [ ] Create endpoint for prometheus in nginx.conf
+  - [ ] Import cards into edhgo prod database
+  - [ ] Announce that the site is back up on Twitter
