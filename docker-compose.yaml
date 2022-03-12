@@ -28,19 +28,22 @@ services:
     image: redis:latest
     volumes:
       - redis-data:/data
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
   postgres:
-    image: bitnami/postgresql
+    image: bitnami/postgresql:14
     volumes:
       - postgres-data:/bitnami/postgresql
     env_file:
       - ./.pg.env
     ports:
       - 6375:5432
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
   watchtower:
     image: v2tec/watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # - /root/.docker/config.json:/config.json
     command: --interval 3
 volumes:
   redis-data:
