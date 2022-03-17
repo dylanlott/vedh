@@ -1,5 +1,5 @@
 .PHONY: dev persistence clean test test-api
-# Go parameters
+
 GOCMD=go
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
@@ -7,8 +7,9 @@ GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 BINARY_NAME=edhgo
 BINARY_UNIX=$(BINARY_NAME)_unix
+BUILD_TAG=latest #tag all releases as latest for watchtower detection
 
-all: test-api build-ui build-server
+all: test build
 build:
 	$(GOBUILD) -o $(BINARY_NAME) -v
 short:
@@ -27,20 +28,21 @@ generate:
 # Migrate will run migrations at your env's DATABASE_URL value.
 # This is how we run prod migrations, so BE CAREFUL ABOUT RUNNING THIS COMMAND.
 # ALWAYS TEST MIGRATIONS LOCALLY FIRST.
-migrate-prod:
-	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
+migrate-prod: confirm
 	migrate -path ./persistence/migrations -database $(EDHGO_PG_URL) up
 build: build-ui build-server
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
 build-ui:
-	docker build -f ./frontend/Dockerfile -t dylanlott/edhgo-ui:latest ./frontend
+	docker build -f ./frontend/Dockerfile -t dylanlott/edhgo-ui:$(BUILD_TAG) ./frontend
 build-server:
-	docker build -f ./Dockerfile -t dylanlott/edhgo-server:latest .
-deploy: deploy-server deploy-ui
-deploy-ui: build-ui
-	docker push dylanlott/edhgo-ui:latest 
-deploy-server: build-server
-	docker push dylanlott/edhgo-server:latest
+	docker build -f ./Dockerfile -t dylanlott/edhgo-server:$(BUILD_TAG) .
+deploy: confirm deploy-server deploy-ui
+deploy-ui: confirm build-ui
+	docker push dylanlott/edhgo-ui:$(BUILD_TAG)
+deploy-server: confirm build-server
+	docker push dylanlott/edhgo-server:$(BUILD_TAG)
 persistence:
-	 docker-compose -f dev.docker-compose.yml up postgres redis
+	docker-compose -f dev.docker-compose.yml up postgres redis
+confirm:
+	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
