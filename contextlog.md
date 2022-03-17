@@ -950,7 +950,14 @@ to handle privacy and authentication if boardstates are their own resource.
 
 
 ## Today's View
-  - [ ] Fix websockets connection in nginx 
+  - [x] Fix websockets connection in nginx - Turned out to be a nginx config issue.
+    - Needed to upgrade the header and connection, but now it's working with SSL.
   - [ ] Create endpoint for prometheus in nginx.conf
   - [ ] Import cards into edhgo prod database
   - [ ] Announce that the site is back up on Twitter
+
+17 Mar 2022
+===========
+
+- [ ] Fix environment variable issues in production UI build
+- [ ] Deploy updated docker container of UI 
