@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   web:
-    image: dylanlott/edhgo-ui
+    image: dylanlott/edhgo-ui:latest
     links:
       - server:server
     ports:
@@ -9,7 +9,7 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
   server:
-    image: dylanlott/edhgo-server
+    image: dylanlott/edhgo-server:latest
     env_file:
       - .edhgo.env
     ports:
