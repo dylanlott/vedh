@@ -5,38 +5,41 @@
 ## Running
 
 ### Go Server
+
 1. Prerequisites:
 - Make
-- Go v1.15
-
-2. Set Environment variables 
-Here's a template for setting the appropriate env vars in `~/.bashrc`
-```
-export DEFAULT_PORT=
-export REDIS_URL=
-export DATABASE_URL=
-export LOG_LEVEL=
-export JWT_SECRET=
-```
+- Go v1.17
+- Redis
+- PostgreSQL
 
 Then run the server with our Makefile.
 The server will attempt to run all migrations and then start up. 
 If it can't run migrations, it will rollback the database and noisily fail. 
 
-```
-$ make run 
-```
+`make run`
+
+You can quickly start the persistence dependencies by running
+
+`$ make persistence`
+
+This will boot up Postgres and Redis development servers.
 
 You can run the server as if it's in prod with this same config, so you 
 can switch between local and prod as long as you've configured your environment
 variables correctly.
+
 ### Front End 
+
 Run Vue app:
 
 ```
 $ cd frontend
-$ yarn start
+$ npm start
 ```
+
+#### Vue Tests
+
+`npm run test` will run the boardstate unit tests.
 
 ## Testing 
 
@@ -55,8 +58,7 @@ your tests or configure your environment to fit with the provided
 
 ## Stack
 Postgres for the application data 
-SQLite is used for querying card data.
-Redis is used for fast and efficient storing of BoardStates and Games.
+Redis is used for fast and efficient storing of Boardstates and Games.
 
 ## Documentation & Resources:
 How to connect to a postgres instance inside of docker
@@ -67,9 +69,6 @@ https://stackoverflow.com/questions/6842393/import-sql-dump-into-postgresql-data
 
 Make sure when you rows.Scan() you don't point it at a nil value
 https://stackoverflow.com/questions/44670212/scan-sql-null-values-in-golang/46753197
-
-Follow this guide for how we deploy front end updates.
-https://gist.github.com/hone/24b06869b4c1eca701f9
 
 # Deployment 
 
