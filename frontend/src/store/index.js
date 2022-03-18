@@ -445,7 +445,7 @@ export const Users = {
     },
     getters: {
         authenticated: state => {
-            return  !!state.User.Token
+            return !!state.User.Token
         },
     },
     mutations: {
@@ -574,3 +574,12 @@ export const Cards = {
         }
     },
 }
+
+export const store = new Vuex.Store({
+  modules: {
+    Boardstates,
+    Cards,
+    Games,
+    Users,
+  }
+})
