@@ -43,7 +43,7 @@ export default {
   },
   computed: {
     ...mapState({
-      user: (state) => state.User.User,
+      user: (state) => state.Users.User,
     }),
   },
   methods: {
