@@ -78,7 +78,7 @@ export default {
     },
     ...mapState({
       game: (state) => state.Game.game,
-      user: (state) => state.User.User,
+      user: (state) => state.Users.User,
     }),
   },
   created() {

@@ -36,7 +36,7 @@ export default {
   },
   computed: {
     ...mapState({
-      loading: (state) => state.User.loading,
+      loading: (state) => state.Users.loading,
     }),
     isInputValid() {
       if (this.username.length === 0) {

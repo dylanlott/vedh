@@ -197,7 +197,7 @@ export const Boardstates = {
                             obsID: obsID,
                             userID: boardstate.User.ID,
                         })
-                        if (boardstate.User.ID === rootState.User.User.ID) {
+                        if (boardstate.User.ID === rootState.Users.User.ID) {
                             commit('updateSelf', boardstate)
                         } else {
                             commit('updateBoardStates', resp.data.boardstates)
@@ -227,7 +227,7 @@ export const Boardstates = {
             sub.subscribe({
                 next(data) {
                     // detect self vs opponents here and assign accordingly 
-                    if (data.data.boardstateUpdated.User.ID == rootState.User.User.ID) {
+                    if (data.data.boardstateUpdated.User.ID == rootState.Users.User.ID) {
                         commit('updateSelf', data.data.boardstateUpdated)
                     }
                     console.log('boardstate subscription received: ', data.data.boardstateUpdated)
