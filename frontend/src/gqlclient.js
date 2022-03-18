@@ -8,12 +8,14 @@ import { InMemoryCache } from 'apollo-cache-inmemory';
 const cache = new InMemoryCache({
     addTypename: false
 })
+console.log('api url: ', process.env.VUE_APP_BASE_URL)
 const httpLink = new HttpLink({
-    uri: process.env.VUE_APP_BASE_URL || "http://localhost:8080/graphql",
+    uri: process.env.VUE_APP_BASE_URL,
     fetch: fetch
 });
+console.log('websocket url: ', process.env.VUE_APP_WEBSOCKET_URL)
 const wsLink = new WebSocketLink({
-    uri: process.env.VUE_APP_WEBSOCKET_URL || "ws://localhost:8080/graphql",
+    uri: process.env.VUE_APP_WEBSOCKET_URL,
     options: {
         reconnect: true,
     },

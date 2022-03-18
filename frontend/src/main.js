@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import Vuex from 'Vuex'
+import Vuex from 'vuex'
 import VueApollo from 'vue-apollo'
 import api from '@/gqlclient'
 import Buefy from 'buefy'
@@ -16,7 +16,6 @@ Vue.use(Buefy)
 Vue.use(VueCookies)
 Vue.$cookies.config('30d', null, null, null, 'Strict')
 Vue.config.productionTip = false
-console.log('connecting to API @ ', process.env.VUE_APP_BASE_URL)
 const apolloProvider = new VueApollo({
   defaultClient: api,
 });

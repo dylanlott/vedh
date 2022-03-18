@@ -34,7 +34,7 @@
     "vue-matomo": "^4.1.0",
     "vue-router": "^3.4.7",
     "vuedraggable": "^2.24.2",
-    "vuex": "^3.5.1"
+    "vuex": "3.5.1"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.169",
