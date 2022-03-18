@@ -6,9 +6,10 @@ persistence/mtgallcards.sqlite
 bin/*
 *.env
 
-# Import script and its related downloaded content
-scripts/db_import.go
-*.csv
 
 # Frontend 
 frontend/coverage/
+
+# Import script and temp data
+scripts/db_import.go
+*.csv
