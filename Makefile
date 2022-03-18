@@ -25,7 +25,7 @@ run:
 	$(GOCMD) run ./
 generate:
 	$(GOCMD) generate ./...
-# Migrate will run migrations at your env's DATABASE_URL value.
+# Migrate will run migrations at your env's EDHGO_PG_URL value.
 # This is how we run prod migrations, so BE CAREFUL ABOUT RUNNING THIS COMMAND.
 # ALWAYS TEST MIGRATIONS LOCALLY FIRST.
 migrate-prod: confirm
