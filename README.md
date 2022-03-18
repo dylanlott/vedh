@@ -57,28 +57,33 @@ tests. You may need to change the config values in `games_test.go` to start
 your tests or configure your environment to fit with the provided 
 
 ## Stack
-Postgres for the application data 
-Redis is used for fast and efficient storing of Boardstates and Games.
+Postgres stores application and card data.
+Redis persists games and boardstates.
 
 ## Documentation & Resources:
-How to connect to a postgres instance inside of docker
-https://stackoverflow.com/questions/37694987/connecting-to-postgresql-in-a-docker-container-from-outside
 
-How to import an SQL dump into Postgres
-https://stackoverflow.com/questions/6842393/import-sql-dump-into-postgresql-database
-
-Make sure when you rows.Scan() you don't point it at a nil value
-https://stackoverflow.com/questions/44670212/scan-sql-null-values-in-golang/46753197
+- [How to connect to a postgres instance inside of docker](https://stackoverflow.com/questions/37694987/connecting-to-postgresql-in-a-docker-container-from-outside)
+- [How to import an SQL dump into Postgres](https://stackoverflow.com/questions/6842393/import-sql-dump-into-postgresql-database)
+- [Make sure when you rows.Scan() you don't point it at a nil value](https://stackoverflow.com/questions/44670212/scan-sql-null-values-in-golang/46753197)
 
 # Deployment 
 
-We run our deployments through docker-compose using vtec2/watchtower 
+We run our deployments through docker-compose using `vtec2/watchtower`.
+This means that we must always tag our containers with `latest` so that watchtower detects them.
 
-## Front end
+## Environments
 
-`make deploy-ui` will build and push a docker image of the front end 
+`frontend/.env.local` sets local environemnt variables and is used when `npm start` is run.
+`frontend/.env.production` sets production environment variables and it used for `npm run build`.
 
-## Server
+## Deploying with Make 
 
-`docker-compose.yml` declares our deployment stack. 
-`make deploy-server` will build and push a docker image of the server. 
+`make deploy` will deploy a new version of both the server and the UI.
+`make deploy-ui` and `make deploy-server` will deploy them each individually.
+
+We have a nifty `confirm` script that requires user confirmation before running deployment targets.
+After running any of the deployment targets, you'll be prompted with a yes / no before proceeding.
+
+> Note: Your SSH key must be registered on the production server in order to deploy.
+
+

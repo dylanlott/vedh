@@ -971,3 +971,8 @@ nginx configs while my front end was not working.
 The main issue was a corner case between two variables.
 - Environment variables were not being set correctly in the client build.
 - Nginx configs that weren't repsecting websocket connections.
+
+Local and production builds are now working together in harmony but it took some effort.
+Must ensure that local environment and prod environment are kept in close sync. I think most of our issues are handled now, though. 
+More deploys should reveal our weak points and we can adjust with time. Rapid iteration is the hardest part of development, but nets
+the most benefits.
