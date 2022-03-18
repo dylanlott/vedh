@@ -1,22 +1,25 @@
 # EDH-Go
-> A Magic: The Gathering board state tracker built with GraphQL and Go.
+> A Magic: The Gathering boardstate simulator built with GraphQL and Go.
  [![Build Status](https://travis-ci.org/dylanlott/edh-go.svg?branch=master)](https://travis-ci.org/dylanlott/edh-go)
 
 ## Running
 
 ### Go Server
 
-1. Prerequisites:
+*Prerequisites*
+
 - Make
 - Go v1.17
+- Node 14
 - Redis
 - PostgreSQL
 
 Then run the server with our Makefile.
-The server will attempt to run all migrations and then start up. 
-If it can't run migrations, it will rollback the database and noisily fail. 
 
 `make run`
+
+The server will attempt to run all migrations and then start up. 
+If it can't run migrations, it will rollback the database and noisily fail. 
 
 You can quickly start the persistence dependencies by running
 
@@ -85,5 +88,3 @@ We have a nifty `confirm` script that requires user confirmation before running 
 After running any of the deployment targets, you'll be prompted with a yes / no before proceeding.
 
 > Note: Your SSH key must be registered on the production server in order to deploy.
-
-
