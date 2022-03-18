@@ -1,26 +1,27 @@
 import Vue from 'vue'
-import Vuex from 'vuex'
 import VueApollo from 'vue-apollo'
-import api from '@/gqlclient'
+import VueCookies from 'vue-cookies'
+import VueMatomo from 'vue-matomo'
 import Buefy from 'buefy'
 import 'buefy/dist/buefy.css'
 import './scss/custom.scss'
-import VueCookies from 'vue-cookies'
-import router from './router'
-import App from './App.vue'
-import { Cards, Boardstates, Games, Users } from './store'
-import { AuthPlugin } from './auth'
-import VueMatomo from 'vue-matomo'
 
+import api from '@/gqlclient'
+import App from './App.vue'
+import router from './router'
+import { store } from './store'
+
+Vue.config.productionTip = false
 Vue.use(Buefy)
+
 Vue.use(VueCookies)
 Vue.$cookies.config('30d', null, null, null, 'Strict')
-Vue.config.productionTip = false
+
 const apolloProvider = new VueApollo({
   defaultClient: api,
 });
 Vue.use(VueApollo)
-Vue.use(AuthPlugin)
+
 Vue.use(VueMatomo, {
   router: router,
   host: 'https://analytics.edhgo.com/',
@@ -29,14 +30,7 @@ Vue.use(VueMatomo, {
   requireCookieConsent: true,
   enableHeartBeatTimer: true,
 })
-var store = new Vuex.Store({
-  modules: {
-    Boardstates,
-    Cards,
-    Games,
-    Users,
-  }
-})
+
 const vm = new Vue({
   router,
   store,

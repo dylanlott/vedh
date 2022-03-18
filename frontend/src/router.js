@@ -1,9 +1,8 @@
 import Vue from 'vue';
+import Vuex from 'vuex'
 import Router from 'vue-router';
-
-// router and store access for authentication
+import { store } from './store'
 import router from '@/router.js';
-import { Users } from '@/store'
 
 // router views
 import Landing from '@/components/Landing.vue';
@@ -75,7 +74,7 @@ export default new Router({
 // handle auth before each route change
 router.beforeEach((to, from, next) => {
   if ((to.matched.length > 0) && (to.matched[0].meta.auth)) {
-    const authed = Users.getters.authenticated
+    const authed = store.getters.authenticated
     if (!authed) {
       return next({
         path: '/login',
