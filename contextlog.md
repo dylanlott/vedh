@@ -961,3 +961,13 @@ to handle privacy and authentication if boardstates are their own resource.
 
 - [ ] Fix environment variable issues in production UI build
 - [ ] Deploy updated docker container of UI 
+
+[Websocket tester](https://www.piesocket.com/websocket-tester) was absolutely invaluable during this for sanity checking
+nginx configs while my front end was not working. 
+
+[](https://www.digitalocean.com/community/questions/how-to-solve-nginx-websocket-secure-wss-error-426-upgrade-required)
+[Websocket Nginx](https://www.nginx.com/blog/websocket-nginx/) 
+
+The main issue was a corner case between two variables.
+- Environment variables were not being set correctly in the client build.
+- Nginx configs that weren't repsecting websocket connections.
