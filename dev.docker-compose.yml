@@ -11,7 +11,9 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
   server:
-    image: dylanlott/edhgo-server
+    build:
+      dockerfile: ./Dockerfile
+      context: .
     env_file:
       - .edhgo.env
     ports:
@@ -33,7 +35,7 @@ services:
     ports:
       - 6379:6379
   postgres:
-    image: bitnami/postgresql
+    image: bitnami/postgresql:14
     volumes:
       - postgres-data:/bitnami/postgresql
     env_file:
