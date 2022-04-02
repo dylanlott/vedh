@@ -176,15 +176,6 @@ type InputUser struct {
 	ID       *string `json:"ID"`
 }
 
-type Message struct {
-	ID        string    `json:"ID"`
-	User      string    `json:"User"`
-	CreatedAt time.Time `json:"CreatedAt"`
-	Text      string    `json:"Text"`
-	GameID    string    `json:"GameID"`
-	Channel   *string   `json:"Channel"`
-}
-
 type Rule struct {
 	Name  string `json:"Name"`
 	Value string `json:"Value"`

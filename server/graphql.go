@@ -54,12 +54,6 @@ type graphQLServer struct {
 
 	// boards holds references to *FullBoards which track BoardObservers
 	boards map[string]*FullBoardstate
-
-	// Update channels are only stored in memory.
-	// If the server crashes, we'll need to setup all the channels for
-	// existing games again.
-	messageChannels map[string]chan *Message
-	userChannels    map[string]chan string
 }
 
 // NewGraphQLServer creates a new server to attach the database, game engine,
@@ -87,13 +81,11 @@ func NewGraphQLServer(
 	})
 
 	return &graphQLServer{
-		mutex:           sync.RWMutex{},
-		db:              db,
-		rc:              client,
-		games:           map[string]*FullGame{},
-		boards:          map[string]*FullBoardstate{},
-		messageChannels: map[string]chan *Message{},
-		userChannels:    map[string]chan string{},
+		mutex:  sync.RWMutex{},
+		db:     db,
+		rc:     client,
+		games:  map[string]*FullGame{},
+		boards: map[string]*FullBoardstate{},
 	}, nil
 }
 
@@ -111,11 +103,8 @@ func (s *graphQLServer) Serve(route string, port int) error {
 		),
 	)
 	h := cors.AllowAll().Handler(s.auth(mux))
-	// serve the graphql playground
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
-	// serve prometheus metrics
 	mux.Handle("/prometheus", promhttp.Handler())
-	// start the server
 	log.Printf("serving graphiql at localhost:%d/playground", port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), h)
 }

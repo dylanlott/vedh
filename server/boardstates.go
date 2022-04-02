@@ -35,9 +35,6 @@ func BoardStateKey(gameID, userID string) string {
 	return fmt.Sprintf("%s:%s", gameID, userID)
 }
 
-// BoardstateUpdated returns a channel that emits all *BoardState events.
-// If one did not exist before it was queried, it will create a new one.
-// If one does exist, it will return the existing boardstate channel.
 func (s *graphQLServer) BoardstateUpdated(ctx context.Context,
 	obsID string,
 	userID string,
@@ -50,7 +47,7 @@ func (s *graphQLServer) BoardstateUpdated(ctx context.Context,
 	return ch, nil
 }
 
-// UpdateBoardState updates a BoardState in Redis and notifies that BoardState
+// UpdateBoardState updates a BoardState and notifies that BoardState
 // into the BoardChannels directory.
 // This keys off of *input.User.ID so we want to consider pointer safety here.
 func (s *graphQLServer) UpdateBoardState(
@@ -61,23 +58,17 @@ func (s *graphQLServer) UpdateBoardState(
 		return nil, errs.New("invalid boardstate")
 	}
 
-	// get a formatted boardstate from input
 	bs, err := boardStateFromInput(input)
 	if err != nil {
 		return nil, errs.Wrap(err)
 	}
 
-	// TODO: Should we merge the two board states here and do a right to left
-	// merge? Not sure if that's behavior we want.
-
-	// check if the game exists - if it does then allow the boardstate for it to be set.
 	g := &Game{}
 	err = s.Get(GameKey(input.GameID), &g)
 	if err != nil {
 		return nil, errs.Wrap(err)
 	}
 
-	// set boardstate into redis
 	if err := s.Set(BoardStateKey(input.GameID, *input.User.ID), bs); err != nil {
 		return nil, fmt.Errorf("failed to persist boardstate: %s", err)
 	}
@@ -157,8 +148,8 @@ func boardStateFromInput(bs InputBoardState) (*BoardState, error) {
 // * it acquires a lock on the *FullBoardState and this must be respected
 // or else we'll run into race conditions as well.
 func (s *graphQLServer) publishBoardstate(bs *BoardState) {
+	log.Printf("boardstate published: %v", bs)
 	s.mutex.Lock()
-
 	if bs.User.ID == "" {
 		log.Printf("publishBoardstate error: userID not found: %+v", bs)
 		return

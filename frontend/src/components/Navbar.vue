@@ -12,6 +12,9 @@
             <b-navbar-item href="/games">
                 Games
             </b-navbar-item>
+            <b-navbar-item href="/join">
+                Join
+            </b-navbar-item>
         </template>
 
         <template slot="end">

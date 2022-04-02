@@ -121,7 +121,7 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 	return game, nil
 }
 
-// JoinGame ...
+// JoinGame handles a user joining an existing game.
 func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Game, error) {
 	// TODO: Handle rejoins by detecting if that player's user.ID already exists
 	// in a given game. If it does, just return that same setup.
@@ -138,6 +138,10 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	err := s.Get(GameKey(input.ID), &game)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get game to join: %s", err)
+	}
+
+	if len(game.PlayerIDs) >= 4 {
+		return nil, errors.New("game is full")
 	}
 
 	user := &User{

@@ -77,7 +77,7 @@
     <!-- Footer -->
     <footer class="footer">
       <div class="content has-text-centered">
-        <p><strong>EDH-Go</strong> powered by Stamina Crü Software.</p>
+        <p class="text is-size-7"><strong>EDHGo</strong> powered by the Hivemind.
         <p class="text is-size-7">Build v{{ version }} </p>
       </div>
     </footer>

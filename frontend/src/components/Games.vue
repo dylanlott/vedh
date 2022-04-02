@@ -6,9 +6,9 @@
         <h1 class="title is-1">Hi, {{ user.Username }}.</h1>
         <h1 class="title is-3">Start a game</h1>
             <p>1. Copy a decklist from <a href="https://www.archidekt.com">Archidekt</a>. <i>Make sure to select CSV format when you export it.</i></p>
-            </br>
+            <br>
             <p>2. Paste your decklist here.</p>
-            </br>
+            <br>
             <b-field label="Decklist" :label-position="labelPosition">
               <b-input v-model="decklist" maxlength="20000" type="textarea"></b-input>
             </b-field>
@@ -30,20 +30,20 @@
 </template>
 <script>
 import { mapState } from 'vuex';
-import gql from 'graphql-tag';
-import { commanderQuery } from '@/gqlQueries.js';
 
 export default {
   name: 'game',
   data() {
     return {
+      isFullPage: false,
       labelPosition: 'on-border',
-      decklist: "",
+      decklist: '',
     };
   },
   computed: {
     ...mapState({
       user: (state) => state.Users.User,
+      loading: state => state.Games.loading,
     }),
   },
   methods: {
