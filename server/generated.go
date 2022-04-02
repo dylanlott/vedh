@@ -107,20 +107,10 @@ type ComplexityRoot struct {
 		Turn      func(childComplexity int) int
 	}
 
-	Message struct {
-		Channel   func(childComplexity int) int
-		CreatedAt func(childComplexity int) int
-		GameID    func(childComplexity int) int
-		ID        func(childComplexity int) int
-		Text      func(childComplexity int) int
-		User      func(childComplexity int) int
-	}
-
 	Mutation struct {
 		CreateGame       func(childComplexity int, input InputCreateGame) int
 		JoinGame         func(childComplexity int, input *InputJoinGame) int
 		Login            func(childComplexity int, username string, password string) int
-		PostMessage      func(childComplexity int, user string, text string) int
 		Signup           func(childComplexity int, username string, password string) int
 		UpdateBoardState func(childComplexity int, input InputBoardState) int
 		UpdateGame       func(childComplexity int, input InputGame) int
@@ -131,7 +121,6 @@ type ComplexityRoot struct {
 		Card        func(childComplexity int, name string, id *string) int
 		Cards       func(childComplexity int, list []string) int
 		Games       func(childComplexity int, gameID *string) int
-		Messages    func(childComplexity int) int
 		Search      func(childComplexity int, name *string, colors []*string, colorIdentity []*string, keywords []*string) int
 		Users       func(childComplexity int, userID *string) int
 	}
@@ -163,14 +152,12 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	Signup(ctx context.Context, username string, password string) (*User, error)
 	Login(ctx context.Context, username string, password string) (*User, error)
-	PostMessage(ctx context.Context, user string, text string) (*Message, error)
 	CreateGame(ctx context.Context, input InputCreateGame) (*Game, error)
 	JoinGame(ctx context.Context, input *InputJoinGame) (*Game, error)
 	UpdateGame(ctx context.Context, input InputGame) (*Game, error)
 	UpdateBoardState(ctx context.Context, input InputBoardState) (*BoardState, error)
 }
 type QueryResolver interface {
-	Messages(ctx context.Context) ([]*Message, error)
 	Users(ctx context.Context, userID *string) ([]string, error)
 	Games(ctx context.Context, gameID *string) ([]*Game, error)
 	Boardstates(ctx context.Context, gameID string, userID *string) ([]*BoardState, error)
@@ -506,48 +493,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Game.Turn(childComplexity), true
 
-	case "Message.Channel":
-		if e.complexity.Message.Channel == nil {
-			break
-		}
-
-		return e.complexity.Message.Channel(childComplexity), true
-
-	case "Message.CreatedAt":
-		if e.complexity.Message.CreatedAt == nil {
-			break
-		}
-
-		return e.complexity.Message.CreatedAt(childComplexity), true
-
-	case "Message.GameID":
-		if e.complexity.Message.GameID == nil {
-			break
-		}
-
-		return e.complexity.Message.GameID(childComplexity), true
-
-	case "Message.ID":
-		if e.complexity.Message.ID == nil {
-			break
-		}
-
-		return e.complexity.Message.ID(childComplexity), true
-
-	case "Message.Text":
-		if e.complexity.Message.Text == nil {
-			break
-		}
-
-		return e.complexity.Message.Text(childComplexity), true
-
-	case "Message.User":
-		if e.complexity.Message.User == nil {
-			break
-		}
-
-		return e.complexity.Message.User(childComplexity), true
-
 	case "Mutation.createGame":
 		if e.complexity.Mutation.CreateGame == nil {
 			break
@@ -583,18 +528,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.Login(childComplexity, args["username"].(string), args["password"].(string)), true
-
-	case "Mutation.postMessage":
-		if e.complexity.Mutation.PostMessage == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_postMessage_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.PostMessage(childComplexity, args["user"].(string), args["text"].(string)), true
 
 	case "Mutation.signup":
 		if e.complexity.Mutation.Signup == nil {
@@ -679,13 +612,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Games(childComplexity, args["gameID"].(*string)), true
-
-	case "Query.messages":
-		if e.complexity.Query.Messages == nil {
-			break
-		}
-
-		return e.complexity.Query.Messages(childComplexity), true
 
 	case "Query.search":
 		if e.complexity.Query.Search == nil {
@@ -884,7 +810,6 @@ var sources = []*ast.Source{
 type Mutation {
   signup(username: String!, password: String!): User!
   login(username: String!, password: String!): User!
-  postMessage(user: String!, text: String!): Message
   createGame(input: InputCreateGame!): Game!
   joinGame(input: InputJoinGame): Game!
   updateGame(input: InputGame!): Game!
@@ -892,7 +817,6 @@ type Mutation {
 }
 
 type Query {
-  messages: [Message!]!
   users(userID: String): [String!]!
   games(gameID: String): [Game!]!
   boardstates(gameID: String!, userID: String): [BoardState!]!
@@ -904,15 +828,6 @@ type Query {
 type Subscription {
   gameUpdated(gameID: String!, userID: String!): Game!
   boardstateUpdated(observerID: String!, userID: String!): BoardState!
-}
-
-type Message {
-  ID: String!
-  User: String!
-  CreatedAt: Time!
-  Text: String!
-  GameID: String!
-  Channel: String
 }
 
 type Card {
@@ -1205,30 +1120,6 @@ func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawAr
 		}
 	}
 	args["password"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_postMessage_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["user"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("user"))
-		arg0, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["user"] = arg0
-	var arg1 string
-	if tmp, ok := rawArgs["text"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("text"))
-		arg1, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["text"] = arg1
 	return args, nil
 }
 
@@ -2900,195 +2791,6 @@ func (ec *executionContext) _Game_PlayerIDs(ctx context.Context, field graphql.C
 	return ec.marshalOUser2ᚕᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐUserᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Message_ID(ctx context.Context, field graphql.CollectedField, obj *Message) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Message",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Message_User(ctx context.Context, field graphql.CollectedField, obj *Message) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Message",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.User, nil
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Message_CreatedAt(ctx context.Context, field graphql.CollectedField, obj *Message) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Message",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.CreatedAt, nil
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(time.Time)
-	fc.Result = res
-	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Message_Text(ctx context.Context, field graphql.CollectedField, obj *Message) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Message",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Text, nil
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Message_GameID(ctx context.Context, field graphql.CollectedField, obj *Message) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Message",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.GameID, nil
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Message_Channel(ctx context.Context, field graphql.CollectedField, obj *Message) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Message",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Channel, nil
-	})
-
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _Mutation_signup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -3165,42 +2867,6 @@ func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.C
 	res := resTmp.(*User)
 	fc.Result = res
 	return ec.marshalNUser2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐUser(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Mutation_postMessage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Mutation_postMessage_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp := ec._fieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().PostMessage(rctx, args["user"].(string), args["text"].(string))
-	})
-
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*Message)
-	fc.Result = res
-	return ec.marshalOMessage2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐMessage(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_createGame(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -3357,38 +3023,6 @@ func (ec *executionContext) _Mutation_updateBoardState(ctx context.Context, fiel
 	res := resTmp.(*BoardState)
 	fc.Result = res
 	return ec.marshalNBoardState2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐBoardState(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Query_messages(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp := ec._fieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Messages(rctx)
-	})
-
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*Message)
-	fc.Result = res
-	return ec.marshalNMessage2ᚕᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐMessageᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_users(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -6053,55 +5687,6 @@ func (ec *executionContext) _Game(ctx context.Context, sel ast.SelectionSet, obj
 	return out
 }
 
-var messageImplementors = []string{"Message"}
-
-func (ec *executionContext) _Message(ctx context.Context, sel ast.SelectionSet, obj *Message) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, messageImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	var invalids uint32
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Message")
-		case "ID":
-			out.Values[i] = ec._Message_ID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "User":
-			out.Values[i] = ec._Message_User(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "CreatedAt":
-			out.Values[i] = ec._Message_CreatedAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "Text":
-			out.Values[i] = ec._Message_Text(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "GameID":
-			out.Values[i] = ec._Message_GameID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "Channel":
-			out.Values[i] = ec._Message_Channel(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalids > 0 {
-		return graphql.Null
-	}
-	return out
-}
-
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -6127,8 +5712,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "postMessage":
-			out.Values[i] = ec._Mutation_postMessage(ctx, field)
 		case "createGame":
 			out.Values[i] = ec._Mutation_createGame(ctx, field)
 			if out.Values[i] == graphql.Null {
@@ -6175,20 +5758,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
-		case "messages":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_messages(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&invalids, 1)
-				}
-				return res
-			})
 		case "users":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
@@ -6894,53 +6463,6 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
-func (ec *executionContext) marshalNMessage2ᚕᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*Message) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNMessage2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐMessage(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-	return ret
-}
-
-func (ec *executionContext) marshalNMessage2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐMessage(ctx context.Context, sel ast.SelectionSet, v *Message) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	return ec._Message(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalNRule2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐRule(ctx context.Context, sel ast.SelectionSet, v *Rule) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -7625,13 +7147,6 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 		return graphql.Null
 	}
 	return graphql.MarshalInt(*v)
-}
-
-func (ec *executionContext) marshalOMessage2ᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐMessage(ctx context.Context, sel ast.SelectionSet, v *Message) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._Message(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalORule2ᚕᚖgithubᚗcomᚋdylanlottᚋedhᚑgoᚋserverᚐRuleᚄ(ctx context.Context, sel ast.SelectionSet, v []*Rule) graphql.Marshaler {

@@ -135,14 +135,11 @@ export const Boardstates = {
         tapAll({ dispatch }, boardstate) {
             const bs = Object.assign({}, boardstate)
             if (bs.Field.length < 1) {
-                // nothing to tap, so just return
                 return
             }
-            // set tapped to true for each card on the field for the Boardstate
             bs.Field.forEach((card, i) => {
                 card.Tapped = true
             })
-            // and dispatch the mutation
             dispatch('mutateBoardState', bs)
         },
         // untapAll will untap all cards in the boardstate's Battlefield.
@@ -192,7 +189,6 @@ export const Boardstates = {
                 })
                 .then((resp) => {
                     resp.data.boardstates.forEach((boardstate) => {
-                        // dispatch boardstate subscription here
                         dispatch('subToBoardstate', {
                             obsID: obsID,
                             userID: boardstate.User.ID,
@@ -203,8 +199,6 @@ export const Boardstates = {
                             commit('updateBoardStates', resp.data.boardstates)
                         }
                     })
-                    // Note: we don't need to put this resp into an array 
-                    // because its already a list
                     return resolve(resp.data)
                 })
                 .catch((err) => {
@@ -226,7 +220,6 @@ export const Boardstates = {
             })
             sub.subscribe({
                 next(data) {
-                    // detect self vs opponents here and assign accordingly 
                     if (data.data.boardstateUpdated.User.ID == rootState.Users.User.ID) {
                         commit('updateSelf', data.data.boardstateUpdated)
                     }
@@ -244,8 +237,6 @@ export const Boardstates = {
 
 export const Games = {
     state: {
-        // game should be identical in structure to the object we get 
-        // back from the server. Thus the capitalization.
         game: {
             ID: "",
             Turn: {
@@ -269,7 +260,6 @@ export const Games = {
             })
         },
         updateGame(state, game) {
-            // merge updated game over current game
             const g = Object.assign(state.game, game)
             state.game = g
         },
@@ -279,9 +269,13 @@ export const Games = {
         gameFailure(state, error) {
             state.error = error
         },
+        updateLoading (state, loading) {
+            state.loading = loading
+        },
     },
     actions: {
         getGame({ commit }, ID) {
+            commit('updateLoading', true)
             return new Promise((resolve, reject) => {
                 api.query({
                     query: gameQuery,
@@ -289,9 +283,11 @@ export const Games = {
                         gameID: ID,
                     }
                 }).then((resp) => {
+                    commit('updateLoading', false)
                     commit('updateGame', resp.data.games[0])
                     return resolve(resp.data.games[0])
                 }).catch((err) => {
+                    commit('updateLoading', false)
                     console.error('vuex failed to get game: ', err)
                     commit('gameFailure', err)
                     return reject(err)
@@ -301,6 +297,7 @@ export const Games = {
         // subscribesToGame takes a gameID and a userID and creates a new 
         // subscription to the Game.
         subscribeToGame({ state, commit, dispatch }, { gameID, userID }) {
+            commit('updateLoading', true)
             api.query({
                 query: gameQuery,
                 variables: {
@@ -313,8 +310,6 @@ export const Games = {
                     commit('error', 'no game received from subscription')
                     return
                 }
-                // update the game that we receive and then subscribe to 
-                // updates 
                 commit('updateGame', data.data.games[0])
                 const sub = api.subscribe({
                     query: gameUpdateQuery,
@@ -326,8 +321,6 @@ export const Games = {
                 sub.subscribe({
                     next(data) {
                         const g = data.data.gameUpdated
-                        // check if any players joined and sub to their board
-                        // states
                         if (g.PlayerIDs.length > state.game.PlayerIDs.length) {
                             for (const player in g.PlayerIDs) {
                                 dispatch('subToBoardstate', {
@@ -336,7 +329,6 @@ export const Games = {
                                 })
                             }
                         }
-                        // commit the received game updates
                         commit('updateGame', data.data.gameUpdated)
                     },
                     error(err) {
@@ -347,14 +339,15 @@ export const Games = {
             })
         },
         joinGame({ commit }, payload) {
+            commit('updateLoading', true)
             return new Promise((resolve, reject) => {
                 api.mutate({
                     mutation: gql`mutation ($InputJoinGame: InputJoinGame) {
                     joinGame(input: $InputJoinGame) {
                         ID
                         PlayerIDs {
-                        Username
-                        ID
+                            Username
+                            ID
                         }
                         Turn {
                             Phase
@@ -369,18 +362,20 @@ export const Games = {
                 })
                 .then((res) => {
                     commit('updateGame', res.data.joinGame)
+                    commit('updateLoading', false)
                     router.push({ path: `/games/${res.data.joinGame.ID}` })
                     return resolve(res)
                 })
                 .catch((err) => {
                     commit('error', 'error joining game')
+                    commit('updateLoading', false)
                     console.error('error joining game: ', err)
                     return reject(err)
                 })
             })
         },
         createGame({ commit }, payload) {
-            commit('loading', true)
+            commit('updateLoading', true)
             return new Promise((resolve, reject) => {
                 api.mutate({
                     mutation: gql`mutation ($inputGame: InputCreateGame!) {
@@ -403,12 +398,14 @@ export const Games = {
                     }
                 })
                 .then((res) => {
+                    commit('updateLoading', false)
                     commit('updateGame', res.data.createGame)
                     router.push({ path: `/games/${res.data.createGame.ID}` })
                     return resolve(res)
                 })
                 .catch((err) => {
                     commit('error', 'error creating game')
+                    commit('updateLoading', false)
                     console.error('error createGame: ', err)
                     return reject(err)
                 })

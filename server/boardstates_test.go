@@ -79,7 +79,6 @@ func TestUpdateBoardState(t *testing.T) {
 				t.Errorf("failed to create dummy game: %s", err)
 			}
 
-			// register the BoardState channel for the userID
 			bch, err := s.BoardstateUpdated(
 				tt.args.ctx,
 				"TestUpdateBoardStateObserver",
@@ -87,7 +86,9 @@ func TestUpdateBoardState(t *testing.T) {
 			)
 			assert.Equal(t, err, nil)
 			assert.NotNil(t, bch)
-			time.Sleep(time.Second * 1)
+
+			time.Sleep(time.Millisecond * 500)
+
 			got, err := s.UpdateBoardState(tt.args.ctx, tt.args.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("graphQLServer.UpdateBoardState() error = %v, wantErr %v", err, tt.wantErr)
@@ -102,7 +103,7 @@ func TestUpdateBoardState(t *testing.T) {
 				boardstate := <-bch
 				if !reflect.DeepEqual(boardstate, tt.want) {
 					diff := cmp.Diff(boardstate, tt.want)
-					t.Logf("DIFF: %+v", diff)
+					t.Logf("%s", diff)
 					t.Errorf("UpdateBoardState failed to notify listeners")
 				} else {
 					t.Logf("successfully received boardstate from update: %+v", boardstate)

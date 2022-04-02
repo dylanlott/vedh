@@ -3,7 +3,6 @@ scalar Time
 type Mutation {
   signup(username: String!, password: String!): User!
   login(username: String!, password: String!): User!
-  postMessage(user: String!, text: String!): Message
   createGame(input: InputCreateGame!): Game!
   joinGame(input: InputJoinGame): Game!
   updateGame(input: InputGame!): Game!
@@ -11,7 +10,6 @@ type Mutation {
 }
 
 type Query {
-  messages: [Message!]!
   users(userID: String): [String!]!
   games(gameID: String): [Game!]!
   boardstates(gameID: String!, userID: String): [BoardState!]!
@@ -23,15 +21,6 @@ type Query {
 type Subscription {
   gameUpdated(gameID: String!, userID: String!): Game!
   boardstateUpdated(observerID: String!, userID: String!): BoardState!
-}
-
-type Message {
-  ID: String!
-  User: String!
-  CreatedAt: Time!
-  Text: String!
-  GameID: String!
-  Channel: String
 }
 
 type Card {

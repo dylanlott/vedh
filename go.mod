@@ -14,11 +14,9 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/looplab/fsm v0.3.0 // indirect
-	github.com/mattn/go-sqlite3 v1.14.6
-	github.com/prometheus/client_golang v1.11.0 // indirect
+	github.com/looplab/fsm v0.3.0
+	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.7.0
-	github.com/segmentio/ksuid v1.0.3
 	github.com/stretchr/testify v1.7.0
 	github.com/tinrab/retry v1.0.0
 	github.com/vektah/gqlparser/v2 v2.1.0

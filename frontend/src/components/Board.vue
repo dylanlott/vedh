@@ -123,9 +123,9 @@
         <template #end>
           <b-navbar-item tag="div">
             <div class="buttons">
-              <a @click="handleTapAll()" class="button is-dark"> <strong>Tap All</strong> </a>
-              <a @click="handleUntapAll()" class="button is-light"> Untap All </a>
-              <a @click="toggleCreateTokenModal" class="button is-primary">Create Token</a>
+              <a @click="handleTapAll()" class="button is-dark "><strong>Tap All</strong></a>
+              <a @click="handleUntapAll()" class="button is-light">Untap All</a>
+              <!-- <a @click="toggleCreateTokenModal" class="button is-primary">Create Token</a> -->
             </div>
           </b-navbar-item>
         </template>
