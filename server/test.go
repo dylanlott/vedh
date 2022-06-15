@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/dylanlott/edh-go/persistence"
+	"github.com/openmtg/edh-go/persistence"
 )
 
 func testAPI(t *testing.T) *graphQLServer {

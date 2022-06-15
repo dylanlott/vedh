@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dylanlott/edh-go/persistence"
+	"github.com/openmtg/edh-go/persistence"
 
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/99designs/gqlgen/handler"

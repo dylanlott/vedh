@@ -5,8 +5,9 @@ import (
 
 	"github.com/zeebo/errs"
 
-	"github.com/dylanlott/edh-go/persistence"
-	"github.com/dylanlott/edh-go/server"
+	"github.com/openmtg/edh-go/persistence"
+	"github.com/openmtg/edh-go/server"
+
 	"github.com/kelseyhightower/envconfig"
 )
 
