@@ -22,7 +22,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dylanlott/edh-go/persistence"
+	"github.com/openmtg/edh-go/persistence"
+
 	"github.com/gocarina/gocsv"
 )
 
