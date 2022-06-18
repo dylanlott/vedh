@@ -1,9 +1,7 @@
 # EDH-Go
-> A Magic: The Gathering boardstate simulator built with GraphQL and Go.
+> A Magic: The Gathering boardstate tracker built with GraphQL, Vue, and Go.
 
-## Running
-
-### Go Server
+## Development
 
 *Prerequisites*
 
@@ -13,22 +11,31 @@
 - Redis
 - PostgreSQL
 
-Then run the server with our Makefile.
+### Server
 
-`make run`
+You will need to configure `.edhgo.env` and `.pg.env` environment files at your project root.
 
-The server will attempt to run all migrations and then start up. 
-If it can't run migrations, it will rollback the database and noisily fail. 
+.edhgo.env example:
+```
+REDIS_URL=""
+DATABASE_URL=""
+JWT_SECRET=""
+```
 
-You can quickly start the persistence dependencies by running
+.pg.env example:
+```
+POSTGRES_USERNAME=""
+POSTGRES_PASSWORD=""
+POSTGRES_DATABASE=""
+```
 
-`$ make persistence`
+You can quickly start the persistence dependencies by running `$ make persistence`
 
-This will boot up Postgres and Redis development servers.
+This will boot up Postgres and Redis development servers. Then run the server with our Makefile by running `make run`
 
-You can run the server as if it's in prod with this same config, so you 
-can switch between local and prod as long as you've configured your environment
-variables correctly.
+The server will attempt to run all migrations and then start up.  If it can't run migrations, it will rollback the database and noisily fail. 
+
+You can run the server as if it's in prod with this same config, so you can switch between local and prod as long as you've configured your environment variables correctly.
 
 ### Front End 
 
@@ -36,12 +43,13 @@ Run Vue app:
 
 ```
 $ cd frontend
-$ npm start
+$ yarn install
+$ yarn start
 ```
 
 #### Vue Tests
 
-`npm run test` will run the boardstate unit tests.
+`yarn test` will run the boardstate unit tests.
 
 ## Testing 
 
@@ -75,8 +83,8 @@ This means that we must always tag our containers with `latest` so that watchtow
 
 ## Environments
 
-`frontend/.env.local` sets local environemnt variables and is used when `npm start` is run.
-`frontend/.env.production` sets production environment variables and it used for `npm run build`.
+`frontend/.env.local` sets local environemnt variables and is used when `yarn start` is run.
+`frontend/.env.production` sets production environment variables and it used for `yarn build`.
 
 ## Deploying with Make 
 
