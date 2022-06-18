@@ -2,9 +2,9 @@
 FROM node:14 as build-stage
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN yarn install
 COPY . .
-RUN npm run build
+RUN yarn build
 
 # production stage
 FROM nginx:stable-alpine as production-stage
