@@ -24,7 +24,7 @@ clean:
 run:
 	$(GOCMD) run ./
 generate:
-	$(GOCMD) generate ./...
+	$(GOCMD) run github.com/99designs/gqlgen
 # Migrate will run migrations at your env's EDHGO_PG_URL value.
 # This is how we run prod migrations, so BE CAREFUL ABOUT RUNNING THIS COMMAND.
 # ALWAYS TEST MIGRATIONS LOCALLY FIRST.
@@ -34,14 +34,14 @@ build: build-ui build-server
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
 build-ui:
-	docker build -f ./frontend/Dockerfile -t dylanlott/edhgo-ui:$(BUILD_TAG) ./frontend
+	docker build -f ./frontend/Dockerfile -t openmtg/edhgo-ui:$(BUILD_TAG) ./frontend
 build-server:
-	docker build -f ./Dockerfile -t dylanlott/edhgo-server:$(BUILD_TAG) .
+	docker build -f ./Dockerfile -t openmtg/edhgo-server:$(BUILD_TAG) .
 deploy: confirm deploy-server deploy-ui
 deploy-ui: confirm build-ui
-	docker push dylanlott/edhgo-ui:$(BUILD_TAG)
+	docker push openmtg/edhgo-ui:$(BUILD_TAG)
 deploy-server: confirm build-server
-	docker push dylanlott/edhgo-server:$(BUILD_TAG)
+	docker push openmtg/edhgo-server:$(BUILD_TAG)
 persistence:
 	docker-compose -f dev.docker-compose.yml up postgres redis
 confirm:

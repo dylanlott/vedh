@@ -1,4 +1,4 @@
-//go:generate go run github.com/99designs/gqlgen
+//go:generate go run github.com/99designs/gqlgen generate
 
 package server
 
@@ -39,14 +39,8 @@ type graphQLServer struct {
 	mutex sync.RWMutex
 
 	// Persistence layers
-	rc *redis.Client
+	rc *redis.Client // TODO: remove redis in favor of just postgres
 	db *sql.DB
-
-	// TODO: make sure the games and boards maps are moved to redis so we can
-	// survive a restart without losing game state.
-
-	// TODO: Write a function for recovering boardstates and game channels
-	// if we consider them currently active.
 
 	// games holds a reference to *FullGames in the server.
 	// * games rely on both Game and Board channels.
