@@ -1,4 +1,4 @@
-.PHONY: dev persistence clean test test-api
+.PHONY: build dev persistence clean test test-api deploy-ui deploy-server docker-server docker-ui docker
 
 GOCMD=go
 GOBUILD=$(GOCMD) build
@@ -30,17 +30,17 @@ generate:
 # ALWAYS TEST MIGRATIONS LOCALLY FIRST.
 migrate-prod: confirm
 	migrate -path ./persistence/migrations -database $(EDHGO_PG_URL) up
-build: build-ui build-server
+docker: docker-ui docker-server
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
-build-ui:
+docker-ui:
 	docker build -f ./frontend/Dockerfile -t openmtg/edhgo-ui:$(BUILD_TAG) ./frontend
-build-server:
-	docker build -f ./Dockerfile -t openmtg/edhgo-server:$(BUILD_TAG) .
+docker-server:
+	docker build -t openmtg/edhgo-server:$(BUILD_TAG) .
 deploy: confirm deploy-server deploy-ui
-deploy-ui: confirm build-ui
+deploy-ui: confirm docker-ui
 	docker push openmtg/edhgo-ui:$(BUILD_TAG)
-deploy-server: confirm build-server
+deploy-server: confirm docker-server
 	docker push openmtg/edhgo-server:$(BUILD_TAG)
 persistence:
 	docker-compose -f dev.docker-compose.yml up postgres redis
