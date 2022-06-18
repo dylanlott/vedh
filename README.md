@@ -1,6 +1,5 @@
 # EDH-Go
 > A Magic: The Gathering boardstate simulator built with GraphQL and Go.
- [![Build Status](https://travis-ci.org/dylanlott/edh-go.svg?branch=master)](https://travis-ci.org/dylanlott/edh-go)
 
 ## Running
 
