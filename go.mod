@@ -14,6 +14,7 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/matryer/is v1.4.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.7.1
