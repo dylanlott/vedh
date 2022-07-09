@@ -12,11 +12,11 @@ BUILD_TAG=latest #tag all releases as latest for watchtower detection
 all: test build
 build:
 	$(GOBUILD) -o $(BINARY_NAME) -v
-short:
-	$(GOTEST) -v -short ./...
 test-api:
 	$(GOTEST) -v ./server/... -race
 test: test-api
+test-unit:
+	$(GOTEST) -v ./pkg/... -race
 clean:
 	$(GOCLEAN)
 	rm -f $(BINARY_NAME)
