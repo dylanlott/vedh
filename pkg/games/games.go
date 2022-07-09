@@ -85,12 +85,12 @@ type FullGame struct {
 // managing multiple Games.
 type MemStore struct {
 	sync.Mutex
-
 	games map[string]Game
 }
 
 // NewFullGame creates a new *FullGame
 func (m *MemStore) NewFullGame(id string, players []Player) (*FullGame, error) {
+	// we assign a random ID if one is not set.
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -124,11 +124,6 @@ func (m *MemStore) List() ([]Game, error) {
 func (m *MemStore) Get(id string) (Game, error) {
 	return nil, fmt.Errorf("not impl")
 }
-
-//
-// FullGame
-// Defines the FullGame interface which has a Pub Sub interface on it
-//
 
 // All games must have a unique ID
 func (i *FullGame) ID() string {
