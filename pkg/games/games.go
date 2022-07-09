@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // GameService defines a CRUD interface for Games.
@@ -14,19 +16,42 @@ type GameService interface {
 	Get(id string) (Game, error)
 }
 
-type Boardstate interface {
-	Battlefield()
-	Hand()
-	Library()
-	Graveyard()
-	Revealed()
-	Exiled()
+// JSON is a shortcut type for dealing with JSON
+type JSON map[string]interface{}
+
+// Players have a Boardstate and an ID.
+type Player interface {
+	ID() string
+	Boardstate() (JSON, error)
 }
 
-type Card interface{
+type player struct {
+	boardstate JSON
+}
+
+func (p *player) ID() string {
+	if p.boardstate == nil {
+		p.boardstate = make(JSON)
+	}
+
+	if val, ok := p.boardstate["id"]; ok {
+		return fmt.Sprintf("%v", val)
+	}
+
+	return "<ErrNoId>"
+}
+
+func (p *player) Boardstate() (JSON, error) {
+	if p.boardstate == nil {
+		p.boardstate = make(JSON)
+	}
+	return p.boardstate, nil
+}
+
+type Card interface {
 	ID() string
 	Name() string
-	Data() map[string]interface{}
+	Data() JSON
 }
 
 // Game declares the interface to our main resource: games
@@ -35,7 +60,7 @@ type Game interface {
 	ID() string
 	// Games are made up of player Boardstates in a specific order.
 	// Turn order is described by the order of Boardstates returned by Players.
-	Players() ([]Boardstate, error)
+	Players() ([]Player, error)
 	// Games have a Pub/Sub model built into them for realtime
 	PubSub
 }
@@ -51,19 +76,36 @@ type GQL struct{} // TODO
 
 // FullGame is an inmemory game store for testing and validation purposes
 type FullGame struct {
-	id string
-	players []Boardstate
+	id        string
+	players   []Player
 	createdAt time.Time
 }
 
+// MemStore fulfills the GameService interface and creates a API for
+// managing multiple Games.
 type MemStore struct {
 	sync.Mutex
 
 	games map[string]Game
 }
 
-func (m *MemStore) Create(game Game) (Game, error) {
-	return nil, fmt.Errorf("not impl")
+// NewFullGame creates a new *FullGame
+func (m *MemStore) NewFullGame(id string, players []Player) (*FullGame, error) {
+	if id == "" {
+		id = uuid.New().String()
+	}
+
+	g := &FullGame{
+		id:        id,
+		players:   players,
+		createdAt: time.Now(),
+	}
+
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+
+	m.games[g.ID()] = g
+	return g, nil
 }
 func (m *MemStore) Update(game Game) (Game, error) {
 	return nil, fmt.Errorf("not impl")
@@ -90,12 +132,12 @@ func (m *MemStore) Get(id string) (Game, error) {
 
 // All games must have a unique ID
 func (i *FullGame) ID() string {
-	panic("not implemented") // TODO: Implement
+	return i.id
 }
 
 // Games are made up of player Boardstates in a specific order.
 // Turn order is described by the order of Boardstates returned by Players.
-func (i *FullGame) Players() ([]Boardstate, error) {
+func (i *FullGame) Players() ([]Player, error) {
 	panic("not implemented") // TODO: Implement
 }
 

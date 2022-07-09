@@ -2,6 +2,7 @@ package games
 
 import (
 	"testing"
+	"time"
 
 	"github.com/matryer/is"
 )
@@ -9,15 +10,17 @@ import (
 func TestInMemoryGame(t *testing.T) {
 	is := is.New(t)
 
-	m := &MemStore{
-		games: make(map[string]Game),
-	}
-	game := &FullGame{
-		id: "0xACAB",
-	}
+	t.Run("should create a game", func(t *testing.T) {
+		m := &MemStore{
+			games: make(map[string]Game),
+		}
 
-	created, err := m.Create(game)
-	is.NoErr(err)
-	t.Logf("Created: %v", created)
-
+		now := time.Now()
+		created, err := m.NewFullGame("test", []Player{
+			&player{boardstate: make(JSON, 0)},
+		})
+		is.NoErr(err)
+		is.True(len(m.games) > 0)
+		is.True(created.createdAt.After(now))
+	})
 }
