@@ -107,6 +107,8 @@ type GQL struct{} // TODO
 
 // FullGame is an inmemory game store for testing and validation purposes
 type FullGame struct {
+	sync.Mutex
+
 	id        string
 	players   []Player
 	createdAt time.Time
@@ -142,12 +144,20 @@ func (m *MemStore) NewFullGame(id string, players []Player) (*FullGame, error) {
 	return g, nil
 }
 
+// Join adds a Player to a game.
 func (m *MemStore) Join(gameID string, player Player) (Game, error) {
 	if gameID == "" {
 		return nil, fmt.Errorf("ErrNoGameID")
 	}
 
-	return nil, fmt.Errorf("not impl")
+	m.Lock()
+	defer m.Unlock()
+
+	if v, ok := m.games[gameID]; !ok {
+		return nil, fmt.Errorf("ErrGameNoExist")
+	} else {
+		return v.Join(gameID, player)
+	}
 }
 
 // List returns a list of Games that are in the store currently.
@@ -197,7 +207,21 @@ func (f *FullGame) Get(playerID string) (Player, error) {
 
 // Join will add a Player to a Game or return an error.
 func (f *FullGame) Join(gameID string, player Player) (Game, error) {
-	return nil, fmt.Errorf("not impl")
+	if f.id != gameID {
+		return nil, fmt.Errorf("ErrIDMismatch")
+	}
+
+	f.Lock()
+	f.players = append(f.players, player)
+	f.Unlock()
+
+	// TODO publish game update event
+
+	return f, nil
+}
+
+func findPlayerByID(id string, cb func(p Player) error) {
+	panic("not impl")
 }
 
 //

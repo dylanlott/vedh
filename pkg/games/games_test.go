@@ -79,4 +79,34 @@ func TestInMemoryGame(t *testing.T) {
 		is.Equal(got["biz"], "baz")
 		// TODO: assert that events are emitted through PubSub
 	})
+
+	t.Run("should join a game", func(t *testing.T) {
+		is := is.New(t)
+		m := &MemStore{
+			games: map[string]Game{
+				"foo": &FullGame{
+					id: "foo",
+					players: []Player{
+						&inMemPlayer{
+							state: map[string]interface{}{
+								"id": "bar",
+							},
+						},
+					},
+					createdAt: time.Time{},
+				},
+			},
+		}
+
+		game, err := m.Join("foo", &inMemPlayer{
+			state: map[string]interface{}{
+				"id": "baz",
+			},
+		})
+		is.NoErr(err)
+
+		players, err := game.Players()
+		is.NoErr(err)
+		is.Equal(len(players), 2)
+	})
 }
