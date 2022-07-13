@@ -2,11 +2,14 @@ package games
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+var buffer int64 = 1000 // size of event buffer per subscriber
 
 // Games are managed by the GameService. Once a Game is acquired,
 // all updates and state management is done through the Game API.
@@ -32,12 +35,31 @@ type Player interface {
 	ID() string
 	Boardstate() (JSON, error)
 	Sync(JSON) error
+	AttachGame(game Game) error
 }
 
 type inMemPlayer struct {
 	sync.Mutex
-
+	Game  Game
 	state JSON
+}
+
+// NewPlayer returns a new inMemPlayer that fulfills the
+// Player interface.
+// We need to publish Game events when Player's update their
+// individuals states. What is the best way to do that?
+// This is my first approach, but we could do different stuff.
+func NewPlayer(id string) (*inMemPlayer, error) {
+	if id == "" {
+		id = uuid.New().String()
+	}
+	p := &inMemPlayer{
+		Game: nil, // NB: Game is set in AttachGame
+		state: map[string]interface{}{
+			"id": id,
+		},
+	}
+	return p, nil
 }
 
 func (p *inMemPlayer) ID() string {
@@ -63,9 +85,20 @@ func (p *inMemPlayer) Boardstate() (JSON, error) {
 // Sync
 func (p *inMemPlayer) Sync(json JSON) error {
 	p.Lock()
-	defer p.Unlock()
-
 	p.state = json
+	p.Unlock()
+	if err := p.Game.Publish(p.Game); err != nil {
+		return fmt.Errorf("failed to publish game event %w", err)
+	}
+	return nil
+}
+
+// AttachGame is necessary to attach a Game to a Player.
+// This is meant to give them access to the Game's PubSub interface
+// at player#Sync() call. I can't tell how I feel about this design yet.
+// Will review this decision later.
+func (p *inMemPlayer) AttachGame(game Game) error {
+	p.Game = game
 	return nil
 }
 
@@ -92,7 +125,7 @@ type Game interface {
 	// Sync(players ...Player) ([]Player, error)
 
 	// Join will join a Player to the Game that matches `gameID`
-	Join(gameID string, player Player) (Game, error)
+	Join(player Player) (Game, error)
 
 	// Get returns a single Player that matches `playerID` from the Game.
 	// If no player exists with that ID it will return an error.
@@ -113,7 +146,14 @@ type FullGame struct {
 	players   []Player
 	createdAt time.Time
 
-	// pub       chan Game // TODO: implement pub sub
+	subs []*Subscriber
+}
+
+// Subscriber relates a unique ID to a channel that messages are sent over.
+// A subscriber receives Game messages any time a Player or Game is updated.
+type Subscriber struct {
+	id string
+	ch chan Game
 }
 
 // MemStore fulfills the GameService interface and creates a API for
@@ -131,16 +171,23 @@ func (m *MemStore) NewFullGame(id string, players []Player) (*FullGame, error) {
 		id = uuid.New().String()
 	}
 
+	if players == nil {
+		players = []Player{}
+	}
+
 	g := &FullGame{
 		id:        id,
 		players:   players,
 		createdAt: time.Now(),
+		subs:      []*Subscriber{},
 	}
 
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
 	m.games[g.ID()] = g
+	log.Printf("created game %s", id)
+
 	return g, nil
 }
 
@@ -153,10 +200,10 @@ func (m *MemStore) Join(gameID string, player Player) (Game, error) {
 	m.Lock()
 	defer m.Unlock()
 
-	if v, ok := m.games[gameID]; !ok {
+	if game, ok := m.games[gameID]; !ok {
 		return nil, fmt.Errorf("ErrGameNoExist")
 	} else {
-		return v.Join(gameID, player)
+		return game.Join(player)
 	}
 }
 
@@ -184,7 +231,7 @@ func (m *MemStore) Get(id string) (Game, error) {
 	return nil, fmt.Errorf("ErrNoExist: %s", id)
 }
 
-// All games must have a unique ID
+// ID returns the FullGame's unique ID.
 func (f *FullGame) ID() string {
 	return f.id
 }
@@ -206,22 +253,20 @@ func (f *FullGame) Get(playerID string) (Player, error) {
 }
 
 // Join will add a Player to a Game or return an error.
-func (f *FullGame) Join(gameID string, player Player) (Game, error) {
-	if f.id != gameID {
-		return nil, fmt.Errorf("ErrIDMismatch")
+func (f *FullGame) Join(player Player) (Game, error) {
+	if err := player.AttachGame(f); err != nil {
+		return nil, fmt.Errorf("failed to attach game to player: %w", err)
 	}
+
+	log.Printf("player: %v", player)
 
 	f.Lock()
 	f.players = append(f.players, player)
 	f.Unlock()
 
-	// TODO publish game update event
+	f.Publish(f)
 
 	return f, nil
-}
-
-func findPlayerByID(id string, cb func(p Player) error) {
-	panic("not impl")
 }
 
 //
@@ -230,16 +275,32 @@ func findPlayerByID(id string, cb func(p Player) error) {
 
 // PubSub declares a generic pub/sub interface for any type
 type PubSub interface {
-	Subscribe() (<-chan Game, error)
+	Subscribe() (chan Game, error)
 	Publish(game Game) error
 }
 
 // Subscribe emits any changes to the FullGame
-func (i *FullGame) Subscribe() (<-chan Game, error) {
-	panic("not implemented") // TODO: Implement
+func (f *FullGame) Subscribe() (chan Game, error) {
+	f.Lock()
+	defer f.Unlock()
+
+	id := uuid.New().String()
+	s := &Subscriber{
+		id: id,
+		ch: make(chan Game, buffer),
+	}
+	f.subs = append(f.subs, s)
+
+	log.Printf("subscribed %s", s.id)
+
+	return s.ch, nil
 }
 
 // Publish should be called every time a FullGame is updated.
-func (i *FullGame) Publish(game Game) error {
-	panic("not implemented") // TODO: Implement
+func (f *FullGame) Publish(game Game) error {
+	for _, v := range f.subs {
+		v.ch <- game
+		log.Printf("published game event %v", game)
+	}
+	return nil
 }
