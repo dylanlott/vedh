@@ -44,11 +44,9 @@ type inMemPlayer struct {
 	state JSON
 }
 
-// NewPlayer returns a new inMemPlayer that fulfills the
-// Player interface.
-// We need to publish Game events when Player's update their
-// individuals states. What is the best way to do that?
-// This is my first approach, but we could do different stuff.
+// NewPlayer returns a new inMemPlayer that fulfills Player.
+// Players are assigned a Game when they Join.
+// Player Syncs publish to the Game
 func NewPlayer(id string) (*inMemPlayer, error) {
 	if id == "" {
 		id = uuid.New().String()
@@ -257,8 +255,6 @@ func (f *FullGame) Join(player Player) (Game, error) {
 	if err := player.AttachGame(f); err != nil {
 		return nil, fmt.Errorf("failed to attach game to player: %w", err)
 	}
-
-	log.Printf("player: %v", player)
 
 	f.Lock()
 	f.players = append(f.players, player)

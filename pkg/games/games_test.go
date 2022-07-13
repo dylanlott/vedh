@@ -192,6 +192,7 @@ func TestInMemoryGame(t *testing.T) {
 
 		fetchedPlayer, err := game.Get("fizz")
 		is.NoErr(err)
+		is.Equal(fetchedPlayer.ID(), "fizz")
 
 		syncErr := fetchedPlayer.Sync(JSON{
 			"foo": "bar",
@@ -200,5 +201,48 @@ func TestInMemoryGame(t *testing.T) {
 
 		got := <-sub
 		is.Equal(got.ID(), game.ID())
+
+		players, err := got.Players()
+		is.Equal(len(players), 1)
+		is.NoErr(err)
+
+		state, err := players[0].Boardstate()
+		is.NoErr(err)
+		is.Equal(state["foo"], "bar")
+	})
+
+	t.Run("should emulate a full game", func(t *testing.T) {
+		is := is.New(t)
+		m := &MemStore{
+			games: map[string]Game{},
+		}
+
+		g, err := m.NewFullGame("full_game", nil)
+		is.NoErr(err)
+		is.Equal(g.ID(), "full_game")
+		is.Equal(len(g.players), 0)
+
+		sub1, err := g.Subscribe()
+		is.NoErr(err)
+		sub2, err := g.Subscribe()
+		is.NoErr(err)
+
+		p1, err := NewPlayer("player1")
+		is.NoErr(err)
+
+		_, err = g.Join(p1)
+		is.NoErr(err)
+
+		p2, err := NewPlayer("player2")
+		is.NoErr(err)
+
+		_, err = g.Join(p2)
+		is.NoErr(err)
+
+		got1 := <-sub1
+		got2 := <-sub2
+
+		is.Equal(got1.ID(), g.ID())
+		is.Equal(got2.ID(), g.ID())
 	})
 }
