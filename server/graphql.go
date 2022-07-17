@@ -25,7 +25,7 @@ import (
 // Conf takes configuration values and loads them from the environment into our struct.
 type Conf struct {
 	RedisURL    string `envconfig:"REDIS_URL" default:"redis://localhost:6379"`
-	PostgresURL string `envconfig:"DATABASE_URL" default:"postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable"`
+	PostgresURL string `envconfig:"DATABASE_URL" default:"postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable"`
 	DefaultPort int    `envconfig:"PORT" default:"8080"`
 }
 

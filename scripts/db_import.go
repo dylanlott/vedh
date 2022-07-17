@@ -35,8 +35,9 @@ func init() {
 }
 
 // DBURL accesses a local Postgres instance running for local development.
-// DBURL = "postgres://edhgo:edhgodev@localhost:5432/edhgo?sslmode=disable"
-var DBURL = os.Getenv("EDHGO_PG_URL")
+var DBURL = "postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable"
+
+// var DBURL = os.Getenv("EDHGO_PG_URL")
 
 // CSVCard is a struct that exactly follows the structure of the AllPrintingsCSV
 // file that we get from MTGJSON.
@@ -81,7 +82,7 @@ type CSVCard struct {
 
 // TODO: Make this a commandline utility.
 func main() {
-	var refresh bool = false
+	var refresh bool = true
 	var dburl string = DBURL
 	var drop bool = false
 
