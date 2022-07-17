@@ -13,6 +13,7 @@ frontend/coverage/
 # Import script and temp data
 scripts/db_import.go
 *.csv
+allprintings.csv.zip
 .vscode/configurationCache.log
 .vscode/dryrun.log
 .vscode/settings.json
