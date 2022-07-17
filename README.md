@@ -49,6 +49,10 @@ $ yarn start
 
 #### Vue Tests
 
+`node@14` is required to build the frontend.
+
+We use `yarn` for package management.
+
 `yarn test` will run the boardstate unit tests.
 
 ## Testing 
