@@ -4,7 +4,7 @@ persistence/mtgallcards.sqlite
 *.sqlite*
 .DS_store
 bin/*
-*.env
+*.env.production
 
 
 # Frontend 
