@@ -37,6 +37,8 @@ The server will attempt to run all migrations and then start up.  If it can't ru
 
 You can run the server as if it's in prod with this same config, so you can switch between local and prod as long as you've configured your environment variables correctly.
 
+A copy of the server environment file for development is included in this repository.
+
 ### Front End 
 
 Run Vue app:
@@ -89,6 +91,8 @@ This means that we must always tag our containers with `latest` so that watchtow
 
 `frontend/.env.local` sets local environemnt variables and is used when `yarn start` is run.
 `frontend/.env.production` sets production environment variables and it used for `yarn build`.
+
+A copy of the frontend environment file for development is included in this repository.
 
 ## Deploying with Make 
 
