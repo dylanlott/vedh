@@ -57,35 +57,22 @@
     <!-- END CREATE TOKEN MODAL  -->
 
     <!-- OPPONENTS BOARDSTATES -->
-    <div v-if="bs.length > 0">
-      <div class="box" :key="player.ID" v-for="player in bs">
-        <pre>{{player}}</pre>
-      <div class="columns" v-if="user.ID !== player.User.ID">
-        <div class="title">{{ player.User.Username }}</div>
-        <div class="battlefield">
-          <div class="columns" v-if="player">
-            <div class="column">
-              <draggable
-                class="columns is-mobile"
-                v-model="player.Field"
-                group="people"
-                @start="drag = true"
-                @end="drag = false"
-              >
-                <div class="column" v-for="card in player.Field" :key="card.id">
+    <div class="box">
+      <div v-for="player in bs" v-if="player.User.ID !== user.ID">
+      <p class="title is-6">{{ player.User.Username }}</p>
+        <div class="tile" :key="player.ID" v-if="player.User.ID !== user.ID" v-for="player in bs">
+          <div class="columns">
+            <div class="" v-for="card in player.Field">
+              <!-- TODO: make this prettier for opponent views -->
                   <Card v-bind="card"></Card>
                 </div>
-              </draggable>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    </div>
-    <!-- END OF OPPONENTS BOARDSTATES -->
 
     <!-- SELF BOARDSTATE - PUBLIC SECTION -->
-    <p class="title is-6">Battlefield</p>
+    <p class="title is-6">Your Battlefield</p>
     <div class="columns is-mobile is-desktop is-flex" id="selfBattlefield" v-if="self">
       <!-- SELF - BATTLEFIELD -->
       <div class="column is-desktop is-mobile box is-flex">
@@ -182,13 +169,10 @@ export default {
     };
   },
   created() {
-    // load and sub to game
-    // this.$store.dispatch('getGame', this.$route.params.id)
     this.$store.dispatch('subscribeToGame', {
       gameID: this.$route.params.id,
       userID: this.user.ID,
     });
-    // load and sub to all boardstates
     this.$store.dispatch('subAllBoardstates', {
       gameID: this.$route.params.id,
       obsID: this.user.ID,
@@ -222,24 +206,25 @@ export default {
       this.isScryModalOpen = !this.isScryModalOpen;
     },
     toggleCreateTokenModal() {
-      this.isCreateTokenModalOpen = !this.isCreateTokenModalOpen
+      this.isCreateTokenModalOpen = !this.isCreateTokenModalOpen;
     },
     handleScryBottom() {
-      this.isScryModalOpen = false
-      const copy = Object.assign({}, this.self)
-      const card = copy.Library.shift()
+      this.isScryModalOpen = false;
+      const copy = Object.assign({}, this.self);
+      const card = copy.Library.shift();
       if (card) {
         // scrying an empty library causes nothing to happen
-        copy.Library.push(card)
-        return this.$store.dispatch('mutateBoardState', copy)
+        copy.Library.push(card);
+        return this.$store.dispatch('mutateBoardState', copy);
       } 
     },
+    // TODO: pull invite link out into its own component
     inviteLink() {
-      const link = `www.edhgo.com/join/${this.$route.params.id}`
-      return link
+      const link = `www.edhgo.com/join/${this.$route.params.id}`;
+      return link;
     },
     copyToClipboard(text) {
-      var dummy = document.createElement("textarea");
+      var dummy = document.createElement('textarea');
       // to avoid breaking orgain page when copying more words
       // cant copy when adding below this code
       // dummy.style.display = 'none'
@@ -248,10 +233,10 @@ export default {
       // which works with "input" does not work with "textarea"
       dummy.value = text;
       dummy.select();
-      document.execCommand("copy");
+      document.execCommand('copy');
       document.body.removeChild(dummy);
-      alert("copied text ", text)
-    }
+      alert('copied text ', text);
+    },
   },
   components: {
     draggable,

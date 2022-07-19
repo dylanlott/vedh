@@ -54,15 +54,18 @@ export const Boardstates = {
         // boardstate in our local state.
         // * payload is iterated over and checked for it's user's ID
         // and then assigned to the boardstates object keyed by that ID
+        // * beware of Vue's update detection caveats here. we must ensure we correctly
+        // reassign the boardstates prop after we have mutated the user's individual state.
         updateBoardStates(state, payload) {
-            // update each boardstate by player ID
+            let updated = Object.assign({}, state.boardstates)
             payload.forEach((bs) => {
                 if (bs.User.ID == "" || bs.User.ID == undefined) {
                     state.error = "boardstate did not have ID"
                     return
                 }
-                state.boardstates[bs.User.ID] = bs
+                updated[bs.User.ID] = Object.assign({}, bs)
             })
+            state.boardstates = updated
         },
         updateSelf(state, payload) {
             state.self = payload
