@@ -1,9 +1,19 @@
 <template>
   <div class="container is-fluid" v-if="user && game">
+    <b-button type="is-primary" @click="isInviteModalOpen = !isInviteModalOpen">Invite a friend</b-button> 
+    <b-modal :active="isInviteModalOpen">
+      <div v-if="self" class="modal-card" width="400px">
+        <header class="modal-card-head">Get an Invite Link</header>
+        <section class="modal-card-body">
+          <code id="invite-link">{{ inviteLink() }}</code> 
+          <b-button type="is-primary" @click="copyToClipboard(inviteLink())">Copy</b-button> 
+        </section>
+      </div>
+    </b-modal>
     <!-- TURN TRACKER -->
-    <div class="box">
-      <TurnTracker :game="game"/>
-    </div>
+    <!-- <div class="box"> -->
+      <!-- <TurnTracker :game="game"/> -->
+    <!-- </div> -->
     <!-- END TURN TRACKER -->
 
     <!-- SCRY MODAL  -->
@@ -48,7 +58,8 @@
 
     <!-- OPPONENTS BOARDSTATES -->
     <div v-if="bs.length > 0">
-    <div class="box" :key="player.ID" v-for="player in bs">
+      <div class="box" :key="player.ID" v-for="player in bs">
+        <pre>{{player}}</pre>
       <div class="columns" v-if="user.ID !== player.User.ID">
         <div class="title">{{ player.User.Username }}</div>
         <div class="battlefield">
@@ -159,13 +170,13 @@
 import _ from 'lodash';
 import draggable from 'vuedraggable';
 import Card from '@/components/Card';
-import TurnTracker from '@/components/TurnTracker.vue';
 import { mapState } from 'vuex';
 
 export default {
   name: 'board',
   data() {
     return {
+      isInviteModalOpen: false,
       isScryModalOpen: false,
       isCreateTokenModalOpen: false,
     };
@@ -223,11 +234,28 @@ export default {
         return this.$store.dispatch('mutateBoardState', copy)
       } 
     },
+    inviteLink() {
+      const link = `www.edhgo.com/join/${this.$route.params.id}`
+      return link
+    },
+    copyToClipboard(text) {
+      var dummy = document.createElement("textarea");
+      // to avoid breaking orgain page when copying more words
+      // cant copy when adding below this code
+      // dummy.style.display = 'none'
+      document.body.appendChild(dummy);
+      //Be careful if you use texarea. setAttribute('value', value), 
+      // which works with "input" does not work with "textarea"
+      dummy.value = text;
+      dummy.select();
+      document.execCommand("copy");
+      document.body.removeChild(dummy);
+      alert("copied text ", text)
+    }
   },
   components: {
     draggable,
     Card,
-    TurnTracker,
   },
 };
 </script>
