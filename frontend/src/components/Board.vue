@@ -235,7 +235,7 @@ export default {
       dummy.select();
       document.execCommand('copy');
       document.body.removeChild(dummy);
-      alert('copied text ', text);
+      this.isInviteModalOpen = false
     },
   },
   components: {
