@@ -1,20 +1,50 @@
 <template>
   <div class="container is-fluid" v-if="user && game">
-    <b-button type="is-primary" @click="isInviteModalOpen = !isInviteModalOpen">Invite a friend</b-button> 
+    <b-button type="is-primary" @click="isInviteModalOpen = !isInviteModalOpen">Invite a friend</b-button>
     <b-modal :active="isInviteModalOpen">
       <div v-if="self" class="modal-card" width="400px">
         <header class="modal-card-head">Get an Invite Link</header>
         <section class="modal-card-body">
-          <code id="invite-link">{{ inviteLink() }}</code> 
-          <b-button type="is-primary" @click="copyToClipboard(inviteLink())">Copy</b-button> 
+          <code id="invite-link">{{ inviteLink() }}</code>
+          <b-button type="is-primary" @click="copyToClipboard(inviteLink())">Copy</b-button>
         </section>
       </div>
     </b-modal>
+
     <!-- TURN TRACKER -->
     <!-- <div class="box"> -->
-      <!-- <TurnTracker :game="game"/> -->
+    <!-- <TurnTracker :game="game"/> -->
     <!-- </div> -->
     <!-- END TURN TRACKER -->
+
+    <!-- COMMANDER SELECTION  -->
+    <section>
+      <b-modal has-modal-card :active="isCommanderSelectionOpen" trap-focus :destroy-on-hide="false" aria-role="dialog"
+        aria-label="Example Modal" close-button-aria-label="Close" aria-modal>
+        <div class="card">
+          <div class="card-content">
+            <div class="content">
+              <b-field label="Select your Commander(s) from your library:">
+                <b-autocomplete v-model="name" placeholder="e.g. Kykar, Wind's Fury" :open-on-focus="openOnFocus"
+                  :data="filteredCommanderData" field="Name" @select="option => { addCommander(option) }"
+          :clearable="clearable">
+        </b-autocomplete>
+      </b-field>
+              <b-field>
+                <b-tag :key="key" v-if="self.Commander.length > 0" v-for="(obj, key) in self.Commander"
+                  type="is-primary" closable aria-close-label="Close tag" @close="removeCommander(obj)">
+                  <b>{{ obj.Name }}</b>
+                </b-tag>
+              </b-field>
+            </div>
+          </div>
+          <div class="card-footer">
+            <b-button type="is-primary is-light" size="is-small" @click="isCommanderSelectionOpen = !isCommanderSelectionOpen">Done</b-button>
+          </div>
+        </div>
+      </b-modal>
+    </section>
+
 
     <!-- SCRY MODAL  -->
     <b-modal :active="isScryModalOpen">
@@ -31,7 +61,7 @@
       </div>
     </b-modal>
     <!-- END SCRY MODAL  -->
-    
+
     <!-- CREATE TOKEN MODAL  -->
     <!-- TODO: Implement the create token modal.
     <b-modal :active="isCreateTokenModalOpen">
@@ -59,37 +89,28 @@
     <!-- OPPONENTS BOARDSTATES -->
     <div class="box">
       <div v-for="player in bs" v-if="player.User.ID !== user.ID">
-      <p class="title is-6">{{ player.User.Username }}</p>
+        <p class="title is-6">{{ player.User.Username }}</p>
         <div class="tile" :key="player.ID" v-if="player.User.ID !== user.ID" v-for="player in bs">
           <div class="columns">
             <div class="" v-for="card in player.Field">
               <!-- TODO: make this prettier for opponent views -->
-                  <Card v-bind="card"></Card>
-                </div>
+              <Card v-bind="card"></Card>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
     <!-- SELF BOARDSTATE - PUBLIC SECTION -->
     <p class="title is-6">Your Battlefield</p>
     <div class="columns is-mobile is-desktop is-flex" id="selfBattlefield" v-if="self">
       <!-- SELF - BATTLEFIELD -->
       <div class="column is-desktop is-mobile box is-flex">
-        <draggable
-          class="columns is-flex is-multiline is-mobile is-align-items-flex-start"
-          @change="handleChange()"
-          v-model="self.Field"
-          group="people"
-          @start="drag = true"
-          @end="drag = false"
-        >
+        <draggable class="columns is-flex is-multiline is-mobile is-align-items-flex-start" @change="handleChange()"
+          v-model="self.Field" group="people" @start="drag = true" @end="drag = false">
           <!-- Note: Cards can only be tapped on the battlefield -->
-          <div v-on:dblclick="handleTap(card)" 
-            class="column" 
-            v-for="card in self.Field" 
-            :key="card.id">
-              <Card v-bind="card"></Card>
+          <div v-on:dblclick="handleTap(card)" class="column" v-for="card in self.Field" :key="card.id">
+            <Card v-bind="card"></Card>
           </div>
         </draggable>
       </div>
@@ -121,8 +142,7 @@
         <template #end>
           <b-navbar-item tag="div">
             <div class="buttons">
-              <a @click="handleTapAll()" class="button is-dark "><strong>Tap All</strong></a>
-              <a @click="handleUntapAll()" class="button is-light">Untap All</a>
+              <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen" class="button is-dark is-small">Commanders</a>
               <!-- <a @click="toggleCreateTokenModal" class="button is-primary">Create Token</a> -->
             </div>
           </b-navbar-item>
@@ -136,14 +156,8 @@
         <div class="column is-full">
           <!-- SELF - HAND-->
           <p class="title is-5">Hand</p>
-          <draggable
-            class="columns is-flex is-multiline is-mobile is-align-items-flex-start"
-            v-model="self.Hand"
-            group="people"
-            @change="handleChange()"
-            @start="drag = true"
-            @end="drag = false"
-          >
+          <draggable class="columns is-flex is-multiline is-mobile is-align-items-flex-start" v-model="self.Hand"
+            group="people" @change="handleChange()" @start="drag = true" @end="drag = false">
             <div class="column" v-for="card in self.Hand" :key="card.id">
               <Card v-bind="card"></Card>
             </div>
@@ -163,6 +177,14 @@ export default {
   name: 'board',
   data() {
     return {
+      // TODO get rid of soon
+      keepFirst: false,
+      openOnFocus: false,
+      name: '',
+      selected: null,
+      clearable: true,
+      isCommanderSelectionOpen: true, // NB: default open at start
+
       isInviteModalOpen: false,
       isScryModalOpen: false,
       isCreateTokenModalOpen: false,
@@ -178,12 +200,25 @@ export default {
       obsID: this.user.ID,
     });
   },
-  computed: mapState({
-    game: (state) => state.Games.game,
-    bs: (state) => state.Boardstates.boardstates,
-    self: (state) => state.Boardstates.self,
-    user: (state) => state.Users.User,
-  }),
+  computed: {
+    // TODO this belongs with Commander Selection modal in its own component
+    filteredCommanderData() {
+      if (this.self.Library && this.self.Library.length > 0) {
+      return this.self.Library.filter(option => {
+        return (
+          option.Name.toString().toLowerCase().indexOf(this.name.toLowerCase()) >= 0
+        )
+      })
+
+      }
+    },
+    ...mapState({
+      game: (state) => state.Games.game,
+      bs: (state) => state.Boardstates.boardstates,
+      self: (state) => state.Boardstates.self,
+      user: (state) => state.Users.User,
+    })
+  },
   methods: {
     handleDraw() {
       this.$store.dispatch('draw', this.self);
@@ -216,7 +251,7 @@ export default {
         // scrying an empty library causes nothing to happen
         copy.Library.push(card);
         return this.$store.dispatch('mutateBoardState', copy);
-      } 
+      }
     },
     // TODO: pull invite link out into its own component
     inviteLink() {
@@ -237,6 +272,16 @@ export default {
       document.body.removeChild(dummy);
       this.isInviteModalOpen = false
     },
+    // commander is a card type here 
+    addCommander(commander) {
+      this.self.Library = this.self.Library.filter((option) => commander.Name != option.Name)
+      this.self.Commander.push(commander)
+      this.handleChange()
+    },
+    removeCommander(commander) {
+      this.self.Commander = this.self.Commander.filter((option) => commander.Name != option.Name)
+      this.handleChange()
+    }
   },
   components: {
     draggable,
