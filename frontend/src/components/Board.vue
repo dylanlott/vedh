@@ -1,15 +1,17 @@
 <template>
   <div class="container is-fluid" v-if="user && game">
-    <b-button type="is-primary" @click="isInviteModalOpen = !isInviteModalOpen">Invite a friend</b-button>
-    <b-modal :active="isInviteModalOpen">
-      <div v-if="self" class="modal-card" width="400px">
-        <header class="modal-card-head">Get an Invite Link</header>
-        <section class="modal-card-body">
-          <code id="invite-link">{{ inviteLink() }}</code>
-          <b-button type="is-primary" @click="copyToClipboard(inviteLink())">Copy</b-button>
-        </section>
-      </div>
-    </b-modal>
+    <section>
+      <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen">Invite a friend</b-button>
+      <b-modal :active="isInviteModalOpen">
+        <div v-if="self" class="modal-card" width="400px">
+          <header class="modal-card-head">Get an Invite Link</header>
+          <section class="modal-card-body">
+            <code id="invite-link">{{ inviteLink() }}</code>
+            <b-button type="is-primary" @click="copyToClipboard(inviteLink())">Copy</b-button>
+          </section>
+        </div>
+      </b-modal>
+    </section>
 
     <!-- TURN TRACKER -->
     <!-- <div class="box"> -->
@@ -26,10 +28,10 @@
             <div class="content">
               <b-field label="Select your Commander(s) from your library:">
                 <b-autocomplete v-model="name" placeholder="e.g. Kykar, Wind's Fury" :open-on-focus="openOnFocus"
-                  :data="filteredCommanderData" field="Name" @select="option => { addCommander(option) }"
-          :clearable="clearable">
-        </b-autocomplete>
-      </b-field>
+                  :data="filteredCommanderData" field="Name"
+                  @select="option => { option ? addCommander(option) : null }" :clearable="clearable">
+                </b-autocomplete>
+              </b-field>
               <b-field>
                 <b-tag :key="key" v-if="self.Commander.length > 0" v-for="(obj, key) in self.Commander"
                   type="is-primary" closable aria-close-label="Close tag" @close="removeCommander(obj)">
@@ -38,9 +40,10 @@
               </b-field>
             </div>
           </div>
-          <div class="card-footer">
-            <b-button type="is-primary is-light" size="is-small" @click="isCommanderSelectionOpen = !isCommanderSelectionOpen">Done</b-button>
-          </div>
+          <footer class="modal-card-foot">
+            <b-button type="is-primary is-light" size="is-small"
+              @click="isCommanderSelectionOpen = !isCommanderSelectionOpen">Done</b-button>
+          </footer>
         </div>
       </b-modal>
     </section>
@@ -121,8 +124,8 @@
     <template>
       <b-navbar>
         <template #start>
-          <b-navbar-item @click="handleDraw()" href="#">
-            <button class="button is-primary">
+          <b-navbar-item @click="handleDraw()">
+            <button class="button is-primary is-small">
               <span class="icon">
                 <i class="fa fa-book"></i>
               </span>
@@ -130,7 +133,7 @@
             </button>
           </b-navbar-item>
           <b-navbar-item @click="toggleScryModal()" href="#">
-            <button class="button is-primary">
+            <button class="button is-primary is-small">
               <span class="icon">
                 <i class="fa fa-book"></i>
               </span>
@@ -142,7 +145,10 @@
         <template #end>
           <b-navbar-item tag="div">
             <div class="buttons">
-              <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen" class="button is-dark is-small">Commanders</a>
+              <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen"
+                class="button is-dark is-small">Commanders</a>
+              <a @click="handleTapAll()" class="button is-dark is-small"><strong>Tap All</strong></a>
+              <a @click="handleUntapAll()" class="button is-light is-small">Untap All</a>
               <!-- <a @click="toggleCreateTokenModal" class="button is-primary">Create Token</a> -->
             </div>
           </b-navbar-item>
@@ -181,7 +187,7 @@ export default {
       keepFirst: false,
       openOnFocus: false,
       name: '',
-      selected: null,
+      selected: '',
       clearable: true,
       isCommanderSelectionOpen: true, // NB: default open at start
 
@@ -204,12 +210,11 @@ export default {
     // TODO this belongs with Commander Selection modal in its own component
     filteredCommanderData() {
       if (this.self.Library && this.self.Library.length > 0) {
-      return this.self.Library.filter(option => {
-        return (
-          option.Name.toString().toLowerCase().indexOf(this.name.toLowerCase()) >= 0
-        )
-      })
-
+        return this.self.Library.filter(option => {
+          return (
+            option.Name.toString().toLowerCase().indexOf(this.name.toLowerCase()) >= 0
+          )
+        })
       }
     },
     ...mapState({
@@ -274,11 +279,12 @@ export default {
     },
     // commander is a card type here 
     addCommander(commander) {
-      this.self.Library = this.self.Library.filter((option) => commander.Name != option.Name)
+      this.self.Library = this.self.Library.filter((option) => option ? commander.Name != option.Name : false)
       this.self.Commander.push(commander)
       this.handleChange()
     },
     removeCommander(commander) {
+      this.self.Library.push(commander)
       this.self.Commander = this.self.Commander.filter((option) => commander.Name != option.Name)
       this.handleChange()
     }
