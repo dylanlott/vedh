@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/matryer/is"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -414,6 +415,19 @@ func TestMultipleSubscriptions(t *testing.T) {
 	first := <-ch1
 	second := <-ch2
 	assert.Equal(t, first, second)
+}
+
+func TestCreateLibraryFromDecklist(t *testing.T) {
+	is := is.New(t)
+	s := testAPI(t)
+	d := decklist()
+	ctx := context.Background()
+	got, err := s.createLibraryFromDecklist(ctx, *d)
+	is.NoErr(err)
+	is.Equal(len(got), 112)
+	// assert that we get card data back as well
+	card := got[0]
+	is.True(card.Cmc != nil)
 }
 
 // returns a csv formatted string using a premade decklist that tests up to the
