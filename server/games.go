@@ -154,18 +154,18 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		User:       user,
 		Life:       input.BoardState.Life,
 		GameID:     game.ID,
-		Hand:       getCards(input.BoardState.Hand),
-		Exiled:     getCards(input.BoardState.Exiled),
-		Revealed:   getCards(input.BoardState.Revealed),
-		Field:      getCards(input.BoardState.Field),
-		Controlled: getCards(input.BoardState.Controlled),
+		Hand:       getBareCard(input.BoardState.Hand),
+		Exiled:     getBareCard(input.BoardState.Exiled),
+		Revealed:   getBareCard(input.BoardState.Revealed),
+		Field:      getBareCard(input.BoardState.Field),
+		Controlled: getBareCard(input.BoardState.Controlled),
 	}
 
 	library, err := s.createLibraryFromDecklist(ctx, *input.Decklist)
 	if err != nil {
 		// Fail gracefully and still populate basic cards
 		log.Printf("error creating library from decklist: %+v", err)
-		bs.Library = getCards(input.BoardState.Library)
+		bs.Library = getBareCard(input.BoardState.Library)
 	} else {
 		// Happy path
 		bs.Library = library
@@ -212,7 +212,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	return game, nil
 }
 
-// createGame is untested currently
+// CreateGame creates a new game and hydrates the decklists for the players in it.
 func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGame) (*Game, error) {
 	// don't allow a game to be created with an existing name
 	if _, exists := s.games[inputGame.ID]; exists {
@@ -259,11 +259,11 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			User:       user,
 			Life:       player.Life,
 			GameID:     g.ID,
-			Hand:       getCards(player.Hand),
-			Exiled:     getCards(player.Exiled),
-			Revealed:   getCards(player.Revealed),
-			Field:      getCards(player.Field),
-			Controlled: getCards(player.Controlled),
+			Hand:       getBareCard(player.Hand),
+			Exiled:     getBareCard(player.Exiled),
+			Revealed:   getBareCard(player.Revealed),
+			Field:      getBareCard(player.Field),
+			Controlled: getBareCard(player.Controlled),
 		}
 
 		var decklist string
@@ -276,7 +276,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		if err != nil {
 			// Fail gracefully and still populate basic cards
 			log.Printf("error creating library from decklist: %+v", err)
-			bs.Library = getCards(player.Library)
+			bs.Library = getBareCard(player.Library)
 		} else {
 			// Happy path
 			bs.Library = library
@@ -287,7 +287,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			if err != nil {
 				log.Printf("error getting commander for deck: %+v", err)
 				// fail gracefully and use their card name so they can still play a game
-				inputCard := getCards(player.Commander)
+				inputCard := getBareCard(player.Commander)
 				bs.Commander = []*Card{inputCard[0]}
 			} else {
 				bs.Commander = []*Card{commander}
@@ -304,7 +304,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		// TODO: Use UpdateBoardState instead and use InputBoardState types
 		// so that we can set arbitrary board states at create game time.
 
-		// remember that BoardStates are keyed by User.ID not Username anymore
+		// NB: BoardStates are keyed by User.ID not Username
 		err = s.Set(BoardStateKey(g.ID, bs.User.ID), bs)
 		if err != nil {
 			log.Printf("error persisting boardstate into redis: %s", err)
@@ -321,7 +321,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	return g, nil
 }
 
-func getCards(inputCards []*InputCard) []*Card {
+func getBareCard(inputCards []*InputCard) []*Card {
 	cardList := []*Card{}
 
 	for _, card := range inputCards {
@@ -335,21 +335,24 @@ func getCards(inputCards []*InputCard) []*Card {
 
 		cardList = append(cardList, c)
 	}
-
 	return cardList
 }
 
+// createLibraryFromDecklist parses the provided decklist string as CSV.
 func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist string) ([]*Card, error) {
 	if decklist == "" {
 		return []*Card{}, errs.New("must provide cards in decklist to create a library")
 	}
+
 	trimmed := strings.TrimSpace(decklist)
 	r := csv.NewReader(strings.NewReader(trimmed))
+
 	// set lazy quotes for using double quotes in csv files
 	r.LazyQuotes = true
+	// and trim leading spaces
 	r.TrimLeadingSpace = true
-	cards := []*Card{}
 
+	cards := []*Card{}
 	for {
 		// TODO: Use r.ReadAll() to get the whole decklist and do only one
 		// DB lookup for all of the cards instead of one by one.
@@ -358,55 +361,37 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 			break
 		}
 		if err != nil {
-			// handle error path
-			log.Printf("error reading record: %+v", err)
+			log.Printf("error reading csv record for card name: %+v", err)
 			return nil, errs.New("failed to parse CSV: %s", err)
 		}
 
-		trimmed := strings.TrimSpace(record[0])
-		quantity, err := strconv.ParseInt(trimmed, 0, 64)
-		if err != nil {
-			// handle error
-			log.Printf("error parsing quantity: %+v\n", err)
-			// assume quantity = 1
-			quantity = 1
-		}
-
-		// NB: In the future, this should be optimized to be one query for all the cards
-		// instead of a query for each card in the deck.
 		name := record[1]
-		// TODO: Make this respect ID when fetching cards.
-		card, err := s.Card(ctx, name, nil)
+		quantity, err := strconv.ParseInt(record[0], 10, 64)
 		if err != nil {
-			// handle lookup error
-			log.Printf("error looking up card: %+v\n", err)
-			cards = append(cards, &Card{
-				Name: name,
-			})
-			continue
+			return nil, fmt.Errorf("failed to parse quantity: %w", err)
 		}
 
-		// happy path
-		var num int64 = 1
-		for num <= quantity {
-			// Fail gracefully if we can't find the card
-			if card != nil {
-				cards = append(cards, &Card{
-					Name: name,
-				})
-				num++
-			} else {
-				// add the first card that's returned from the database
-				// NB: This is going to need to be handled eventually
-				cards = append(cards, card)
-				num++
-			}
+		found, err := s.Card(ctx, name, nil)
+		if err != nil {
+			log.Printf("failed to find card: %+v\n", err)
+			cards = addX(quantity, cards, &Card{Name: name})
+		} else {
+			cards = addX(quantity, cards, found)
 		}
-
-		continue
 	}
 
 	return cards, nil
+}
+
+// addX adds a card to a slice of cards x number of times.
+func addX(qty int64, cards []*Card, card *Card) []*Card {
+	sum := int64(1)
+	for i := int64(1); i <= qty; i++ {
+		cards = append(cards, card)
+		sum += i
+	}
+
+	return cards
 }
 
 // GameKey formats the keys for Games in our Directory
@@ -417,14 +402,14 @@ func GameKey(gameID string) string {
 // publish a game update to each Observer of the game
 func (s *graphQLServer) publishGame(gameID string, g *Game) {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if fullgame, ok := s.games[gameID]; ok {
-		s.mutex.Unlock()
 		for _, v := range fullgame.Observers {
 			v.Channel <- g
 		}
 		return
-	} else {
-		s.mutex.Unlock()
-		log.Printf("published update for game that does not exist: %s", gameID)
 	}
+
+	log.Printf("ERROR: published update for game that does not exist: %s", gameID)
 }
