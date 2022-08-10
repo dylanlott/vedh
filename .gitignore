@@ -5,6 +5,7 @@ persistence/mtgallcards.sqlite
 .DS_store
 bin/*
 *.env.production
+.edhgo.env
 
 
 # Frontend 
