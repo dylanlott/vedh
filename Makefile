@@ -34,7 +34,7 @@ docker: docker-ui docker-server
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
 docker-ui:
-	docker build -f ./frontend/Dockerfile -t openmtg/edhgo-ui:$(BUILD_TAG) ./frontend
+	docker buildx build -f ./frontend/Dockerfile -t openmtg/edhgo-ui:$(BUILD_TAG) --platform linux/amd64 ./frontend
 docker-server:
 	docker build -t openmtg/edhgo-server:$(BUILD_TAG) .
 deploy: confirm deploy-server deploy-ui
@@ -43,6 +43,6 @@ deploy-ui: confirm docker-ui
 deploy-server: confirm docker-server
 	docker push openmtg/edhgo-server:$(BUILD_TAG)
 persistence:
-	docker-compose -f dev.docker-compose.yml up postgres redis
+	docker-compose -f dev.docker-compose.yml up -d postgres redis
 confirm:
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
