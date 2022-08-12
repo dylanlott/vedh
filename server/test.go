@@ -10,7 +10,7 @@ func testAPI(t *testing.T) *graphQLServer {
 	// Update these as you need to but don't commit any changes to this file.
 	cfg := Conf{
 		RedisURL:    "redis://localhost:6379",
-		PostgresURL: "postgres://goddmode:cold-sabotage-dweeb-calamari@localhost:5432/edhgo?sslmode=disable",
+		PostgresURL: "postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable",
 		DefaultPort: 8080,
 	}
 	kv, err := persistence.NewRedis("redis://localhost:6379", "")
