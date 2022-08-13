@@ -34,7 +34,13 @@ docker: docker-ui docker-server
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
 docker-ui:
-	docker buildx build -f ./frontend/Dockerfile -t openmtg/edhgo-ui:$(BUILD_TAG) --platform linux/amd64 ./frontend
+	docker buildx build \
+		-f ./frontend/Dockerfile \
+		-t openmtg/edhgo-ui:$(BUILD_TAG) \
+		--build-arg NODE_ENV=production \
+		--build-arg VUE_APP_WEBSOCKET_URL=wss://api.edhgo.com/graphql \
+		--build-arg VUE_APP_BASE_URL=https://api.edhgo.com/graphql \
+		--platform linux/amd64 ./frontend
 docker-server:
 	docker build -t openmtg/edhgo-server:$(BUILD_TAG) .
 deploy: confirm deploy-server deploy-ui
