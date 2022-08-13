@@ -26,7 +26,11 @@ Vue.use(VueMatomo, {
   router: router,
   host: 'https://analytics.edhgo.com',
   siteId: 1,
-  enableHeartBeatTimer: true,
+  router: router,
+  enableLinkTracking: true,
+  requireConsent: false,
+  trackInitialView: true,
+  disableCookies: false
 })
 
 const vm = new Vue({
