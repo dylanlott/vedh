@@ -24,10 +24,8 @@ Vue.use(VueApollo)
 
 Vue.use(VueMatomo, {
   router: router,
-  host: 'https://analytics.edhgo.com/',
+  host: 'https://analytics.edhgo.com',
   siteId: 1,
-  requireConsent: true,
-  requireCookieConsent: true,
   enableHeartBeatTimer: true,
 })
 
