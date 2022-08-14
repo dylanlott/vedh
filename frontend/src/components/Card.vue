@@ -44,8 +44,8 @@ export default {
 </script>
 <style scoped>
 .fixed-size {
-  width: 275px;
-  max-width: 275px;
+  width: 160px;
+  max-width: 160px;
 }
 .flipped {
   color: #000;
