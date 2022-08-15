@@ -1,7 +1,14 @@
 <template>
   <section>
     <Grid />
-    <DraggableCard />
+    <!-- <code> -->
+      <!-- {{ self.Field }} -->
+      <!-- {{ self.Hand }} -->
+    <!-- </code> -->
+
+    <div v-for="card in self.Hand">
+      <DraggableCard :card="card"/>
+    </div>
   </section>
 </template>
 <script>
