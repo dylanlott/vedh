@@ -1,12 +1,13 @@
 <template>
     <div ref="myDraggable" class="draggable">
-      Draggable
+      <!--  Wrap Card here -->
+      <Card v-bind="card"/>
     </div>
 </template>
 
 <script>
-import interact from "interactjs";
-
+import interact from 'interactjs';
+import Card from '@/components/Card';
 export default {
   name: "Draggable",
   data() {
@@ -14,6 +15,9 @@ export default {
       screenX: 0,
       screenY: 0
     };
+  },
+  props: {
+    card: Object,
   },
   mounted: function() {
     let myDraggable = this.$refs.myDraggable;
@@ -64,6 +68,9 @@ export default {
       this.screenX = target.getBoundingClientRect().left;
       this.screenY = target.getBoundingClientRect().top;
     }
+  },
+  components: {
+    Card,
   }
 };
 </script>
