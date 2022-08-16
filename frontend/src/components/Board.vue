@@ -1,33 +1,261 @@
 <template>
   <section>
-    <Grid />
-    <!-- <code> -->
-      <!-- {{ self.Field }} -->
-      <!-- {{ self.Hand }} -->
-    <!-- </code> -->
+    <section>
+      <!-- ### BATTLEFIELD -->
+      <section id="battlefield" class="dropzone outer-dropzone">
+        BATTLEFIELD
+        <DraggableCard v-for="card in self.Field" :card="card" :key="card.ID" />
+      </section>
 
-    <div v-for="card in self.Hand">
-      <DraggableCard :card="card"/>
-    </div>
+      <section id="hand" class="dropzone outer-dropzone">
+        HAND
+        <DraggableCard v-for="card in self.Hand" :card="card" :key="card.ID" />
+      </section>
+
+      <!-- INVITE LINK -->
+      <section>
+        <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen">Invite a friend</b-button>
+        <b-modal :active="isInviteModalOpen">
+          <div v-if="self" class="modal-card" width="400px">
+            <header class="modal-card-head">Get an Invite Link</header>
+            <section class="modal-card-body">
+              <code id="invite-link">{{ inviteLink() }}</code>
+              <b-button type="is-primary" @click="copyToClipboard(inviteLink())">Copy</b-button>
+            </section>
+          </div>
+        </b-modal>
+      </section>
+      <!-- END INVITE LINK -->
+
+      <!-- COMMANDER SELECTION  -->
+      <section>
+        <b-modal
+          has-modal-card
+          :active="isCommanderSelectionOpen"
+          trap-focus
+          :destroy-on-hide="false"
+          aria-role="dialog"
+          aria-label="Example Modal"
+          close-button-aria-label="Close"
+          aria-modal
+        >
+          <div class="card">
+            <div class="card-content">
+              <div class="content">
+                <b-field label="Select your Commander(s) from your library:">
+                  <b-autocomplete
+                    v-model="name"
+                    placeholder="e.g. Kykar, Wind's Fury"
+                    :open-on-focus="openOnFocus"
+                    :data="filteredCommanderData"
+                    field="Name"
+                    @select="
+                      (option) => {
+                        option ? addCommander(option) : null;
+                      }
+                    "
+                    :clearable="clearable"
+                  >
+                  </b-autocomplete>
+                </b-field>
+                <b-field>
+                  <b-tag
+                    :key="key"
+                    v-if="self.Commander.length > 0"
+                    v-for="(obj, key) in self.Commander"
+                    type="is-primary"
+                    closable
+                    aria-close-label="Close tag"
+                    @close="removeCommander(obj)"
+                  >
+                    <b>{{ obj.Name }}</b>
+                  </b-tag>
+                </b-field>
+              </div>
+            </div>
+            <footer class="modal-card-foot">
+              <b-button
+                type="is-primary is-light"
+                size="is-small"
+                @click="isCommanderSelectionOpen = !isCommanderSelectionOpen"
+                >Done</b-button
+              >
+            </footer>
+          </div>
+        </b-modal>
+      </section>
+
+      <!-- SCRY MODAL  -->
+      <b-modal :active="isScryModalOpen">
+        <div v-if="self" class="modal-card" width="400px">
+          <header class="modal-card-head"></header>
+          <section v-if="self.Library" class="modal-card-body">
+            <!-- TODO: Handle scry X instead of assuming just scry 1 -->
+            <Card v-if="isScryModalOpen" v-bind="self.Library[0]" />
+          </section>
+          <footer class="modal-card-foot">
+            <b-button @click="toggleScryModal()">Close</b-button>
+            <b-button @click="handleScryBottom()">Bottom</b-button>
+          </footer>
+        </div>
+      </b-modal>
+      <!-- END SCRY MODAL  -->
+    </section>
+
+    <!-- ### TOOLBAR START  -->
+    <template>
+      <b-navbar>
+        <template #start>
+          <b-navbar-item @click="handleDraw()">
+            <button class="button is-primary is-small">
+              <span class="icon">
+                <i class="fa fa-book"></i>
+              </span>
+              <span>Draw</span>
+            </button>
+          </b-navbar-item>
+          <b-navbar-item @click="toggleScryModal()" href="#">
+            <button class="button is-primary is-small">
+              <span class="icon">
+                <i class="fa fa-book"></i>
+              </span>
+              <span>Scry</span>
+            </button>
+          </b-navbar-item>
+        </template>
+
+        <template #end>
+          <b-navbar-item tag="div">
+            <div class="buttons">
+              <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen" class="button is-dark is-small"
+                >Commanders</a
+              >
+              <a @click="handleTapAll()" class="button is-dark is-small"><strong>Tap All</strong></a>
+              <a @click="handleUntapAll()" class="button is-light is-small">Untap All</a>
+              <!-- <a @click="toggleCreateTokenModal" class="button is-primary">Create Token</a> -->
+            </div>
+          </b-navbar-item>
+        </template>
+      </b-navbar>
+    </template>
   </section>
 </template>
 <script>
 import _ from 'lodash';
-import Grid from '@/components/Grid';
+import interact from 'interactjs';
 import DraggableCard from '@/components/DraggableCard';
 import Card from '@/components/Card';
 import { mapState } from 'vuex';
 
 export default {
   name: 'board',
+  data() {
+    return {
+      // TODO get rid of soon
+      keepFirst: false,
+      openOnFocus: false,
+      name: '',
+      selected: '',
+      clearable: true,
+      isCommanderSelectionOpen: true, // NB: default open at start
+      // modal bools
+      isInviteModalOpen: false,
+      isScryModalOpen: false,
+      isCreateTokenModalOpen: false,
+    };
+  },
   created() {
+    // load the initial game state
     this.$store.dispatch('getGame', { 
       gameID: this.$route.params.id
     })
+
+    // subscribe to updates
     this.$store.dispatch('subscribeToGame', {
       gameID: this.$route.params.id,
       userID: this.user.ID,
     });
+
+    // enable draggables to be dropped into this
+    interact('#battlefield').dropzone({
+      // Require a 75% element overlap for a drop to be possible
+      overlap: 0.75,
+
+      // listen for drop related events:
+
+      ondropactivate: function (event) {
+        console.log('ON DRAG ACTIVATE BATTLEFIELD');
+        // add active dropzone feedback
+        event.target.classList.add('drop-active');
+      },
+      ondragenter: function (event) {
+        console.log('ON DRAG ENTER BATTLEFIELD');
+        var draggableElement = event.relatedTarget;
+        var dropzoneElement = event.target;
+
+        // feedback the possibility of a drop
+        dropzoneElement.classList.add('drop-target');
+        draggableElement.classList.add('can-drop');
+        draggableElement.textContent = 'Dragged in';
+      },
+      ondragleave: function (event) {
+        console.log('ON DRAG LEAVE BATTLEFIELD');
+        // remove the drop feedback style
+        event.target.classList.remove('drop-target');
+        event.relatedTarget.classList.remove('can-drop');
+        event.relatedTarget.textContent = 'Dragged out';
+      },
+      ondrop: function (event) {
+        console.log('ON DROP BATTLEFIELD');
+        event.relatedTarget.textContent = 'Dropped';
+      },
+      ondropdeactivate: function (event) {
+        console.log('ON DROP DEACTIVATE BATTLEFIELD');
+        // remove active dropzone feedback
+        event.target.classList.remove('drop-active');
+        event.target.classList.remove('drop-target');
+      },
+    });
+
+    interact('#hand').dropzone({
+      // Require a 75% element overlap for a drop to be possible
+      overlap: 0.75,
+
+      // listen for drop related events:
+
+      ondropactivate: function (event) {
+        console.log('ON DRAG ACTIVATE HAND');
+        // add active dropzone feedback
+        event.target.classList.add('drop-active');
+      },
+      ondragenter: function (event) {
+        console.log('ON DRAG ENTER HAND');
+        var draggableElement = event.relatedTarget;
+        var dropzoneElement = event.target;
+
+        // feedback the possibility of a drop
+        dropzoneElement.classList.add('drop-target');
+        draggableElement.classList.add('can-drop');
+        draggableElement.textContent = 'Dragged in';
+      },
+      ondragleave: function (event) {
+        console.log('ON DRAG LEAVE HAND');
+        // remove the drop feedback style
+        event.target.classList.remove('drop-target');
+        event.relatedTarget.classList.remove('can-drop');
+        event.relatedTarget.textContent = 'Dragged out';
+      },
+      ondrop: function (event) {
+        console.log('ON DROP HAND');
+        event.relatedTarget.textContent = 'Dropped';
+      },
+      ondropdeactivate: function (event) {
+        // remove active dropzone feedback
+        console.log('ON DROP DEACTIVATE HAND');
+        event.target.classList.remove('drop-active');
+        event.target.classList.remove('drop-target');
+      },
+    });  
   },
   computed: {
     // TECHDEBT this belongs with Commander Selection modal in its own component
@@ -110,9 +338,8 @@ export default {
     },
   },
   components: {
-    Grid,
-    DraggableCard,
     Card,
+    DraggableCard,
   },
 };
 </script>
@@ -122,8 +349,57 @@ export default {
   border: 1px solid #efefef;
   margin: 0.25rem 0rem;
 }
-
+.battlefield {
+  border: 1px black;
+}
 .bordered {
   border: 1px #000;
+}
+
+/* 
+ * InteractJS styles 
+*/
+.outer-dropzone {
+  background-color: #bfe4ff;
+  height: 140px;
+}
+
+.inner-dropzone {
+  background-color: #bfe4ff;
+  height: 80px;
+}
+
+.dropzone {
+  background-color: #bfe4ff;
+  border: dashed 4px transparent;
+  border-radius: 4px;
+  margin: 10px auto 30px;
+  padding: 10px;
+  width: 80%;
+  transition: background-color 0.3s;
+}
+
+.drop-active {
+  border-color: #aaa;
+}
+
+.drop-target {
+  background-color: #29e;
+  border-color: #fff;
+  border-style: solid;
+}
+
+.drag-drop {
+  display: inline-block;
+  padding: 2em 0.5em;
+  margin: 1rem 0 0 1rem;
+  border: solid 2px #fff;
+  touch-action: none;
+  transform: translate(0px, 0px);
+
+  transition: background-color 0.3s;
+}
+
+.drag-drop.can-drop {
 }
 </style>
