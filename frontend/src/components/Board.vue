@@ -2,19 +2,18 @@
   <section>
     <section>
       <!-- ### BATTLEFIELD -->
-      <section id="battlefield" class="dropzone outer-dropzone">
+      <section id="battlefield" class="battlefield dropzone outer-dropzone">
         BATTLEFIELD
         <DraggableCard v-for="card in self.Field" :card="card" :key="card.ID" />
       </section>
 
-      <section id="hand" class="dropzone outer-dropzone">
+      <section id="hand" class="hand dropzone outer-dropzone">
         HAND
         <DraggableCard v-for="card in self.Hand" :card="card" :key="card.ID" />
       </section>
 
       <!-- INVITE LINK -->
       <section>
-        <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen">Invite a friend</b-button>
         <b-modal :active="isInviteModalOpen">
           <div v-if="self" class="modal-card" width="400px">
             <header class="modal-card-head">Get an Invite Link</header>
@@ -104,7 +103,7 @@
 
     <!-- ### TOOLBAR START  -->
     <template>
-      <b-navbar>
+      <b-navbar fixed-bottom>
         <template #start>
           <b-navbar-item @click="handleDraw()">
             <button class="button is-primary is-small">
@@ -121,6 +120,11 @@
               </span>
               <span>Scry</span>
             </button>
+          </b-navbar-item>
+          <b-navbar-item>
+            <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen"
+              >Invite a friend</b-button
+            >
           </b-navbar-item>
         </template>
 
@@ -179,38 +183,37 @@ export default {
     // enable draggables to be dropped into this
     interact('#battlefield').dropzone({
       // Require a 75% element overlap for a drop to be possible
-      overlap: 0.75,
+      overlap: 0.50,
 
       // listen for drop related events:
-
       ondropactivate: function (event) {
-        console.log('ON DRAG ACTIVATE BATTLEFIELD');
+        // console.log('ON DRAG ACTIVATE BATTLEFIELD');
         // add active dropzone feedback
         event.target.classList.add('drop-active');
       },
       ondragenter: function (event) {
-        console.log('ON DRAG ENTER BATTLEFIELD');
+        // console.log('ON DRAG ENTER BATTLEFIELD');
         var draggableElement = event.relatedTarget;
         var dropzoneElement = event.target;
 
         // feedback the possibility of a drop
         dropzoneElement.classList.add('drop-target');
         draggableElement.classList.add('can-drop');
-        draggableElement.textContent = 'Dragged in';
+        // draggableElement.textContent = 'Dragged in';
       },
       ondragleave: function (event) {
-        console.log('ON DRAG LEAVE BATTLEFIELD');
+        // console.log('ON DRAG LEAVE BATTLEFIELD');
         // remove the drop feedback style
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
-        event.relatedTarget.textContent = 'Dragged out';
+        // event.relatedTarget.textContent = 'Dragged out';
       },
       ondrop: function (event) {
         console.log('ON DROP BATTLEFIELD');
-        event.relatedTarget.textContent = 'Dropped';
+        // event.relatedTarget.textContent = 'Dropped';
       },
       ondropdeactivate: function (event) {
-        console.log('ON DROP DEACTIVATE BATTLEFIELD');
+        // console.log('ON DROP DEACTIVATE BATTLEFIELD');
         // remove active dropzone feedback
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
@@ -218,40 +221,42 @@ export default {
     });
 
     interact('#hand').dropzone({
-      // Require a 75% element overlap for a drop to be possible
-      overlap: 0.75,
+      // Require a 50% element overlap for a drop to be possible
+      overlap: 0.50,
 
       // listen for drop related events:
 
       ondropactivate: function (event) {
-        console.log('ON DRAG ACTIVATE HAND');
+        // console.log('ON DRAG ACTIVATE HAND');
         // add active dropzone feedback
         event.target.classList.add('drop-active');
       },
       ondragenter: function (event) {
-        console.log('ON DRAG ENTER HAND');
+        // console.log('ON DRAG ENTER HAND');
         var draggableElement = event.relatedTarget;
         var dropzoneElement = event.target;
 
         // feedback the possibility of a drop
         dropzoneElement.classList.add('drop-target');
         draggableElement.classList.add('can-drop');
-        draggableElement.textContent = 'Dragged in';
+        // draggableElement.textContent = 'Dragged in';
       },
       ondragleave: function (event) {
-        console.log('ON DRAG LEAVE HAND');
+        // console.log('ON DRAG LEAVE HAND');
         // remove the drop feedback style
+        console.log('leaving hand', event.target)
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
-        event.relatedTarget.textContent = 'Dragged out';
+        // event.relatedTarget.textContent = 'Dragged out';
+        // TODO: remove card from self.Hand
       },
       ondrop: function (event) {
         console.log('ON DROP HAND');
-        event.relatedTarget.textContent = 'Dropped';
+        // event.relatedTarget.textContent = 'Dropped';
       },
       ondropdeactivate: function (event) {
         // remove active dropzone feedback
-        console.log('ON DROP DEACTIVATE HAND');
+        // console.log('ON DROP DEACTIVATE HAND');
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
       },
@@ -352,6 +357,9 @@ export default {
 .battlefield {
   border: 1px black;
 }
+.hand {
+  height: 170px;
+}
 .bordered {
   border: 1px #000;
 }
@@ -361,7 +369,8 @@ export default {
 */
 .outer-dropzone {
   background-color: #bfe4ff;
-  height: 140px;
+  min-height: 250px;
+  height: auto;
 }
 
 .inner-dropzone {
@@ -375,7 +384,7 @@ export default {
   border-radius: 4px;
   margin: 10px auto 30px;
   padding: 10px;
-  width: 80%;
+  width: 97vw;
   transition: background-color 0.3s;
 }
 
