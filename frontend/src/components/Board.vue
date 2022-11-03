@@ -2,14 +2,14 @@
   <section>
     <section>
       <!-- ### BATTLEFIELD -->
-      <section id="battlefield" class="battlefield dropzone outer-dropzone">
+      <section id="Battlefield" class="battlefield dropzone outer-dropzone">
         BATTLEFIELD
-        <DraggableCard v-for="card in self.Field" :card="card" :key="card.ID" />
+        <DraggableCard v-for="card in self.Field" :card="card" :user="user" :key="card.ID" />
       </section>
 
-      <section id="hand" class="hand dropzone outer-dropzone">
+      <section id="Hand" class="hand dropzone outer-dropzone">
         HAND
-        <DraggableCard v-for="card in self.Hand" :card="card" :key="card.ID" />
+        <DraggableCard v-for="card in self.Hand" :card="card" :user="user" :key="card.ID" />
       </section>
 
       <!-- INVITE LINK -->
@@ -181,10 +181,9 @@ export default {
     });
 
     // enable draggables to be dropped into this
-    interact('#battlefield').dropzone({
-      // Require a 75% element overlap for a drop to be possible
+    interact('#Battlefield').dropzone({
+      // Require a 50% element overlap for a drop to be possible
       overlap: 0.50,
-
       // listen for drop related events:
       ondropactivate: function (event) {
         // console.log('ON DRAG ACTIVATE BATTLEFIELD');
@@ -209,23 +208,19 @@ export default {
         // event.relatedTarget.textContent = 'Dragged out';
       },
       ondrop: function (event) {
-        console.log('ON DROP BATTLEFIELD');
-        // event.relatedTarget.textContent = 'Dropped';
       },
       ondropdeactivate: function (event) {
-        // console.log('ON DROP DEACTIVATE BATTLEFIELD');
         // remove active dropzone feedback
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
       },
     });
 
-    interact('#hand').dropzone({
+    interact('#Hand').dropzone({
       // Require a 50% element overlap for a drop to be possible
       overlap: 0.50,
 
       // listen for drop related events:
-
       ondropactivate: function (event) {
         // console.log('ON DRAG ACTIVATE HAND');
         // add active dropzone feedback
@@ -242,21 +237,14 @@ export default {
         // draggableElement.textContent = 'Dragged in';
       },
       ondragleave: function (event) {
-        // console.log('ON DRAG LEAVE HAND');
         // remove the drop feedback style
-        console.log('leaving hand', event.target)
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
-        // event.relatedTarget.textContent = 'Dragged out';
-        // TODO: remove card from self.Hand
       },
       ondrop: function (event) {
-        console.log('ON DROP HAND');
-        // event.relatedTarget.textContent = 'Dropped';
       },
       ondropdeactivate: function (event) {
         // remove active dropzone feedback
-        // console.log('ON DROP DEACTIVATE HAND');
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
       },
