@@ -2,6 +2,10 @@
   <div ref="myDraggable" class="draggable">
     <!--  Wrap Card here -->
     <Card v-bind="card" />
+    X: {{ screenX }} <br>
+    Y: {{ screenY }} <br>
+    LastSource: {{ lastSource }} <br>
+    Last Destination: {{ lastDestination }}
   </div>
 </template>
 
@@ -62,13 +66,18 @@ export default {
       }
 
       if (this.lastDestination && this.lastSource) {
+        // reset the last destination and source to mark the end of a transaction.
+        this.lastDestination = ''
+        this.lastSource = ''
         // TODO: call move action and reset lastSource and lastDestination fields
+        // we can fire an atomic leave and enter transaction now
+        this.$store.dispatch('leave', { card: this.card })
+        this.$store.dispatch('enter', { card: this.card })
       }
     },
     onDragEnd: function (event) {
       var target = event.target;
       // update the state
-
       // TODO: do we need to persist this into the server as well?
       this.screenX = target.getBoundingClientRect().left;
       this.screenY = target.getBoundingClientRect().top;
