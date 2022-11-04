@@ -186,12 +186,12 @@ export default {
       overlap: 0.50,
       // listen for drop related events:
       ondropactivate: function (event) {
-        // console.log('ON DRAG ACTIVATE BATTLEFIELD');
+        // console.log('ON DRAG ACTIVATE BATTLEFIELD', event);
         // add active dropzone feedback
         event.target.classList.add('drop-active');
       },
       ondragenter: function (event) {
-        // console.log('ON DRAG ENTER BATTLEFIELD');
+        // console.log('ON DRAG ENTER BATTLEFIELD', event);
         var draggableElement = event.relatedTarget;
         var dropzoneElement = event.target;
 
@@ -201,7 +201,7 @@ export default {
         // draggableElement.textContent = 'Dragged in';
       },
       ondragleave: function (event) {
-        // console.log('ON DRAG LEAVE BATTLEFIELD');
+        // console.log('ON DRAG LEAVE BATTLEFIELD', event);
         // remove the drop feedback style
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
@@ -210,6 +210,7 @@ export default {
       ondrop: function (event) {
       },
       ondropdeactivate: function (event) {
+        // console.log('ON DROP DEACTIVATE', event);
         // remove active dropzone feedback
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
@@ -227,7 +228,7 @@ export default {
         event.target.classList.add('drop-active');
       },
       ondragenter: function (event) {
-        // console.log('ON DRAG ENTER HAND');
+        // console.log('ON DRAG ENTER HAND', event);
         var draggableElement = event.relatedTarget;
         var dropzoneElement = event.target;
 
@@ -238,6 +239,7 @@ export default {
       },
       ondragleave: function (event) {
         // remove the drop feedback style
+        // console.log('ON DRAG LEAVE HAND', event);
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
       },
