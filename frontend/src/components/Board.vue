@@ -395,10 +395,12 @@ export default {
   border: solid 2px #fff;
   touch-action: none;
   transform: translate(0px, 0px);
-
   transition: background-color 0.3s;
 }
 
 .drag-drop.can-drop {
+  transition: background-color 0.3s;
+  margin: 1rem 0 0 1rem;
+  border: solid 2px #fff;
 }
 </style>
