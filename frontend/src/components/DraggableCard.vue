@@ -66,13 +66,13 @@ export default {
       }
 
       if (this.lastDestination && this.lastSource) {
+        // call move action and reset lastSource and lastDestination fields
+        // we can fire an atomic leave and enter transaction now
+        this.$store.dispatch('leave', { card: this.card, user: this.user, zone: this.lastDestination })
+        this.$store.dispatch('enter', { card: this.card, user: this.user, zone: this.lastDestination })
         // reset the last destination and source to mark the end of a transaction.
         this.lastDestination = ''
         this.lastSource = ''
-        // TODO: call move action and reset lastSource and lastDestination fields
-        // we can fire an atomic leave and enter transaction now
-        this.$store.dispatch('leave', { card: this.card })
-        this.$store.dispatch('enter', { card: this.card })
       }
     },
     onDragEnd: function (event) {

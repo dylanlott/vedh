@@ -24,6 +24,7 @@ Vue.use(Vuex)
 const ls = window.localStorage
 
 export const Games = {
+    namespaced: true,
     state: {
         game: {
             ID: "",
@@ -189,6 +190,7 @@ export const Games = {
 }
 
 export const Users = {
+    namespaced: true,
     state: {
         User: {
             Username: Cookies.get("username") || ls.getItem("username"),
@@ -281,6 +283,7 @@ export const Users = {
 }
 
 export const Cards = {
+    namespaced: true,
     state: {
         list: [],
     },
@@ -331,6 +334,7 @@ export const Cards = {
 }
 
 export const store = new Vuex.Store({
+
   modules: {
     Cards,
     Games,

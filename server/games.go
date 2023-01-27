@@ -30,6 +30,7 @@ type FullGame struct {
 
 	GameID    string
 	Observers map[string]*GameObserver
+	EventLog  EventLog
 }
 
 // Games returns a list of Games that are unmarshaled from the payload column of the
@@ -88,6 +89,7 @@ func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID s
 		game := &FullGame{
 			GameID:    gameID,
 			Observers: make(map[string]*GameObserver),
+			EventLog:  &pgLogger{db: nil}, // TODO: add database connection
 		}
 
 		// add observer to the FullGame
@@ -124,6 +126,10 @@ func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID s
 	g.Mutex.Lock()
 	g.Observers[userID] = obs
 	g.Mutex.Unlock()
+
+	g.EventLog.Add(ctx, Event{
+		Payload: nil,
+	})
 
 	return obs.Channel, nil
 }
