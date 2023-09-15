@@ -19,3 +19,4 @@ allprintings.csv.zip
 .vscode/dryrun.log
 .vscode/settings.json
 .vscode/targets.log
+atlas.hcl
