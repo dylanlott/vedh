@@ -62,7 +62,7 @@ type Game struct {
 	CreatedAt time.Time `json:"CreatedAt"`
 	Rules     []*Rule   `json:"Rules"`
 	Turn      *Turn     `json:"Turn"`
-	PlayerIDs []*User   `json:"PlayerIDs"`
+	Players   []*User   `json:"Players"`
 }
 
 type InputBoardState struct {
@@ -136,8 +136,8 @@ type InputGame struct {
 	Turn      *InputTurn   `json:"Turn"`
 	CreatedAt *time.Time   `json:"CreatedAt"`
 	Handle    *string      `json:"Handle"`
-	PlayerIDs []*InputUser `json:"PlayerIDs"`
 	Rules     []*InputRule `json:"Rules"`
+	Players   []*InputUser `json:"Players"`
 }
 
 type InputJoinGame struct {
@@ -172,8 +172,9 @@ type InputTurn struct {
 }
 
 type InputUser struct {
-	Username string  `json:"Username"`
-	ID       *string `json:"ID"`
+	Username   string           `json:"Username"`
+	ID         *string          `json:"ID"`
+	Boardstate *InputBoardState `json:"Boardstate"`
 }
 
 type Rule struct {
@@ -188,8 +189,9 @@ type Turn struct {
 }
 
 type User struct {
-	ID       string  `json:"ID"`
-	Username string  `json:"Username"`
-	Password *string `json:"Password"`
-	Token    *string `json:"Token"`
+	ID         string      `json:"ID"`
+	Username   string      `json:"Username"`
+	Password   *string     `json:"Password"`
+	Token      *string     `json:"Token"`
+	Boardstate *BoardState `json:"Boardstate"`
 }

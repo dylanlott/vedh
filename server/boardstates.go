@@ -7,7 +7,6 @@ import (
 	"log"
 	"sync"
 
-	redis "github.com/go-redis/redis/v7"
 	"github.com/zeebo/errs"
 )
 
@@ -30,11 +29,6 @@ type FullBoardstate struct {
 	Observers map[string]*BoardObserver
 }
 
-// BoardStateKey formats a board state key for boardstate to user mapping.
-func BoardStateKey(gameID, userID string) string {
-	return fmt.Sprintf("%s:%s", gameID, userID)
-}
-
 func (s *graphQLServer) BoardstateUpdated(ctx context.Context,
 	obsID string,
 	userID string,
@@ -47,9 +41,6 @@ func (s *graphQLServer) BoardstateUpdated(ctx context.Context,
 	return ch, nil
 }
 
-// UpdateBoardState updates a BoardState and notifies that BoardState
-// into the BoardChannels directory.
-// This keys off of *input.User.ID so we want to consider pointer safety here.
 func (s *graphQLServer) UpdateBoardState(
 	ctx context.Context,
 	input InputBoardState,
@@ -63,70 +54,54 @@ func (s *graphQLServer) UpdateBoardState(
 		return nil, errs.Wrap(err)
 	}
 
-	g := &Game{}
-	err = s.Get(GameKey(input.GameID), &g)
+	game, err := s.GetGame(ctx, bs.GameID)
 	if err != nil {
-		return nil, errs.Wrap(err)
+		return nil, fmt.Errorf("failed to get game from the database: %w", err)
 	}
 
-	if err := s.Set(BoardStateKey(input.GameID, *input.User.ID), bs); err != nil {
-		return nil, fmt.Errorf("failed to persist boardstate: %s", err)
+	// update matching username's boardstate
+	for index, player := range game.Players {
+		if player.Username == bs.User.Username {
+			game.Players[index].Boardstate = bs
+			// break early
+			break
+		}
 	}
 
 	go s.publishBoardstate(bs)
+
+	if err := s.upsertGame(game); err != nil {
+		return nil, fmt.Errorf("failed to update player %s boardstate %w", bs.User.Username, err)
+	}
 
 	return bs, nil
 }
 
 // Boardstates queries Redis for different boardstates per player or game
-func (s *graphQLServer) Boardstates(ctx context.Context, gameID string, userID *string) ([]*BoardState, error) {
-	game := &Game{}
-	err := s.Get(GameKey(gameID), &game)
+func (s *graphQLServer) Boardstates(ctx context.Context, gameID string, username *string) ([]*BoardState, error) {
+	// get the game from the database
+	game, err := s.GetGame(ctx, gameID)
 	if err != nil {
-		if err == redis.Nil {
-			return nil, fmt.Errorf("game %s does not exist", gameID)
-		}
-		return nil, fmt.Errorf("failed to find game %s to update boardstates: %s", gameID, err)
+		return nil, err
 	}
-	// if username is not provided, send all
-	if userID == nil {
-		boardstates := []*BoardState{}
-		for _, p := range game.PlayerIDs {
-			board := &BoardState{}
-			err := s.Get(BoardStateKey(gameID, p.ID), &board)
-			if err != nil {
-				// NB: Should we fail gracefully here?
-				return nil, errs.Wrap(err)
+	// send only given users boardstate
+	if username != nil {
+		for _, u := range game.Players {
+			if u.Username == *username {
+				return []*BoardState{u.Boardstate}, nil
 			}
-			boardstates = append(boardstates, board)
 		}
-		return boardstates, nil
 	}
-
-	// username provided, return that boardstate
-	bs := &BoardState{}
-	err = s.Get(BoardStateKey(gameID, *userID), &bs)
-	if err != nil {
-		return nil, errs.Wrap(err)
+	// if username is not provided, send all boardstates
+	var list []*BoardState
+	for _, u := range game.Players {
+		list = append(list, u.Boardstate)
 	}
-	return []*BoardState{bs}, nil
+	return list, nil
 }
 
-// inputFromBoardState will return an InputBoardState from a BoardState or
-// an error
-func inputFromBoardState(bs BoardState) (InputBoardState, error) {
-	data, err := json.Marshal(bs)
-	if err != nil {
-		return InputBoardState{}, errs.New("failed to marshal input game: %s", err)
-	}
-	new := InputBoardState{}
-	err = json.Unmarshal(data, &new)
-	if err != nil {
-		return InputBoardState{}, errs.New("failed to unmarshal game: %s", err)
-	}
-	return new, nil
-}
-
+// converts an InputBoardState to a native BoardState type or returns an error
+// if its an invalid BoardState.
 func boardStateFromInput(bs InputBoardState) (*BoardState, error) {
 	data, err := json.Marshal(bs)
 	if err != nil {
@@ -150,10 +125,6 @@ func boardStateFromInput(bs InputBoardState) (*BoardState, error) {
 func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 	log.Printf("boardstate published: %v", bs)
 	s.mutex.Lock()
-	if bs.User.ID == "" {
-		log.Printf("publishBoardstate error: userID not found: %+v", bs)
-		return
-	}
 	fbs, ok := s.boards[bs.User.ID]
 	if !ok {
 		log.Printf("pubishBoardState error: could not find boardstate: %s", bs.User.ID)

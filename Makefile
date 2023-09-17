@@ -49,6 +49,6 @@ deploy-ui: confirm docker-ui
 deploy-server: confirm docker-server
 	docker push openmtg/edhgo-server:$(BUILD_TAG)
 persistence:
-	docker-compose -f dev.docker-compose.yml up -d postgres redis
+	docker-compose -f dev.docker-compose.yml up -d postgres
 confirm:
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]

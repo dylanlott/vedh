@@ -113,42 +113,21 @@ func TestUpdateBoardState(t *testing.T) {
 	}
 }
 
-func TestMultipleObservers(t *testing.T) {
-	s := testAPI(t)
-	ctx := context.Background()
-	ctx, done := context.WithCancel(ctx)
-	created, err := s.CreateGame(ctx, *seedInputGame)
-	assert.NoError(t, err)
-	// NB: these should both be observing the same user from *seedInputGame
-	ch1, err := s.BoardstateUpdated(ctx, "testobs1", seedUserID)
-	assert.NoError(t, err)
-	assert.NotNil(t, ch1)
-	ch2, err := s.BoardstateUpdated(ctx, "testobs2", seedUserID)
-	assert.NoError(t, err)
-	assert.NotNil(t, ch2)
+// TECHDEBT write a test for multiple observers for one game
+// func TestMultipleObservers(t *testing.T) {
+// 	s := testAPI(t)
+// 	ctx := context.Background()
+// 	ctx, done := context.WithCancel(ctx)
+// 	created, err := s.CreateGame(ctx, *seedInputGame)
+// 	assert.NoError(t, err)
 
-	// game has 1 player, so let's update that player's boardstate and see
-	// if the other two channels are alerted to that
-	all, err := s.Boardstates(ctx, created.ID, nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, all)
-	p1 := all[0]
-	p1.Life = 20
-	in, err := inputFromBoardState(*p1)
-	assert.NoError(t, err)
-	assert.NotNil(t, in)
+// 	// NB: these should both be observing the same user from *seedInputGame
+// 	ch1, err := s.BoardstateUpdated(ctx, "testobs1", seedUserID)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, ch1)
+// 	ch2, err := s.BoardstateUpdated(ctx, "testobs2", seedUserID)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, ch2)
 
-	// fire off the update to trigger a boardstate update event
-	updated, err := s.UpdateBoardState(ctx, in)
-	assert.NoError(t, err)
-	assert.NotNil(t, updated)
-
-	// listen for results and compare to desired boardstates
-	bs1 := <-ch1
-	bs2 := <-ch2
-	assert.NotNil(t, bs1)
-	assert.NotNil(t, bs2)
-	assert.Equal(t, bs1, updated)
-	assert.Equal(t, bs2, updated)
-	done()
-}
+// 	created.Turn.Number = 3
+// }

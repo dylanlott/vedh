@@ -101,7 +101,7 @@ type ComplexityRoot struct {
 	Game struct {
 		CreatedAt func(childComplexity int) int
 		ID        func(childComplexity int) int
-		PlayerIDs func(childComplexity int) int
+		Players   func(childComplexity int) int
 		Rules     func(childComplexity int) int
 		Turn      func(childComplexity int) int
 	}
@@ -141,10 +141,11 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		ID       func(childComplexity int) int
-		Password func(childComplexity int) int
-		Token    func(childComplexity int) int
-		Username func(childComplexity int) int
+		Boardstate func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Password   func(childComplexity int) int
+		Token      func(childComplexity int) int
+		Username   func(childComplexity int) int
 	}
 }
 
@@ -471,12 +472,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Game.ID(childComplexity), true
 
-	case "Game.PlayerIDs":
-		if e.complexity.Game.PlayerIDs == nil {
+	case "Game.Players":
+		if e.complexity.Game.Players == nil {
 			break
 		}
 
-		return e.complexity.Game.PlayerIDs(childComplexity), true
+		return e.complexity.Game.Players(childComplexity), true
 
 	case "Game.Rules":
 		if e.complexity.Game.Rules == nil {
@@ -694,6 +695,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Turn.Player(childComplexity), true
+
+	case "User.Boardstate":
+		if e.complexity.User.Boardstate == nil {
+			break
+		}
+
+		return e.complexity.User.Boardstate(childComplexity), true
 
 	case "User.ID":
 		if e.complexity.User.ID == nil {
@@ -1231,6 +1239,8 @@ func (ec *executionContext) fieldContext_BoardState_User(ctx context.Context, fi
 				return ec.fieldContext_User_Password(ctx, field)
 			case "Token":
 				return ec.fieldContext_User_Token(ctx, field)
+			case "Boardstate":
+				return ec.fieldContext_User_Boardstate(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -3230,6 +3240,8 @@ func (ec *executionContext) fieldContext_Emblem_Player(ctx context.Context, fiel
 				return ec.fieldContext_User_Password(ctx, field)
 			case "Token":
 				return ec.fieldContext_User_Token(ctx, field)
+			case "Boardstate":
+				return ec.fieldContext_User_Boardstate(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -3421,8 +3433,8 @@ func (ec *executionContext) fieldContext_Game_Turn(ctx context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Game_PlayerIDs(ctx context.Context, field graphql.CollectedField, obj *Game) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Game_PlayerIDs(ctx, field)
+func (ec *executionContext) _Game_Players(ctx context.Context, field graphql.CollectedField, obj *Game) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Game_Players(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3435,7 +3447,7 @@ func (ec *executionContext) _Game_PlayerIDs(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.PlayerIDs, nil
+		return obj.Players, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3446,10 +3458,10 @@ func (ec *executionContext) _Game_PlayerIDs(ctx context.Context, field graphql.C
 	}
 	res := resTmp.([]*User)
 	fc.Result = res
-	return ec.marshalOUser2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐUserᚄ(ctx, field.Selections, res)
+	return ec.marshalOUser2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐUser(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Game_PlayerIDs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Game_Players(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Game",
 		Field:      field,
@@ -3465,6 +3477,8 @@ func (ec *executionContext) fieldContext_Game_PlayerIDs(ctx context.Context, fie
 				return ec.fieldContext_User_Password(ctx, field)
 			case "Token":
 				return ec.fieldContext_User_Token(ctx, field)
+			case "Boardstate":
+				return ec.fieldContext_User_Boardstate(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -3519,6 +3533,8 @@ func (ec *executionContext) fieldContext_Mutation_signup(ctx context.Context, fi
 				return ec.fieldContext_User_Password(ctx, field)
 			case "Token":
 				return ec.fieldContext_User_Token(ctx, field)
+			case "Boardstate":
+				return ec.fieldContext_User_Boardstate(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -3584,6 +3600,8 @@ func (ec *executionContext) fieldContext_Mutation_login(ctx context.Context, fie
 				return ec.fieldContext_User_Password(ctx, field)
 			case "Token":
 				return ec.fieldContext_User_Token(ctx, field)
+			case "Boardstate":
+				return ec.fieldContext_User_Boardstate(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -3649,8 +3667,8 @@ func (ec *executionContext) fieldContext_Mutation_createGame(ctx context.Context
 				return ec.fieldContext_Game_Rules(ctx, field)
 			case "Turn":
 				return ec.fieldContext_Game_Turn(ctx, field)
-			case "PlayerIDs":
-				return ec.fieldContext_Game_PlayerIDs(ctx, field)
+			case "Players":
+				return ec.fieldContext_Game_Players(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3716,8 +3734,8 @@ func (ec *executionContext) fieldContext_Mutation_joinGame(ctx context.Context, 
 				return ec.fieldContext_Game_Rules(ctx, field)
 			case "Turn":
 				return ec.fieldContext_Game_Turn(ctx, field)
-			case "PlayerIDs":
-				return ec.fieldContext_Game_PlayerIDs(ctx, field)
+			case "Players":
+				return ec.fieldContext_Game_Players(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3783,8 +3801,8 @@ func (ec *executionContext) fieldContext_Mutation_updateGame(ctx context.Context
 				return ec.fieldContext_Game_Rules(ctx, field)
 			case "Turn":
 				return ec.fieldContext_Game_Turn(ctx, field)
-			case "PlayerIDs":
-				return ec.fieldContext_Game_PlayerIDs(ctx, field)
+			case "Players":
+				return ec.fieldContext_Game_Players(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3986,8 +4004,8 @@ func (ec *executionContext) fieldContext_Query_games(ctx context.Context, field 
 				return ec.fieldContext_Game_Rules(ctx, field)
 			case "Turn":
 				return ec.fieldContext_Game_Turn(ctx, field)
-			case "PlayerIDs":
-				return ec.fieldContext_Game_PlayerIDs(ctx, field)
+			case "Players":
+				return ec.fieldContext_Game_Players(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -4662,8 +4680,8 @@ func (ec *executionContext) fieldContext_Subscription_gameUpdated(ctx context.Co
 				return ec.fieldContext_Game_Rules(ctx, field)
 			case "Turn":
 				return ec.fieldContext_Game_Turn(ctx, field)
-			case "PlayerIDs":
-				return ec.fieldContext_Game_PlayerIDs(ctx, field)
+			case "Players":
+				return ec.fieldContext_Game_Players(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -5074,6 +5092,73 @@ func (ec *executionContext) fieldContext_User_Token(ctx context.Context, field g
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_Boardstate(ctx context.Context, field graphql.CollectedField, obj *User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_Boardstate(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Boardstate, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*BoardState)
+	fc.Result = res
+	return ec.marshalOBoardState2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐBoardState(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_Boardstate(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "User":
+				return ec.fieldContext_BoardState_User(ctx, field)
+			case "Life":
+				return ec.fieldContext_BoardState_Life(ctx, field)
+			case "GameID":
+				return ec.fieldContext_BoardState_GameID(ctx, field)
+			case "Commander":
+				return ec.fieldContext_BoardState_Commander(ctx, field)
+			case "Library":
+				return ec.fieldContext_BoardState_Library(ctx, field)
+			case "Graveyard":
+				return ec.fieldContext_BoardState_Graveyard(ctx, field)
+			case "Exiled":
+				return ec.fieldContext_BoardState_Exiled(ctx, field)
+			case "Field":
+				return ec.fieldContext_BoardState_Field(ctx, field)
+			case "Hand":
+				return ec.fieldContext_BoardState_Hand(ctx, field)
+			case "Revealed":
+				return ec.fieldContext_BoardState_Revealed(ctx, field)
+			case "Controlled":
+				return ec.fieldContext_BoardState_Controlled(ctx, field)
+			case "Counters":
+				return ec.fieldContext_BoardState_Counters(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BoardState", field.Name)
 		},
 	}
 	return fc, nil
@@ -7367,19 +7452,19 @@ func (ec *executionContext) unmarshalInputInputGame(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
-		case "PlayerIDs":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("PlayerIDs"))
-			it.PlayerIDs, err = ec.unmarshalOInputUser2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputUserᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
 		case "Rules":
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Rules"))
 			it.Rules, err = ec.unmarshalOInputRule2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputRule(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Players":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Players"))
+			it.Players, err = ec.unmarshalOInputUser2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputUserᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7614,6 +7699,14 @@ func (ec *executionContext) unmarshalInputInputUser(ctx context.Context, obj int
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ID"))
 			it.ID, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Boardstate":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Boardstate"))
+			it.Boardstate, err = ec.unmarshalOInputBoardState2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputBoardState(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7957,9 +8050,9 @@ func (ec *executionContext) _Game(ctx context.Context, sel ast.SelectionSet, obj
 
 			out.Values[i] = ec._Game_Turn(ctx, field, obj)
 
-		case "PlayerIDs":
+		case "Players":
 
-			out.Values[i] = ec._Game_PlayerIDs(ctx, field, obj)
+			out.Values[i] = ec._Game_Players(ctx, field, obj)
 
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -8360,6 +8453,10 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 		case "Token":
 
 			out.Values[i] = ec._User_Token(ctx, field, obj)
+
+		case "Boardstate":
+
+			out.Values[i] = ec._User_Boardstate(ctx, field, obj)
 
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -9286,6 +9383,13 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
+func (ec *executionContext) marshalOBoardState2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐBoardState(ctx context.Context, sel ast.SelectionSet, v *BoardState) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._BoardState(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -9453,6 +9557,14 @@ func (ec *executionContext) marshalOCounter2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgo
 		return graphql.Null
 	}
 	return ec._Counter(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOInputBoardState2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputBoardState(ctx context.Context, v interface{}) (*InputBoardState, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputInputBoardState(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOInputCard2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputCard(ctx context.Context, v interface{}) ([]*InputCard, error) {
@@ -9803,7 +9915,7 @@ func (ec *executionContext) marshalOTurn2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋ
 	return ec._Turn(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOUser2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐUserᚄ(ctx context.Context, sel ast.SelectionSet, v []*User) graphql.Marshaler {
+func (ec *executionContext) marshalOUser2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐUser(ctx context.Context, sel ast.SelectionSet, v []*User) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -9830,7 +9942,7 @@ func (ec *executionContext) marshalOUser2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgo
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNUser2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐUser(ctx, sel, v[i])
+			ret[i] = ec.marshalOUser2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐUser(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -9841,13 +9953,14 @@ func (ec *executionContext) marshalOUser2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgo
 	}
 	wg.Wait()
 
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
 	return ret
+}
+
+func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐUser(ctx context.Context, sel ast.SelectionSet, v *User) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._User(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

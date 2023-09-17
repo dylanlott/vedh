@@ -15,21 +15,13 @@ services:
     ports:
       - 8081:8080
     links:
-      - redis:redis
       - postgres:postgres
     volumes:
       - "./persistence/migrations/:/app/persistence/migrations/"
     depends_on:
       - postgres
-      - redis
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-  redis:
-    image: redis:latest
-    volumes:
-      - redis-data:/data
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
   postgres:
     image: bitnami/postgresql:14
     volumes:
@@ -46,5 +38,4 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --interval 3
 volumes:
-  redis-data:
   postgres-data:

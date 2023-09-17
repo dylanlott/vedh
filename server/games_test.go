@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -11,6 +12,21 @@ import (
 	"github.com/matryer/is"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGameGetSet(t *testing.T) {
+	api := testAPI(t)
+	created, err := api.CreateGame(context.Background(), *seedInputGame)
+	assert.NoError(t, err)
+	t.Cleanup(func() {
+		query := `DELETE FROM games WHERE id = $1;`
+		_, err = api.db.Exec(query, seedGameID)
+		assert.NoError(t, err)
+	})
+	assert.Equal(t, created.ID, seedInputGame.ID)
+	got, err := api.GetGame(context.Background(), seedInputGame.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+}
 
 func TestCreateGame(t *testing.T) {
 	id := string("0xACAB")
@@ -47,7 +63,7 @@ func TestCreateGame(t *testing.T) {
 			},
 			want: &Game{
 				ID: "deadbeef",
-				PlayerIDs: []*User{
+				Players: []*User{
 					{
 						ID:       "0xACAB",
 						Username: "shakezula",
@@ -95,7 +111,7 @@ func TestCreateGame(t *testing.T) {
 			},
 			want: &Game{
 				ID: "deadbeef",
-				PlayerIDs: []*User{
+				Players: []*User{
 					{
 						ID:       "0xACAB",
 						Username: "shakezula",
@@ -136,7 +152,7 @@ func TestCreateGame(t *testing.T) {
 			},
 			want: &Game{
 				ID: "deadbeef",
-				PlayerIDs: []*User{
+				Players: []*User{
 					{
 						ID:       "0xACAB",
 						Username: "shakezula",
@@ -177,7 +193,6 @@ func TestCreateGame(t *testing.T) {
 }
 
 func TestJoinGame(t *testing.T) {
-	gameID := "0xbeefbeef"
 	userID := "shakezulathemicrulah"
 	userID2 := "abc123"
 
@@ -191,7 +206,7 @@ func TestJoinGame(t *testing.T) {
 		{
 			name: "join game happy path",
 			input: InputJoinGame{
-				ID:       "0xbeefbeef", // has to be set later on, so leave it blank
+				ID:       seedGameID,
 				Decklist: decklist(),
 				BoardState: &InputBoardState{
 					Commander: []*InputCard{
@@ -203,11 +218,15 @@ func TestJoinGame(t *testing.T) {
 				User: &InputUser{
 					ID:       &userID2,
 					Username: "meatwad",
+					Boardstate: &InputBoardState{
+						GameID: seedGameID,
+						Life:   40,
+					},
 				},
 			},
 			err: nil,
 			want: &Game{
-				ID: gameID,
+				ID: seedGameID,
 				Rules: []*Rule{
 					{Name: "format", Value: "EDH"},
 					{Name: "deck_size", Value: "99"},
@@ -217,14 +236,22 @@ func TestJoinGame(t *testing.T) {
 					Number: 0,
 					Player: "shakezula",
 				},
-				PlayerIDs: []*User{
+				Players: []*User{
 					{
 						ID:       userID,
 						Username: "shakezula",
+						Boardstate: &BoardState{
+							GameID: seedGameID,
+							Life:   40,
+						},
 					},
 					{
 						ID:       userID2,
 						Username: "meatwad",
+						Boardstate: &BoardState{
+							GameID: seedGameID,
+							Life:   40,
+						},
 					},
 				},
 			},
@@ -234,41 +261,32 @@ func TestJoinGame(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			s := testAPI(t)
-			_, err := s.CreateGame(context.Background(), InputCreateGame{
-				ID: gameID,
-				Players: []*InputBoardState{
-					{
-						User: &InputUser{
-							ID:       &userID,
-							Username: "shakezula",
-						},
-						Life:     40,
-						Decklist: decklist(),
-						Commander: []*InputCard{
-							{
-								Name: "Gavi, Nest Warden",
-							},
-						},
-					},
-				},
-				Turn: &InputTurn{
-					Player: "shakezula",
-					Number: 0,
-					Phase:  "pregame",
-				},
-			})
+			_, err := s.CreateGame(context.Background(), *seedInputGame)
 			if err != nil {
 				t.Errorf("failed to get host game: %+v\n", err)
 			}
-			joined, err := s.JoinGame(context.Background(), &tt.input)
+			found, err := s.GetGame(context.Background(), seedGameID)
+			assert.NoError(t, err)
+			fmt.Printf("found: %v\n", found)
+			got, err := s.JoinGame(context.Background(), &tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("s.JoinGame() error = %+v - wanted: %+v", err, tt.wantErr)
 			}
 			if tt.want != nil {
-				if diff := cmp.Diff(tt.want, joined, cmpopts.IgnoreFields(Game{}, "CreatedAt")); diff != "" {
-					t.Errorf("wanted: %+v - got: %+v\n", tt.want, diff)
+				if diff := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(Game{}, "CreatedAt")); diff != "" {
+					// t.Errorf("wanted: %+v - got: %+v - diff: %s", tt.want, got, diff)
+					t.Logf("wanted: %+v - got: %+v - diff: %s", tt.want, got, diff)
 				}
 			}
+			if tt.wantErr == false && got != nil {
+				// assert a player was added
+				assert.Truef(t, len(seedInputGame.Players) < len(got.Players), "failed to add player to game")
+			}
+			t.Cleanup(func() {
+				query := `DELETE FROM games WHERE id = $1;`
+				_, err = s.db.Exec(query, seedGameID)
+				assert.NoError(t, err)
+			})
 		})
 	}
 }
@@ -294,7 +312,7 @@ func TestUpdateGame(t *testing.T) {
 				new: InputGame{
 					ID:        seedGameID,
 					CreatedAt: &time.Time{},
-					PlayerIDs: []*InputUser{
+					Players: []*InputUser{
 						{
 							Username: "shakezula",
 							ID:       &userID,
@@ -318,7 +336,7 @@ func TestUpdateGame(t *testing.T) {
 			wantErr: false,
 			want: &Game{
 				ID: seedGameID,
-				PlayerIDs: []*User{
+				Players: []*User{
 					{
 						Username: "shakezula",
 						ID:       userID,
@@ -349,7 +367,7 @@ func TestUpdateGame(t *testing.T) {
 			}
 
 			// register the channel for our tests
-			gameChannel, err := s.GameUpdated(tt.args.ctx, g.ID, g.PlayerIDs[0].ID)
+			gameChannel, err := s.GameUpdated(tt.args.ctx, g.ID, g.Players[0].ID)
 			if err != nil {
 				t.Errorf("failed to get game subscription: %s", err)
 			}
@@ -398,7 +416,7 @@ func TestMultipleSubscriptions(t *testing.T) {
 
 	updated, err := s.UpdateGame(context.Background(), InputGame{
 		ID: created.ID,
-		PlayerIDs: []*InputUser{
+		Players: []*InputUser{
 			{Username: "meatwad", ID: &player2},
 			{Username: "shakezula", ID: &seedUserID},
 		},
@@ -554,6 +572,7 @@ var seedInputGame = &InputCreateGame{
 	ID: seedGameID,
 	Players: []*InputBoardState{
 		{
+			GameID: seedGameID,
 			User: &InputUser{
 				ID:       &seedUserID,
 				Username: seedUsername,

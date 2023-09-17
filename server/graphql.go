@@ -10,16 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/openmtg/edh-go/persistence"
-
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/99designs/gqlgen/handler"
-	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
-	"github.com/tinrab/retry"
-	"github.com/zeebo/errs"
 )
 
 // Conf takes configuration values and loads them from the environment into our struct.
@@ -39,7 +34,6 @@ type graphQLServer struct {
 	mutex sync.RWMutex
 
 	// Persistence layers
-	rc *redis.Client // TODO: remove redis in favor of just postgres
 	db *sql.DB
 
 	// games holds a reference to *FullGames in the server.
@@ -53,31 +47,13 @@ type graphQLServer struct {
 // NewGraphQLServer creates a new server to attach the database, game engine,
 // and graphql connections together
 func NewGraphQLServer(
-	kv persistence.KV,
 	db *sql.DB,
 	cfg Conf,
 ) (*graphQLServer, error) {
-	// TODO: Remove this redis client and wire chat up to KV interface instead
-	log.Printf("attempting to connecto to redis at %s", cfg.RedisURL)
-	opts, err := redis.ParseURL(cfg.RedisURL)
-	if err != nil {
-		log.Printf("failed to get redis options: %s", err)
-		return nil, errs.Wrap(err)
-	}
-	client := redis.NewClient(opts)
-
-	retry.ForeverSleep(2*time.Second, func(_ int) error {
-		_, err := client.Ping().Result()
-		if err != nil {
-			log.Printf("error connecting to redis: %+v\n", err)
-		}
-		return err
-	})
 
 	return &graphQLServer{
 		mutex:  sync.RWMutex{},
 		db:     db,
-		rc:     client,
 		games:  map[string]*FullGame{},
 		boards: map[string]*FullBoardstate{},
 	}, nil

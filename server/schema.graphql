@@ -53,6 +53,7 @@ type User {
   Username: String!
   Password: String
   Token: String
+  Boardstate: BoardState
 }
 
 type Game {
@@ -60,7 +61,7 @@ type Game {
   CreatedAt: Time!
   Rules: [Rule!]
   Turn: Turn
-  PlayerIDs: [User!]
+  Players: [User]
 }
 
 type Turn {
@@ -162,6 +163,7 @@ input InputEmblem {
 input InputUser {
   Username: String!
   ID: String
+  Boardstate: InputBoardState
 }
 
 input InputCreateGame {
@@ -184,8 +186,8 @@ input InputGame {
   Turn: InputTurn
   CreatedAt: Time
   Handle: String
-  PlayerIDs: [InputUser!]
   Rules: [InputRule]
+  Players: [InputUser!]
 }
 
 input InputRule {

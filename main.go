@@ -22,12 +22,7 @@ func main() {
 		log.Fatal(errs.Wrap(err))
 	}
 	log.Println("successfully opened database connection")
-	kv, err := persistence.NewRedis(cfg.RedisURL, "")
-	if err != nil {
-		log.Fatalf("failed to start redis: %s", errs.Wrap(err))
-	}
-	log.Println("created new redis store")
-	s, err := server.NewGraphQLServer(kv, db, cfg)
+	s, err := server.NewGraphQLServer(db, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
