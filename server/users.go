@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
@@ -16,7 +15,6 @@ import (
 
 var jwtSecret []byte = []byte(os.Getenv("JWT_SECRET"))
 
-// CreateTokenEndpoint ...
 func (s *graphQLServer) Signup(ctx context.Context, username string, password string) (*User, error) {
 	if password == "" {
 		return nil, errs.New("must provide a password")
@@ -54,7 +52,7 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 		return nil, errs.New("must provide a username for authentication")
 	}
 
-	// TODO: We need to enforce uniqueness as a constraint on username in the DB
+	// TECHDEBT: enforce uniqueness as a constraint on username in the DB
 	q := `SELECT "uuid", "username", "password" FROM "users" WHERE username=$1;`
 	rows, err := s.db.Query(q, username)
 	if err != nil {
@@ -95,8 +93,8 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	// set password to blank so we don't return the sensitive material
 	user.Password = nil
 
-	// set token in redis for session comparison - expires every 2 weeks
-	s.rc.Set(user.Username, t, time.Duration(time.Hour*24*14))
+	// TECHDEBT: replace the old redis cache with a LRU in-mem cache
+	// s.lru.Set(user.Username, t, time.Duration(time.Hour*24*14))
 
 	user.Token = &t
 
@@ -113,7 +111,6 @@ func checkPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-// Users...
 func (s *graphQLServer) Users(ctx context.Context, id *string) ([]string, error) {
 	limit := 10000
 	offset := 0

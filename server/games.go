@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -35,15 +36,29 @@ type FullGame struct {
 // Games returns a list of Games.
 func (s *graphQLServer) Games(ctx context.Context, gameID *string) ([]*Game, error) {
 	if gameID == nil {
-		return nil, errors.New("not implemented")
+		// Retrieve game by ID
+		game, err := s.GetGame(ctx, *gameID)
+		if err != nil {
+			return nil, err
+		}
+		return []*Game{game}, nil
 	}
-	g := &Game{}
-	err := s.Get(GameKey(*gameID), &g)
+	return nil, fmt.Errorf("not impl")
+}
+
+// GetGame returns a single game from the
+func (s *graphQLServer) GetGame(ctx context.Context, gameID string) (*Game, error) {
+	var payload []byte
+	query := `SELECT payload FROM games WHERE id = $1`
+	err := s.db.QueryRow(query, gameID).Scan(&payload)
 	if err != nil {
-		log.Printf("failed to get game %s: %s", *gameID, err)
-		return nil, fmt.Errorf("failed to get game %s: %s", *gameID, err)
+		return nil, err
 	}
-	return []*Game{g}, nil
+	game := &Game{}
+	if err := json.Unmarshal(payload, &game); err != nil {
+		return nil, err
+	}
+	return game, nil
 }
 
 // GameUpdated returns a channel for a game or an error.
@@ -53,7 +68,6 @@ func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID s
 
 	g, ok := s.games[gameID]
 	if !ok {
-		log.Printf("game %s not found - creating a subscription channel for %s", gameID, userID)
 		game := &FullGame{
 			GameID:    gameID,
 			Observers: make(map[string]*GameObserver),
@@ -110,13 +124,11 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 		return nil, errs.New("failed to unmarshal game: %s", err)
 	}
 
-	// persist the game into redis
-	err = s.Set(GameKey(new.ID), game)
-	if err != nil {
-		return nil, fmt.Errorf("failed to save updated game state: %s", err)
-	}
-
 	go s.publishGame(game.ID, game)
+
+	if err := s.upsertGame(game); err != nil {
+		return game, err
+	}
 
 	return game, nil
 }
@@ -127,48 +139,46 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	// in a given game. If it does, just return that same setup.
 	// TODO: Check context for User auth and append user info that way
 	// TODO: PUll user boardstate creation out into a function since we do it multiple places
-	if input.User.ID == nil {
-		return nil, errors.New("must provide a user ID to join a game")
-	}
 	if input.User.Username == "" {
 		return nil, errors.New("must provide a username to join a game")
 	}
 
-	game := &Game{}
-	err := s.Get(GameKey(input.ID), &game)
+	game, err := s.GetGame(ctx, input.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get game to join: %s", err)
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("game does not exist: %w", err)
+		}
+		return nil, fmt.Errorf("failed to find game: %w", err)
 	}
 
-	if len(game.PlayerIDs) >= 4 {
+	if len(game.Players) >= 4 {
 		return nil, errors.New("game is full")
 	}
 
 	user := &User{
 		Username: input.User.Username,
 		ID:       *input.User.ID,
+		Boardstate: &BoardState{
+			User: &User{
+				Username: input.User.Username,
+			},
+			Life:       input.BoardState.Life,
+			Exiled:     getBareCard(input.BoardState.Exiled),
+			Revealed:   getBareCard(input.BoardState.Revealed),
+			Field:      getBareCard(input.BoardState.Field),
+			Controlled: getBareCard(input.BoardState.Controlled),
+		},
 	}
 
-	// Init default boardstate minus library and commander
-	bs := &BoardState{
-		User:       user,
-		Life:       input.BoardState.Life,
-		GameID:     game.ID,
-		Hand:       getBareCard(input.BoardState.Hand),
-		Exiled:     getBareCard(input.BoardState.Exiled),
-		Revealed:   getBareCard(input.BoardState.Revealed),
-		Field:      getBareCard(input.BoardState.Field),
-		Controlled: getBareCard(input.BoardState.Controlled),
-	}
-
+	// hydrate the library from the provided decklist
 	library, err := s.createLibraryFromDecklist(ctx, *input.Decklist)
 	if err != nil {
 		// Fail gracefully and still populate basic cards
 		log.Printf("error creating library from decklist: %+v", err)
-		bs.Library = getBareCard(input.BoardState.Library)
+		user.Boardstate.Library = getBareCard(input.BoardState.Library)
 	} else {
 		// Happy path
-		bs.Library = library
+		user.Boardstate.Library = library
 	}
 
 	// NB: Commented out while we figure out how to handle Commander selection.
@@ -179,35 +189,27 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 				log.Printf("error getting commander for deck: %+v", err)
 				continue
 			}
-			bs.Commander = append(bs.Commander, commander)
+			user.Boardstate.Commander = append(user.Boardstate.Commander, commander)
 		}
 	}
 
 	// shuffle their library for the start of the game
-	shuff, err := Shuffle(bs.Library)
+	shuff, err := Shuffle(user.Boardstate.Library)
 	if err != nil {
 		log.Printf("error shuffling library: %s", err)
 		return nil, err
 	}
-	bs.Library = shuff
+	user.Boardstate.Library = shuff
 
 	// add them to the game's list of players
-	game.PlayerIDs = append(game.PlayerIDs, user)
-
-	// set board state in redis keyed by game.ID and user.ID
-	err = s.Set(BoardStateKey(game.ID, user.ID), bs)
-	if err != nil {
-		log.Printf("error persisting boardstate into redis: %s", err)
-		return nil, err
-	}
-
-	// persist updated game in Redis
-	err = s.Set(GameKey(game.ID), game)
-	if err != nil {
-		return nil, fmt.Errorf("failed to persist game after join: %w", err)
-	}
+	game.Players = append(game.Players, user)
 
 	go s.publishGame(game.ID, game)
+
+	// update game in postgrse
+	if err := s.upsertGame(game); err != nil {
+		return nil, fmt.Errorf("failed to update game: %w", err)
+	}
 
 	return game, nil
 }
@@ -215,6 +217,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 // CreateGame creates a new game and hydrates the decklists for the players in it.
 func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGame) (*Game, error) {
 	// don't allow a game to be created with an existing name
+	// TECHDEBT replace this with a proper cache
 	if _, exists := s.games[inputGame.ID]; exists {
 		return nil, fmt.Errorf("game already exists with ID %s", inputGame.ID)
 	}
@@ -227,7 +230,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	g := &Game{
 		ID:        inputGame.ID,
 		CreatedAt: time.Now(),
-		PlayerIDs: []*User{},
+		Players:   []*User{},
 		Turn: &Turn{
 			Player: inputGame.Turn.Player,
 			Phase:  inputGame.Turn.Phase,
@@ -252,7 +255,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			ID:       *player.User.ID,
 			Username: player.User.Username,
 		}
-		g.PlayerIDs = append(g.PlayerIDs, user)
+		g.Players = append(g.Players, user)
 
 		// Set default boardstate, handle library and commander specifically
 		bs := &BoardState{
@@ -300,30 +303,41 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			return nil, err
 		}
 		bs.Library = shuff
-
-		// TODO: Use UpdateBoardState instead and use InputBoardState types
-		// so that we can set arbitrary board states at create game time.
-
-		// NB: BoardStates are keyed by User.ID not Username
-		err = s.Set(BoardStateKey(g.ID, bs.User.ID), bs)
-		if err != nil {
-			log.Printf("error persisting boardstate into redis: %s", err)
-			return nil, err
-		}
 	}
 
-	// persist the game in Redis
-	err := s.Set(GameKey(g.ID), g)
-	if err != nil {
-		return nil, fmt.Errorf("failed to save created game to redis: %s", err)
+	if err := s.upsertGame(g); err != nil {
+		return nil, fmt.Errorf("failed to update game: %w", err)
 	}
+
+	log.Printf("updated game %+v in postgres", g)
 
 	return g, nil
 }
 
+// upsert inserts or updates a Game in the games table.
+func (s *graphQLServer) upsertGame(g *Game) error {
+	if g.ID == "" {
+		return fmt.Errorf("ErrInvalidGameID: game ID must be set: %+v", g)
+	}
+	query := `INSERT INTO games (id, payload) 
+	VALUES ($1, $2::jsonb)
+	ON CONFLICT (id) DO UPDATE SET payload = $2::jsonb;
+	`
+	gbz, err := json.Marshal(g)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(query, g.ID, string(gbz))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// getBareCard returns a card type that hasn't been hydrated with
+// data from the mtgjson data set
 func getBareCard(inputCards []*InputCard) []*Card {
 	cardList := []*Card{}
-
 	for _, card := range inputCards {
 		c := &Card{
 			Name: card.Name,
@@ -362,7 +376,7 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 		}
 		if err != nil {
 			log.Printf("error reading csv record for card name: %+v", err)
-			return nil, errs.New("failed to parse CSV: %s", err)
+			return nil, fmt.Errorf("failed to parse CSV: %s", err)
 		}
 
 		name := record[1]
@@ -404,12 +418,17 @@ func (s *graphQLServer) publishGame(gameID string, g *Game) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if fullgame, ok := s.games[gameID]; ok {
+	fullgame, ok := s.games[gameID]
+	if ok {
+		// alert observers
 		for _, v := range fullgame.Observers {
 			v.Channel <- g
 		}
-		return
+	} else {
+		// create one if we haven't seen this game before.
+		s.games[gameID] = &FullGame{
+			GameID:    gameID,
+			Observers: make(map[string]*GameObserver),
+		}
 	}
-
-	log.Printf("ERROR: published update for game that does not exist: %s", gameID)
 }

@@ -19,21 +19,13 @@ services:
     ports:
       - 8081:8080
     links:
-      - redis:redis
       - postgres:postgres
     volumes:
       - "./persistence/migrations/:/app/persistence/migrations/"
     depends_on:
       - postgres
-      - redis
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-  redis:
-    image: redis
-    volumes:
-      - redis-data:/data
-    ports:
-      - 6379:6379
   postgres:
     image: bitnami/postgresql:14
     volumes:
@@ -43,5 +35,4 @@ services:
     ports:
       - 5432:5432
 volumes:
-  redis-data:
   postgres-data:
