@@ -19,10 +19,11 @@
     <!-- MTG JSON Credit -->
     <div class="columns is-mobile is-centered">
       <a href="https://mtgjson.com" style="display: inline-flex; align-items: center;">
-        <img 
+        <!-- <img 
+          TECHDEBT fix this image
           src="http://mtgjson.com/images/assets/logo-mtgjson-light-blue.svg" 
           width="40px" 
-          title="MTGJSON logo">
+          title="MTGJSON logo"> -->
         <p class="is-size-6" style="margin-left: 10px">Powered by MTGJSON</p>
       </a>
     </div>

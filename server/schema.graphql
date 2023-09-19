@@ -11,8 +11,8 @@ type Mutation {
 
 type Query {
   users(userID: String): [String!]!
-  games(gameID: String): [Game!]!
-  boardstates(gameID: String!, userID: String): [BoardState!]!
+  games(offset: Int!, limit: Int!): [Game]!
+  getGame(gameID: String!): Game!
   card(name: String!, id: String): Card
   cards(list: [String!]): [Card!]!
   search(name: String, colors: [String], colorIdentity: [String], keywords: [String]): [Card]
@@ -75,11 +75,6 @@ type Rule {
   Value: String!
 }
 
-type Emblem {
-  Name: String!
-  Value: String!
-  Player: User!
-}
 
 type Counter {
   Name: String!
@@ -87,7 +82,7 @@ type Counter {
 }
 
 type BoardState {
-  User: User!
+  User: String!
   Life: Int! 
   GameID: String!
   Commander: [Card!]!
@@ -145,19 +140,12 @@ input InputBoardState {
   Revealed: [InputCard]
   Controlled: [InputCard]
   Counters: [InputCounter]
-  Emblems: [InputEmblem]
 }
 
 input InputSignup {
   Username: String!
   Email: String!
   Password: String!
-}
-
-input InputEmblem {
-  Name: String!
-  Value: String!
-  Player: InputUser!
 }
 
 input InputUser {

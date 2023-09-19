@@ -61,7 +61,7 @@ func (s *graphQLServer) UpdateBoardState(
 
 	// update matching username's boardstate
 	for index, player := range game.Players {
-		if player.Username == bs.User.Username {
+		if player.Username == bs.User {
 			game.Players[index].Boardstate = bs
 			// break early
 			break
@@ -71,7 +71,7 @@ func (s *graphQLServer) UpdateBoardState(
 	go s.publishBoardstate(bs)
 
 	if err := s.upsertGame(game); err != nil {
-		return nil, fmt.Errorf("failed to update player %s boardstate %w", bs.User.Username, err)
+		return nil, fmt.Errorf("failed to update player %s boardstate %w", bs.User, err)
 	}
 
 	return bs, nil
@@ -125,9 +125,9 @@ func boardStateFromInput(bs InputBoardState) (*BoardState, error) {
 func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 	log.Printf("boardstate published: %v", bs)
 	s.mutex.Lock()
-	fbs, ok := s.boards[bs.User.ID]
+	fbs, ok := s.boards[bs.User]
 	if !ok {
-		log.Printf("pubishBoardState error: could not find boardstate: %s", bs.User.ID)
+		log.Printf("pubishBoardState error: could not find boardstate: %s", bs.User)
 		return
 	}
 	obs := fbs.Observers

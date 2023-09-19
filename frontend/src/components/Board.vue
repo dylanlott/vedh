@@ -1,6 +1,11 @@
 <template>
   <div class="container is-fluid" v-if="user && game">
-    <section>
+    <code>
+      User: {{  user  }}
+      <br/>
+      Game: {{ game }}
+    </code>
+    <!-- <section>
       <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen">Invite a friend</b-button>
       <b-modal :active="isInviteModalOpen">
         <div v-if="self" class="modal-card" width="400px">
@@ -11,7 +16,7 @@
           </section>
         </div>
       </b-modal>
-    </section>
+    </section> -->
 
     <!-- TURN TRACKER -->
     <!-- <div class="box"> -->
@@ -20,7 +25,7 @@
     <!-- END TURN TRACKER -->
 
     <!-- COMMANDER SELECTION  -->
-    <section>
+    <!-- <section>
       <b-modal has-modal-card :active="isCommanderSelectionOpen" trap-focus :destroy-on-hide="false" aria-role="dialog"
         aria-label="Example Modal" close-button-aria-label="Close" aria-modal>
         <div class="card">
@@ -46,15 +51,14 @@
           </footer>
         </div>
       </b-modal>
-    </section>
+    </section> -->
 
 
     <!-- SCRY MODAL  -->
-    <b-modal :active="isScryModalOpen">
+    <!-- <b-modal :active="isScryModalOpen">
       <div v-if="self" class="modal-card" width="400px">
         <header class="modal-card-head"></header>
         <section v-if="self.Library" class="modal-card-body">
-          <!-- TODO: Handle scry X instead of assuming just scry 1 -->
           <Card v-if="isScryModalOpen" v-bind="self.Library[0]" />
         </section>
         <footer class="modal-card-foot">
@@ -62,7 +66,7 @@
           <b-button @click="handleScryBottom()">Bottom</b-button>
         </footer>
       </div>
-    </b-modal>
+    </b-modal> -->
     <!-- END SCRY MODAL  -->
 
     <!-- CREATE TOKEN MODAL  -->
@@ -91,36 +95,39 @@
 
     <!-- OPPONENTS BOARDSTATES -->
     <div class="box">
-      <div v-for="player in bs" v-if="player.User.ID !== user.ID">
-        <p class="title is-6">{{ player.User.Username }}</p>
+      <div v-for="player in players" >
+        <!-- TODO add this back in : v-if="player.User.ID !== user.ID"  -->
+        <code>  {{ player }} </code>
+        <!-- <p class="title is-6">{{ player.User.Username }}</p>
         <div class="tile" :key="player.ID" v-if="player.User.ID !== user.ID" v-for="player in bs">
           <div class="columns">
             <div class="" v-for="card in player.Field">
-              <!-- TODO: make this prettier for opponent views -->
               <Card v-bind="card"></Card>
             </div>
           </div>
-        </div>
+        </div> -->
       </div>
     </div>
 
     <!-- SELF BOARDSTATE - PUBLIC SECTION -->
+    <!-- ###  
     <p class="title is-6">Your Battlefield</p>
     <div class="columns is-mobile is-desktop is-flex" id="selfBattlefield" v-if="self">
-      <!-- SELF - BATTLEFIELD -->
       <div class="column is-desktop is-mobile box is-flex">
         <draggable class="columns is-flex is-multiline is-mobile is-align-items-flex-start" @change="handleChange()"
           v-model="self.Field" group="people" @start="drag = true" @end="drag = false">
-          <!-- Note: Cards can only be tapped on the battlefield -->
+           Note: Cards can only be tapped on the battlefield
           <div v-on:dblclick="handleTap(card)" class="column" v-for="card in self.Field" :key="card.id">
             <Card v-bind="card"></Card>
           </div>
         </draggable>
       </div>
     </div>
+    -->
     <!-- END SELF BATTLEFIELD -->
 
     <!-- ### TOOLBAR START  -->
+    <!-- ### TOOLBAR 
     <template>
       <b-navbar>
         <template #start>
@@ -149,25 +156,26 @@
                 class="button is-dark is-small">Commanders</a>
               <a @click="handleTapAll()" class="button is-dark is-small"><strong>Tap All</strong></a>
               <a @click="handleUntapAll()" class="button is-light is-small">Untap All</a>
-              <!-- <a @click="toggleCreateTokenModal" class="button is-primary">Create Token</a> -->
+              <a @click="toggleCreateTokenModal" class="button is-primary">Create Token</a>
             </div>
           </b-navbar-item>
         </template>
       </b-navbar>
     </template>
+    --> 
 
     <!-- FOOTER  -->
     <footer class="footer">
       <div class="content">
         <div class="column is-full">
           <!-- SELF - HAND-->
-          <p class="title is-5">Hand</p>
+          <!-- <p class="title is-5">Hand</p>
           <draggable class="columns is-flex is-multiline is-mobile is-align-items-flex-start" v-model="self.Hand"
             group="people" @change="handleChange()" @start="drag = true" @end="drag = false">
             <div class="column" v-for="card in self.Hand" :key="card.id">
               <Card v-bind="card"></Card>
             </div>
-          </draggable>
+          </draggable> -->
         </div>
       </div>
     </footer>
@@ -201,13 +209,9 @@ export default {
       gameID: this.$route.params.id,
       userID: this.user.ID,
     });
-    this.$store.dispatch('subAllBoardstates', {
-      gameID: this.$route.params.id,
-      obsID: this.user.ID,
-    });
   },
   computed: {
-    // TODO this belongs with Commander Selection modal in its own component
+    // TECHDEBT this belongs with Commander Selection modal in its own component
     filteredCommanderData() {
       if (this.self.Library && this.self.Library.length > 0) {
         return this.self.Library.filter(option => {
@@ -219,8 +223,7 @@ export default {
     },
     ...mapState({
       game: (state) => state.Games.game,
-      bs: (state) => state.Boardstates.boardstates,
-      self: (state) => state.Boardstates.self,
+      players: (state) => state.Games.game.Players,
       user: (state) => state.Users.User,
     })
   },

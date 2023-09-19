@@ -34,15 +34,7 @@ type FullGame struct {
 }
 
 // Games returns a list of Games.
-func (s *graphQLServer) Games(ctx context.Context, gameID *string) ([]*Game, error) {
-	if gameID == nil {
-		// Retrieve game by ID
-		game, err := s.GetGame(ctx, *gameID)
-		if err != nil {
-			return nil, err
-		}
-		return []*Game{game}, nil
-	}
+func (s *graphQLServer) Games(ctx context.Context, limit int, offset int) ([]*Game, error) {
 	return nil, fmt.Errorf("not impl")
 }
 
@@ -159,9 +151,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		Username: input.User.Username,
 		ID:       *input.User.ID,
 		Boardstate: &BoardState{
-			User: &User{
-				Username: input.User.Username,
-			},
+			User:       input.User.Username,
 			Life:       input.BoardState.Life,
 			Exiled:     getBareCard(input.BoardState.Exiled),
 			Revealed:   getBareCard(input.BoardState.Revealed),
@@ -249,17 +239,17 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		},
 	}
 
+	// build player boardstates
 	for _, player := range inputGame.Players {
 		// TODO: Deck validation should happen here.
 		user := &User{
 			ID:       *player.User.ID,
 			Username: player.User.Username,
 		}
-		g.Players = append(g.Players, user)
 
 		// Set default boardstate, handle library and commander specifically
 		bs := &BoardState{
-			User:       user,
+			User:       user.Username,
 			Life:       player.Life,
 			GameID:     g.ID,
 			Hand:       getBareCard(player.Hand),
@@ -285,6 +275,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			bs.Library = library
 		}
 
+		// handle commander selection
 		if len(player.Commander) > 0 {
 			commander, err := s.Card(ctx, player.Commander[0].Name, nil)
 			if err != nil {
@@ -297,12 +288,19 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			}
 		}
 
+		// shuffle their library
 		shuff, err := Shuffle(bs.Library)
 		if err != nil {
 			log.Printf("error shuffling library: %s", err)
 			return nil, err
 		}
 		bs.Library = shuff
+
+		// add players boardstate to the game after everything is hydrated
+		user.Boardstate = bs
+		fmt.Printf("adding user to game: %v\n", user)
+		fmt.Printf("user.Boardstate: %v\n", user.Boardstate)
+		g.Players = append(g.Players, user)
 	}
 
 	if err := s.upsertGame(g); err != nil {

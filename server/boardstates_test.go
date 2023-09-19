@@ -42,11 +42,8 @@ func TestUpdateBoardState(t *testing.T) {
 			wantErr: false,
 			want: &BoardState{
 				GameID: seedGameID,
-				User: &User{
-					ID:       userID,
-					Username: "shakezula",
-				},
-				Life: 38,
+				User:   "shakezula",
+				Life:   38,
 				Commander: []*Card{
 					{Name: "Gavi, Nest Warden"},
 				},

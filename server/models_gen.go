@@ -7,7 +7,7 @@ import (
 )
 
 type BoardState struct {
-	User       *User      `json:"User"`
+	User       string     `json:"User"`
 	Life       int        `json:"Life"`
 	GameID     string     `json:"GameID"`
 	Commander  []*Card    `json:"Commander"`
@@ -51,12 +51,6 @@ type Counter struct {
 	Value string `json:"Value"`
 }
 
-type Emblem struct {
-	Name   string `json:"Name"`
-	Value  string `json:"Value"`
-	Player *User  `json:"Player"`
-}
-
 type Game struct {
 	ID        string    `json:"ID"`
 	CreatedAt time.Time `json:"CreatedAt"`
@@ -79,7 +73,6 @@ type InputBoardState struct {
 	Revealed   []*InputCard    `json:"Revealed"`
 	Controlled []*InputCard    `json:"Controlled"`
 	Counters   []*InputCounter `json:"Counters"`
-	Emblems    []*InputEmblem  `json:"Emblems"`
 }
 
 type InputCard struct {
@@ -123,12 +116,6 @@ type InputDeck struct {
 	Name      *string  `json:"Name"`
 	Commander []string `json:"Commander"`
 	Cards     []string `json:"Cards"`
-}
-
-type InputEmblem struct {
-	Name   string     `json:"Name"`
-	Value  string     `json:"Value"`
-	Player *InputUser `json:"Player"`
 }
 
 type InputGame struct {

@@ -39,10 +39,10 @@ export default {
         }
     },
     computed: mapState({
-        boardstates: state => state.BoardStates.boardstates,
+        // boardstates: state => state.BoardStates.boardstates,
     }),
     props: {
-        boardstate: Object
+        // boardstate: Object
     },
 }
 </script>
