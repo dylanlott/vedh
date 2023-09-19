@@ -20,3 +20,4 @@ allprintings.csv.zip
 .vscode/settings.json
 .vscode/targets.log
 atlas.hcl
+all-printings.sql

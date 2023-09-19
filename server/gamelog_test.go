@@ -48,9 +48,7 @@ func Test_pgLogger_Add(t *testing.T) {
 				event: Event{
 					Payload: map[string]interface{}{
 						"boardstate": BoardState{
-							User: &User{
-								Username: "shakezula",
-							},
+							User: "shakezula",
 							Life: 40,
 						},
 						"timestamp": time.Now(),

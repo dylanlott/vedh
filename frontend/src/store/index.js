@@ -17,226 +17,11 @@ import {
     gameQuery,
     gameUpdateQuery,
     updateGame,
-    // boardstates
-    boardstates,
-    boardstateSubscription,
-    updateBoardStateQuery,
 } from '@/gqlQueries'
 
 Vue.use(Vuex)
 
 const ls = window.localStorage
-
-export const Boardstates = {
-    // BoardStates should only ever be updated by push from the server, we 
-    // don't normally want to update these ourselves. 
-    state: {
-        // boardstates holds an object with all player boardstates
-        // keyed by the player's UUID (ID)
-        boardstates: {},
-        // we load our personal state into self but we still don't want to 
-        // violate our one-direction data flow principle
-        self: {},
-        // error is an error message from the API. 
-        error: undefined
-    },
-    mutations: {
-        error(state, payload) {
-            state.error = payload
-            Toast.open({
-                message: `Boardstate error: ${state.error}`,
-                duration: 3000,
-                position: "is-bottom",
-                type: "is-danger",
-            })
-        },
-        // * updateBoardStates takes an array of boardstates and updates each 
-        // boardstate in our local state.
-        // * payload is iterated over and checked for it's user's ID
-        // and then assigned to the boardstates object keyed by that ID
-        // * beware of Vue's update detection caveats here. we must ensure we correctly
-        // reassign the boardstates prop after we have mutated the user's individual state.
-        updateBoardStates(state, payload) {
-            let updated = Object.assign({}, state.boardstates)
-            payload.forEach((bs) => {
-                if (bs.User.ID == "" || bs.User.ID == undefined) {
-                    state.error = "boardstate did not have ID"
-                    return
-                }
-                updated[bs.User.ID] = Object.assign({}, bs)
-            })
-            state.boardstates = updated
-        },
-        updateSelf(state, payload) {
-            state.self = payload
-        },
-    },
-    actions: {
-        // move is a low level )function designed to be a base unit of card 
-        // manipulation in our application. 
-        // * complex actions should (*eventually) be composed of different moves
-        // * move should be atomic.
-        // * all card actions should be able to be expressed via a `move` 
-        // invocation given the proper arguments.
-        // * move only moves cards around a users Boardstate.
-        // * if a card needs to move between _players_, `give` should be used.
-        move({ state, dispatch }, { userID, src, dest, target })  {
-            // snapshot what our current boardstate is so that we're not 
-            // mutating state outside of commits
-            const self = Object.assign({}, state.boardstates[userID])
-            // map all card movements onto that snapshot
-            if (!self.User.ID) {
-                // require a User.ID to be set or we error
-                return dispatch('error', 'failed to find boardstate')
-            }
-            const from = self[src]
-            if (!from) {
-                return dispatch('error', 'failed to find target source')
-            }
-            const to = self[dest]
-            if (!to) {
-                return dispatch('error', 'failed to find target destination')
-            }
-            // lookup by the index card.ID
-            var selected;
-            var foundIdx = from.findIndex(x => x.ID === target)
-            if (foundIdx === 0) {
-                return dispatch('error', 'failed to find target ', target)
-            }
-            var selected = from[foundIdx]
-            from.splice(foundIdx, 1)
-            to.push(selected)
-
-            // assign source and destination
-            self[src] = [...from]
-            self[dest] = [...to]
-
-            // finally, dispatch our self update as a single action.
-            dispatch('mutateBoardState', self)
-        },
-        // draw will draw a card into hand from the top of the board state's  
-        // library. 
-        // * if none exists, it errors and declares your loss.
-        // * we always treat the "top" of the deck as the card at index 0
-        // * thus the bottom of the deck is the nth element of the array
-        draw({ commit, dispatch }, boardstate) {
-            const bs = Object.assign({}, boardstate)
-            if (bs.Library.length < 1) {
-                // handle player losing issue
-                commit('error', 'you cannot draw from an empty library. you lose the game.')
-                // TODO: Make it so that losing triggers a server event.
-                // Send the player to the score screen unless they override the 
-                // loss.
-                return
-            }
-            const card = bs.Library.shift()
-            bs.Hand.push(card)
-            dispatch('mutateBoardState', bs)
-        },
-        // tapAll will tap all cards in the boardstate passed to it.
-        // it early returns if there are no cards on the field.
-        tapAll({ dispatch }, boardstate) {
-            const bs = Object.assign({}, boardstate)
-            if (bs.Field.length < 1) {
-                return
-            }
-            bs.Field.forEach((card, i) => {
-                card.Tapped = true
-            })
-            dispatch('mutateBoardState', bs)
-        },
-        // untapAll will untap all cards in the boardstate's Battlefield.
-        // it early returns if no cards are present on the player's battlefield
-        untapAll({ dispatch }, boardstate) {
-            const bs = Object.assign({}, boardstate)
-            if (bs.Field.length < 1) {
-                // nothing to tap, so just return
-                return
-            }
-            // set tapped to true for each card on the field for the Boardstate
-            bs.Field.forEach((card, i) => {
-                card.Tapped = false
-            })
-            // and dispatch the mutation
-            dispatch('mutateBoardState', bs)
-        },
-        // mutate boardstate will mutate a boardstate and then commit the result
-        // * this is used as a more low level action and is usually called in 
-        // other actions after a Boardstate has been copied and safely mutated.
-        // * this can be used directly by the board but actions are cleaner and
-        // are the recommended way of altering the board state.
-        mutateBoardState({ commit }, payload) {
-            api.mutate({
-                mutation: updateBoardStateQuery,
-                variables: {
-                    boardstate: payload,
-                },
-            })
-                .then((resp) => {
-                    commit('updateBoardStates', [resp.data.updateBoardState])
-                })
-                .catch((err) => {
-                    console.error('mutateBoardState: error updating boardstate: ', err)
-                    commit('error', 'something went wrong.')
-                })
-        },
-        // subAll fetches all boardstates from the server and then subscribes 
-        // to all of them.
-        subAllBoardstates({ commit, dispatch, rootState }, {gameID, obsID}) {
-            return new Promise((resolve, reject) => {
-                api.query({
-                    query: boardstates,
-                    variables: {
-                        gameID: gameID
-                    }
-                })
-                .then((resp) => {
-                    resp.data.boardstates.forEach((boardstate) => {
-                        dispatch('subToBoardstate', {
-                            obsID: obsID,
-                            userID: boardstate.User.ID,
-                        })
-                        if (boardstate.User.ID === rootState.Users.User.ID) {
-                            commit('updateSelf', boardstate)
-                        } else {
-                            commit('updateBoardStates', resp.data.boardstates)
-                        }
-                    })
-                    return resolve(resp.data)
-                })
-                .catch((err) => {
-                    console.error('GET BOARDSTATES FAILED: ', err)
-                    return reject(err)
-                })
-            })
-        },
-        // used for subscribing to single boardstate updates. the observer ID 
-        // is the current user's ID and the userID is the ID of the user whose 
-        // boardstate is being subscribed.
-        subToBoardstate({ rootState, commit }, payload) {
-            const sub = api.subscribe({
-                query: boardstateSubscription,
-                variables: {
-                    obsID: payload.obsID,
-                    userID: payload.userID,
-                },
-            })
-            sub.subscribe({
-                next(data) {
-                    if (data.data.boardstateUpdated.User.ID == rootState.Users.User.ID) {
-                        commit('updateSelf', data.data.boardstateUpdated)
-                    }
-                    console.log('boardstate subscription received: ', data.data.boardstateUpdated)
-                    commit('updateBoardStates', [data.data.boardstateUpdated])
-                },
-                error(err) {
-                    commit('error', err)
-                    console.error('subscribeToBoardstate: boardstate subscription error: ', err)
-                }
-            })
-        },
-    },
-}
 
 export const Games = {
     state: {
@@ -247,7 +32,7 @@ export const Games = {
                 Phase: "",
                 Number: 0
             },
-            PlayerIDs: []
+            Players: []
         },
         error: undefined,
         loading: false,
@@ -283,7 +68,8 @@ export const Games = {
                 api.query({
                     query: gameQuery,
                     variables: {
-                        gameID: ID,
+                        limit: 100,
+                        offset: 0
                     }
                 }).then((resp) => {
                     commit('updateLoading', false)
@@ -302,7 +88,7 @@ export const Games = {
         subscribeToGame({ state, commit, dispatch }, { gameID, userID }) {
             commit('updateLoading', true)
             api.query({
-                query: gameQuery,
+                query: gameUpdatedSubscription,
                 variables: {
                     gameID: gameID,
                     userID: userID,
@@ -324,15 +110,8 @@ export const Games = {
                 sub.subscribe({
                     next(data) {
                         const g = data.data.gameUpdated
-                        if (g.PlayerIDs.length > state.game.PlayerIDs.length) {
-                            for (const player in g.PlayerIDs) {
-                                dispatch('subToBoardstate', {
-                                    userID: player,
-                                    obsID: player,
-                                })
-                            }
-                        }
-                        commit('updateGame', data.data.gameUpdated)
+                        console.log('game updated: ', g)
+                        commit('updateGame', g)
                     },
                     error(err) {
                         console.error('vuex error: subscribeToGame: game subscription error: ', err)
@@ -348,7 +127,7 @@ export const Games = {
                     mutation: gql`mutation ($InputJoinGame: InputJoinGame) {
                     joinGame(input: $InputJoinGame) {
                         ID
-                        PlayerIDs {
+                        Players {
                             Username
                             ID
                         }
@@ -390,7 +169,7 @@ export const Games = {
                             Player
                             Phase
                         }
-                        PlayerIDs {
+                        Players {
                             Username
                             ID
                         }
@@ -577,7 +356,6 @@ export const Cards = {
 
 export const store = new Vuex.Store({
   modules: {
-    Boardstates,
     Cards,
     Games,
     Users,

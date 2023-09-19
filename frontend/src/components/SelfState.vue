@@ -121,19 +121,19 @@ export default {
     playerID: String,
   },
   computed: {
-  ...mapState({
-    boardstates: state => state.BoardStates.boardstates
-  }),
+    ...mapState({
+      boardstates: state => state.Games // TODO IN THIS COMMIT map this to the correct location for self data
+    }),
   },
   methods: {
     draw() {
-      console.log(this.playerID, this.boardstates)
-      const bs = Object.assign({}, this.boardstates[this.playerID])
-      console.log('bs: ', bs)
-      const card = bs.Library[0]
-      bs.Library.shift()
-      bs.Hand.push(card)
-      console.log('boardstate: ', bs)
+      // console.log(this.playerID, this.boardstates)
+      // const bs = Object.assign({}, this.boardstates[this.playerID])
+      // console.log('bs: ', bs)
+      // const card = bs.Library[0]
+      // bs.Library.shift()
+      // bs.Hand.push(card)
+      // console.log('boardstate: ', bs)
     },
     mutateBoardState(bs) {
       return this.$store.dispatch('mutateBoardState', bs);
