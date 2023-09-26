@@ -13,6 +13,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_graphQLServer_Games(t *testing.T) {
+	is := is.New(t)
+	t.Run("should return a list of games", func(t *testing.T) {
+		s := testAPI(t)
+		got, err := s.Games(context.Background(), 10, 0)
+		is.NoErr(err)
+		is.True(got != nil)
+	})
+}
+
 func TestGameGetSet(t *testing.T) {
 	api := testAPI(t)
 	created, err := api.CreateGame(context.Background(), *seedInputGame)
@@ -29,7 +39,6 @@ func TestGameGetSet(t *testing.T) {
 }
 
 func TestCreateGame(t *testing.T) {
-	id := string("0xACAB")
 	var cases = []struct {
 		name    string
 		input   *InputCreateGame
@@ -42,10 +51,7 @@ func TestCreateGame(t *testing.T) {
 				ID: "deadbeef",
 				Players: []*InputBoardState{
 					{
-						User: &InputUser{
-							ID:       &id,
-							Username: "shakezula",
-						},
+						User:     "shakezula",
 						Life:     40,
 						Decklist: decklist(),
 						Commander: []*InputCard{
@@ -65,7 +71,6 @@ func TestCreateGame(t *testing.T) {
 				ID: "deadbeef",
 				Players: []*User{
 					{
-						ID:       "0xACAB",
 						Username: "shakezula",
 					},
 				},
@@ -87,10 +92,7 @@ func TestCreateGame(t *testing.T) {
 				ID: "deadbeef",
 				Players: []*InputBoardState{
 					{
-						User: &InputUser{
-							ID:       &id,
-							Username: "shakezula",
-						},
+						User:     "shakezula",
 						Life:     40,
 						Decklist: decklist(),
 						Commander: []*InputCard{
@@ -113,7 +115,6 @@ func TestCreateGame(t *testing.T) {
 				ID: "deadbeef",
 				Players: []*User{
 					{
-						ID:       "0xACAB",
 						Username: "shakezula",
 					},
 				},
@@ -135,10 +136,7 @@ func TestCreateGame(t *testing.T) {
 				ID: "deadbeef",
 				Players: []*InputBoardState{
 					{
-						User: &InputUser{
-							ID:       &id,
-							Username: "shakezula",
-						},
+						User:      "shakezula",
 						Life:      40,
 						Decklist:  decklist(),
 						Commander: []*InputCard{},
@@ -215,14 +213,7 @@ func TestJoinGame(t *testing.T) {
 						},
 					},
 				},
-				User: &InputUser{
-					ID:       &userID2,
-					Username: "meatwad",
-					Boardstate: &InputBoardState{
-						GameID: seedGameID,
-						Life:   40,
-					},
-				},
+				User: userID2,
 			},
 			err: nil,
 			want: &Game{
@@ -315,11 +306,9 @@ func TestUpdateGame(t *testing.T) {
 					Players: []*InputUser{
 						{
 							Username: "shakezula",
-							ID:       &userID,
 						},
 						{
 							Username: "meatwad",
-							ID:       &userID2,
 						},
 					},
 					Rules: []*InputRule{
@@ -400,7 +389,6 @@ func TestUpdateGame(t *testing.T) {
 }
 
 func TestMultipleSubscriptions(t *testing.T) {
-	player2 := "0xDEADBEEF"
 	s := testAPI(t)
 	created, err := s.CreateGame(context.Background(), *seedInputGame)
 	assert.NoError(t, err)
@@ -417,8 +405,8 @@ func TestMultipleSubscriptions(t *testing.T) {
 	updated, err := s.UpdateGame(context.Background(), InputGame{
 		ID: created.ID,
 		Players: []*InputUser{
-			{Username: "meatwad", ID: &player2},
-			{Username: "shakezula", ID: &seedUserID},
+			{Username: "meatwad"},
+			{Username: "shakezula"},
 		},
 		Turn: &InputTurn{
 			Player: "meatwad",
@@ -572,11 +560,8 @@ var seedInputGame = &InputCreateGame{
 	ID: seedGameID,
 	Players: []*InputBoardState{
 		{
-			GameID: seedGameID,
-			User: &InputUser{
-				ID:       &seedUserID,
-				Username: seedUsername,
-			},
+			GameID:   seedGameID,
+			User:     seedUsername,
 			Life:     40,
 			Decklist: decklist(),
 			Commander: []*InputCard{

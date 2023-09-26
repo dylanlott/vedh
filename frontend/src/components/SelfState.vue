@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- {{ boardstate }} -->
-    <div class="columns">
+    <!-- <div class="columns">
       <div class="column is-10">
         <p class="title is-5">Battlefield</p>
         <draggable
@@ -16,9 +16,9 @@
           </div>
         </draggable>
       </div>
-    </div>
+    </div> -->
 
-    <div class="columns">
+    <!-- <div class="columns">
       <div class="column">
         <p class="title is-5">Exiled</p>
         <draggable
@@ -103,7 +103,7 @@
         </draggable>
       </div>
     </div>
-    <hr />
+    <hr /> -->
   </div>
 </template>
 <script>
@@ -127,16 +127,11 @@ export default {
   },
   methods: {
     draw() {
-      // console.log(this.playerID, this.boardstates)
-      // const bs = Object.assign({}, this.boardstates[this.playerID])
-      // console.log('bs: ', bs)
-      // const card = bs.Library[0]
-      // bs.Library.shift()
-      // bs.Hand.push(card)
-      // console.log('boardstate: ', bs)
+      // TODO 
     },
     mutateBoardState(bs) {
-      return this.$store.dispatch('mutateBoardState', bs);
+      // return this.$store.dispatch('mutateBoardState', bs);
+      // TODO 
     },
   },
   self() {

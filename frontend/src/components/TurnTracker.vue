@@ -76,7 +76,6 @@ export default {
       // determine if game turn has been set. 
       // if not, set it to the default setup phase.
       if (!g.Turn) {
-        console.log("no existing game.Turn detected, setting to defaults")
         g.Turn = {
           Number: "0",
           Phase: "setup",

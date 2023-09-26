@@ -11,8 +11,6 @@ import (
 )
 
 func TestUpdateBoardState(t *testing.T) {
-	userID := string("0xACAB")
-
 	type args struct {
 		ctx   context.Context
 		input InputBoardState
@@ -29,11 +27,8 @@ func TestUpdateBoardState(t *testing.T) {
 				ctx: context.Background(),
 				input: InputBoardState{
 					GameID: seedGameID,
-					User: &InputUser{
-						Username: "shakezula",
-						ID:       &userID,
-					},
-					Life: 38, // test life edits
+					User:   "shakezula",
+					Life:   38,
 					Commander: []*InputCard{
 						{Name: "Gavi, Nest Warden"},
 					},
@@ -55,11 +50,8 @@ func TestUpdateBoardState(t *testing.T) {
 				ctx: context.Background(),
 				input: InputBoardState{
 					GameID: "doesnotexist",
-					User: &InputUser{
-						Username: "shakezula",
-						ID:       &userID,
-					},
-					Life: 38, // test life edits
+					User:   "shakezula",
+					Life:   38,
 					Commander: []*InputCard{
 						{Name: "Gavi, Nest Warden"},
 					},
@@ -70,22 +62,25 @@ func TestUpdateBoardState(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// assemble
 			s := testAPI(t)
 			_, err := s.CreateGame(tt.args.ctx, *seedInputGame)
 			if err != nil {
 				t.Errorf("failed to create dummy game: %s", err)
 			}
 
+			// register listener
 			bch, err := s.BoardstateUpdated(
 				tt.args.ctx,
 				"TestUpdateBoardStateObserver",
-				*tt.args.input.User.ID,
+				tt.args.input.User,
 			)
 			assert.Equal(t, err, nil)
 			assert.NotNil(t, bch)
 
 			time.Sleep(time.Millisecond * 500)
 
+			// act
 			got, err := s.UpdateBoardState(tt.args.ctx, tt.args.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("graphQLServer.UpdateBoardState() error = %v, wantErr %v", err, tt.wantErr)
@@ -95,7 +90,7 @@ func TestUpdateBoardState(t *testing.T) {
 				t.Errorf("graphQLServer.UpdateBoardState() = %v, want %v", got, tt.want)
 			}
 
-			// assert on boardstate notifications if no error is expected
+			// assert
 			if tt.wantErr == false {
 				boardstate := <-bch
 				if !reflect.DeepEqual(boardstate, tt.want) {
@@ -109,22 +104,3 @@ func TestUpdateBoardState(t *testing.T) {
 		})
 	}
 }
-
-// TECHDEBT write a test for multiple observers for one game
-// func TestMultipleObservers(t *testing.T) {
-// 	s := testAPI(t)
-// 	ctx := context.Background()
-// 	ctx, done := context.WithCancel(ctx)
-// 	created, err := s.CreateGame(ctx, *seedInputGame)
-// 	assert.NoError(t, err)
-
-// 	// NB: these should both be observing the same user from *seedInputGame
-// 	ch1, err := s.BoardstateUpdated(ctx, "testobs1", seedUserID)
-// 	assert.NoError(t, err)
-// 	assert.NotNil(t, ch1)
-// 	ch2, err := s.BoardstateUpdated(ctx, "testobs2", seedUserID)
-// 	assert.NoError(t, err)
-// 	assert.NotNil(t, ch2)
-
-// 	created.Turn.Number = 3
-// }

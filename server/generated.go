@@ -60,6 +60,7 @@ type ComplexityRoot struct {
 		Life       func(childComplexity int) int
 		Revealed   func(childComplexity int) int
 		User       func(childComplexity int) int
+		UserID     func(childComplexity int) int
 	}
 
 	Card struct {
@@ -124,8 +125,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		BoardstateUpdated func(childComplexity int, observerID string, userID string) int
-		GameUpdated       func(childComplexity int, gameID string, userID string) int
+		GameUpdated func(childComplexity int, gameID string, userID string) int
 	}
 
 	Turn struct {
@@ -161,7 +161,6 @@ type QueryResolver interface {
 }
 type SubscriptionResolver interface {
 	GameUpdated(ctx context.Context, gameID string, userID string) (<-chan *Game, error)
-	BoardstateUpdated(ctx context.Context, observerID string, userID string) (<-chan *BoardState, error)
 }
 
 type executableSchema struct {
@@ -262,6 +261,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.BoardState.User(childComplexity), true
+
+	case "BoardState.UserID":
+		if e.complexity.BoardState.UserID == nil {
+			break
+		}
+
+		return e.complexity.BoardState.UserID(childComplexity), true
 
 	case "Card.CMC":
 		if e.complexity.Card.Cmc == nil {
@@ -623,18 +629,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Rule.Value(childComplexity), true
-
-	case "Subscription.boardstateUpdated":
-		if e.complexity.Subscription.BoardstateUpdated == nil {
-			break
-		}
-
-		args, err := ec.field_Subscription_boardstateUpdated_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Subscription.BoardstateUpdated(childComplexity, args["observerID"].(string), args["userID"].(string)), true
 
 	case "Subscription.gameUpdated":
 		if e.complexity.Subscription.GameUpdated == nil {
@@ -1078,30 +1072,6 @@ func (ec *executionContext) field_Query_users_args(ctx context.Context, rawArgs 
 	return args, nil
 }
 
-func (ec *executionContext) field_Subscription_boardstateUpdated_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["observerID"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("observerID"))
-		arg0, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["observerID"] = arg0
-	var arg1 string
-	if tmp, ok := rawArgs["userID"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
-		arg1, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["userID"] = arg1
-	return args, nil
-}
-
 func (ec *executionContext) field_Subscription_gameUpdated_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1163,6 +1133,50 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _BoardState_UserID(ctx context.Context, field graphql.CollectedField, obj *BoardState) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BoardState_UserID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BoardState_UserID(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BoardState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _BoardState_User(ctx context.Context, field graphql.CollectedField, obj *BoardState) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_BoardState_User(ctx, field)
@@ -3676,6 +3690,8 @@ func (ec *executionContext) fieldContext_Mutation_updateBoardState(ctx context.C
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "UserID":
+				return ec.fieldContext_BoardState_UserID(ctx, field)
 			case "User":
 				return ec.fieldContext_BoardState_User(ctx, field)
 			case "Life":
@@ -4502,101 +4518,6 @@ func (ec *executionContext) fieldContext_Subscription_gameUpdated(ctx context.Co
 	return fc, nil
 }
 
-func (ec *executionContext) _Subscription_boardstateUpdated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
-	fc, err := ec.fieldContext_Subscription_boardstateUpdated(ctx, field)
-	if err != nil {
-		return nil
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = nil
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().BoardstateUpdated(rctx, fc.Args["observerID"].(string), fc.Args["userID"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return nil
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return nil
-	}
-	return func(ctx context.Context) graphql.Marshaler {
-		select {
-		case res, ok := <-resTmp.(<-chan *BoardState):
-			if !ok {
-				return nil
-			}
-			return graphql.WriterFunc(func(w io.Writer) {
-				w.Write([]byte{'{'})
-				graphql.MarshalString(field.Alias).MarshalGQL(w)
-				w.Write([]byte{':'})
-				ec.marshalNBoardState2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐBoardState(ctx, field.Selections, res).MarshalGQL(w)
-				w.Write([]byte{'}'})
-			})
-		case <-ctx.Done():
-			return nil
-		}
-	}
-}
-
-func (ec *executionContext) fieldContext_Subscription_boardstateUpdated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Subscription",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "User":
-				return ec.fieldContext_BoardState_User(ctx, field)
-			case "Life":
-				return ec.fieldContext_BoardState_Life(ctx, field)
-			case "GameID":
-				return ec.fieldContext_BoardState_GameID(ctx, field)
-			case "Commander":
-				return ec.fieldContext_BoardState_Commander(ctx, field)
-			case "Library":
-				return ec.fieldContext_BoardState_Library(ctx, field)
-			case "Graveyard":
-				return ec.fieldContext_BoardState_Graveyard(ctx, field)
-			case "Exiled":
-				return ec.fieldContext_BoardState_Exiled(ctx, field)
-			case "Field":
-				return ec.fieldContext_BoardState_Field(ctx, field)
-			case "Hand":
-				return ec.fieldContext_BoardState_Hand(ctx, field)
-			case "Revealed":
-				return ec.fieldContext_BoardState_Revealed(ctx, field)
-			case "Controlled":
-				return ec.fieldContext_BoardState_Controlled(ctx, field)
-			case "Counters":
-				return ec.fieldContext_BoardState_Counters(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type BoardState", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Subscription_boardstateUpdated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Turn_Player(ctx context.Context, field graphql.CollectedField, obj *Turn) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Turn_Player(ctx, field)
 	if err != nil {
@@ -4935,6 +4856,8 @@ func (ec *executionContext) fieldContext_User_Boardstate(ctx context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "UserID":
+				return ec.fieldContext_BoardState_UserID(ctx, field)
 			case "User":
 				return ec.fieldContext_BoardState_User(ctx, field)
 			case "Life":
@@ -6748,11 +6671,19 @@ func (ec *executionContext) unmarshalInputInputBoardState(ctx context.Context, o
 
 	for k, v := range asMap {
 		switch k {
+		case "UserID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("UserID"))
+			it.UserID, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "User":
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("User"))
-			it.User, err = ec.unmarshalNInputUser2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputUser(ctx, v)
+			it.User, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7250,7 +7181,7 @@ func (ec *executionContext) unmarshalInputInputJoinGame(ctx context.Context, obj
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("User"))
-			it.User, err = ec.unmarshalNInputUser2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputUser(ctx, v)
+			it.User, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7449,14 +7380,6 @@ func (ec *executionContext) unmarshalInputInputUser(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
-		case "ID":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ID"))
-			it.ID, err = ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
 		case "Boardstate":
 			var err error
 
@@ -7489,6 +7412,13 @@ func (ec *executionContext) _BoardState(ctx context.Context, sel ast.SelectionSe
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("BoardState")
+		case "UserID":
+
+			out.Values[i] = ec._BoardState_UserID(ctx, field, obj)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "User":
 
 			out.Values[i] = ec._BoardState_User(ctx, field, obj)
@@ -8086,8 +8016,6 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	switch fields[0].Name {
 	case "gameUpdated":
 		return ec._Subscription_gameUpdated(ctx, fields[0])
-	case "boardstateUpdated":
-		return ec._Subscription_boardstateUpdated(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
