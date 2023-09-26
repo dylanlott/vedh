@@ -7,6 +7,7 @@ import (
 )
 
 type BoardState struct {
+	UserID     string     `json:"UserID"`
 	User       string     `json:"User"`
 	Life       int        `json:"Life"`
 	GameID     string     `json:"GameID"`
@@ -60,7 +61,8 @@ type Game struct {
 }
 
 type InputBoardState struct {
-	User       *InputUser      `json:"User"`
+	UserID     string          `json:"UserID"`
+	User       string          `json:"User"`
 	GameID     string          `json:"GameID"`
 	Life       int             `json:"Life"`
 	Decklist   *string         `json:"Decklist"`
@@ -129,7 +131,7 @@ type InputGame struct {
 
 type InputJoinGame struct {
 	ID         string           `json:"ID"`
-	User       *InputUser       `json:"User"`
+	User       string           `json:"User"`
 	Handle     *string          `json:"Handle"`
 	Decklist   *string          `json:"Decklist"`
 	BoardState *InputBoardState `json:"BoardState"`
@@ -160,7 +162,6 @@ type InputTurn struct {
 
 type InputUser struct {
 	Username   string           `json:"Username"`
-	ID         *string          `json:"ID"`
 	Boardstate *InputBoardState `json:"Boardstate"`
 }
 

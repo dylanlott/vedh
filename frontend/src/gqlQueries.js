@@ -1,57 +1,64 @@
 import gql from 'graphql-tag';
 
 // gameUpdateQuery powers the TurnTracker and Opponents components.
-export const gameUpdatedSubscription = gql`
-subscription($gameID: String!, $userID: String!) {
+export const gameUpdatedSubscription = gql`subscription($gameID: String!, $userID: String!) {
   gameUpdated(gameID: $gameID, userID: $userID) {
     ID
     Players {
       Username
-      ID
       Boardstate {
+        GameID
+        UserID
         User
         Life
       }
     }
     Turn {
-      Player
       Phase
+      Player
       Number
     }
   }
 } 
 `
 
-export const gameQuery = gql`
-query ($limit: Int!, $offset: Int!) {
-  games(limit: $limit, offset: $offset) {
+export const getGameQuery = gql`query($gameID: String!){
+	getGame(gameID: $gameID) {
     ID
     Players {
       Username
       ID
       Boardstate {
+        UserID
         User
         Life
+        GameID
       }
     }
-    Turn {
-      Player
-      Phase
-      Number
-    }
+  }
+}`
+
+export const gameQuery = gql`
+query gameQuery($limit: Int!, $offset: Int!) {
+  games(limit: $limit, offset: $offset) {
+    ID
   }
 }
 `
 
 export const updateGame = gql`
-mutation ($input: InputGame!) {
+mutation updateGame($input: InputGame!) {
   updateGame(input: $input) {
     ID
+    Username
+    UserID
     Players {
       ID
+      UserID
       Username
       Boardstate {
         User
+        UserID
         Life
       }
     }
@@ -65,7 +72,7 @@ mutation ($input: InputGame!) {
 `
 
 export const signup = gql`
-mutation ($username: String!, $password: String!) {
+mutation signup($username: String!, $password: String!) {
   signup(username: $username, password: $password) {
     ID
     Username
@@ -75,7 +82,7 @@ mutation ($username: String!, $password: String!) {
 `
 
 export const login = gql`
-mutation($username: String!, $password: String!) {
+mutation login($username: String!, $password: String!) {
   login(username: $username, password: $password) {
     Username
     ID
@@ -84,7 +91,7 @@ mutation($username: String!, $password: String!) {
 }`
 
 export const commanderQuery = gql`
-  query($name: String!) {
+  query commanderQuery($name: String!) {
     search(name: $name) {
       Name
       ID
@@ -97,7 +104,7 @@ export const commanderQuery = gql`
 `
 
 export const cardQuery = gql`
-  query($name: String!) {
+  query cardQuery($name: String!) {
     card(name: $name) {
       Name
       ID

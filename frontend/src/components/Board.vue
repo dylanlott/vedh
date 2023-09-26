@@ -1,9 +1,12 @@
 <template>
   <div class="container is-fluid" v-if="user && game">
     <code>
-      User: {{  user  }}
+      <div v-if="user"></div> 
+        User: {{  user  }}
       <br/>
-      Game: {{ game }}
+      <div v-if="user">
+        Game: {{ game }}
+      </div>
     </code>
     <!-- <section>
       <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen">Invite a friend</b-button>
@@ -94,10 +97,10 @@
     <!-- END CREATE TOKEN MODAL  -->
 
     <!-- OPPONENTS BOARDSTATES -->
-    <div class="box">
-      <div v-for="player in players" >
+    <!-- <div class="box"> -->
+      <!-- <div v-for="player in players" > -->
         <!-- TODO add this back in : v-if="player.User.ID !== user.ID"  -->
-        <code>  {{ player }} </code>
+        <!-- <code>  {{ player }} </code> -->
         <!-- <p class="title is-6">{{ player.User.Username }}</p>
         <div class="tile" :key="player.ID" v-if="player.User.ID !== user.ID" v-for="player in bs">
           <div class="columns">
@@ -106,8 +109,8 @@
             </div>
           </div>
         </div> -->
-      </div>
-    </div>
+      <!-- </div> -->
+    <!-- </div> -->
 
     <!-- SELF BOARDSTATE - PUBLIC SECTION -->
     <!-- ###  
@@ -189,22 +192,10 @@ import { mapState } from 'vuex';
 
 export default {
   name: 'board',
-  data() {
-    return {
-      // TODO get rid of soon
-      keepFirst: false,
-      openOnFocus: false,
-      name: '',
-      selected: '',
-      clearable: true,
-      isCommanderSelectionOpen: true, // NB: default open at start
-
-      isInviteModalOpen: false,
-      isScryModalOpen: false,
-      isCreateTokenModalOpen: false,
-    };
-  },
   created() {
+    this.$store.dispatch('getGame', { 
+      gameID: this.$route.params.id
+    })
     this.$store.dispatch('subscribeToGame', {
       gameID: this.$route.params.id,
       userID: this.user.ID,

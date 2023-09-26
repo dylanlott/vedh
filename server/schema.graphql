@@ -20,7 +20,6 @@ type Query {
 
 type Subscription {
   gameUpdated(gameID: String!, userID: String!): Game!
-  boardstateUpdated(observerID: String!, userID: String!): BoardState!
 }
 
 type Card {
@@ -75,13 +74,13 @@ type Rule {
   Value: String!
 }
 
-
 type Counter {
   Name: String!
   Value: String!
 }
 
 type BoardState {
+  UserID: String!
   User: String!
   Life: Int! 
   GameID: String!
@@ -127,7 +126,8 @@ input InputCounter {
 }
 
 input InputBoardState {
-  User: InputUser!
+  UserID: String!
+  User: String!
   GameID: String!
   Life: Int!
   Decklist: String,
@@ -150,7 +150,6 @@ input InputSignup {
 
 input InputUser {
   Username: String!
-  ID: String
   Boardstate: InputBoardState
 }
 
@@ -163,7 +162,7 @@ input InputCreateGame {
 
 input InputJoinGame {
   ID: String!
-  User: InputUser!
+  User: String!
   Handle: String
   Decklist: String
   BoardState: InputBoardState!

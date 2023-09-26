@@ -14,8 +14,8 @@ import {
     cardQuery,
     commanderQuery,
     // games
-    gameQuery,
-    gameUpdateQuery,
+    getGameQuery,
+    gameUpdatedSubscription,
     updateGame,
 } from '@/gqlQueries'
 
@@ -49,6 +49,7 @@ export const Games = {
         },
         updateGame(state, game) {
             const g = Object.assign(state.game, game)
+            console.log("updating game to: ", g)
             state.game = g
         },
         updateTurn(state, turn) {
@@ -62,62 +63,41 @@ export const Games = {
         },
     },
     actions: {
-        getGame({ commit }, ID) {
-            commit('updateLoading', true)
-            return new Promise((resolve, reject) => {
-                api.query({
-                    query: gameQuery,
-                    variables: {
-                        limit: 100,
-                        offset: 0
-                    }
-                }).then((resp) => {
-                    commit('updateLoading', false)
-                    commit('updateGame', resp.data.games[0])
-                    return resolve(resp.data.games[0])
-                }).catch((err) => {
-                    commit('updateLoading', false)
-                    console.error('vuex failed to get game: ', err)
-                    commit('gameFailure', err)
-                    return reject(err)
-                })
-            })
-        },
-        // subscribesToGame takes a gameID and a userID and creates a new 
-        // subscription to the Game.
-        subscribeToGame({ state, commit, dispatch }, { gameID, userID }) {
+        getGame({ commit }, { gameID }) {
             commit('updateLoading', true)
             api.query({
+                query: getGameQuery,
+                variables: {
+                    gameID: gameID 
+                }
+            }).then((resp) => {
+                commit('updateLoading', false)
+                commit('updateGame', resp.data.getGame)
+                return resp.data.getGame
+            }).catch((err) => {
+                commit('updateLoading', false)
+                console.error('apollo vuex failed to get game: ', err)
+                commit('gameFailure', err)
+                return err
+            })
+        },
+        subscribeToGame({ commit }, { gameID, userID }) {
+            const sub = api.subscribe({
                 query: gameUpdatedSubscription,
                 variables: {
                     gameID: gameID,
                     userID: userID,
                 }
             })
-            .then(data => {
-                if (data.data.games.length === 0) {
-                    commit('error', 'no game received from subscription')
-                    return
+            sub.subscribe({
+                next(data) {
+                    console.log('sub data: ', data)
+                    commit('updateGame', data.data.game)
+                },
+                error(err) {
+                    console.error('vuex error: subscribeToGame: game subscription error: ', err)
+                    commit('error', err)
                 }
-                commit('updateGame', data.data.games[0])
-                const sub = api.subscribe({
-                    query: gameUpdateQuery,
-                    variables: {
-                        gameID: gameID,
-                        userID: userID,
-                    }
-                })
-                sub.subscribe({
-                    next(data) {
-                        const g = data.data.gameUpdated
-                        console.log('game updated: ', g)
-                        commit('updateGame', g)
-                    },
-                    error(err) {
-                        console.error('vuex error: subscribeToGame: game subscription error: ', err)
-                        commit('error', err)
-                    }
-                })
             })
         },
         joinGame({ commit }, payload) {

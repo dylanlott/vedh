@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"log"
 	"sync"
-
-	"github.com/zeebo/errs"
 )
 
 // BoardObserver wraps a UserID to a BoardState channel emiter.
@@ -45,13 +43,13 @@ func (s *graphQLServer) UpdateBoardState(
 	ctx context.Context,
 	input InputBoardState,
 ) (*BoardState, error) {
-	if input.User.ID == nil {
-		return nil, errs.New("invalid boardstate")
+	if input.User == "" {
+		return nil, fmt.Errorf("invalid user")
 	}
 
 	bs, err := boardStateFromInput(input)
 	if err != nil {
-		return nil, errs.Wrap(err)
+		return nil, fmt.Errorf("invalid boardstate: %w", err)
 	}
 
 	game, err := s.GetGame(ctx, bs.GameID)
@@ -105,12 +103,12 @@ func (s *graphQLServer) Boardstates(ctx context.Context, gameID string, username
 func boardStateFromInput(bs InputBoardState) (*BoardState, error) {
 	data, err := json.Marshal(bs)
 	if err != nil {
-		return nil, errs.New("failed to marshal input game: %s", err)
+		return nil, fmt.Errorf("failed to marshal input game: %s", err)
 	}
 	new := &BoardState{}
 	err = json.Unmarshal(data, &new)
 	if err != nil {
-		return nil, errs.New("failed to unmarshal game: %s", err)
+		return nil, fmt.Errorf("failed to unmarshal game: %s", err)
 	}
 
 	return new, nil
@@ -142,7 +140,7 @@ func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 
 // registerObserver will add an observer with ID obsID to the map of observers
 // for userID's BoardState. It returns a channel of BoardState updates or an
-// error. This function acquires a lock on the Server so it's threadsafe.
+// error.
 func (s *graphQLServer) registerObserver(ctx context.Context, obsID string, userID string) (chan *BoardState, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

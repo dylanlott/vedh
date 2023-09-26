@@ -49,7 +49,7 @@ export default {
   },
   methods: {
     handleCreateGame() {
-      this.$store.dispatch('createGame', { 
+      let g = { 
         ID: '',
         Turn: {
           Player: this.user.Username,
@@ -58,10 +58,8 @@ export default {
         },
         Players: [{
             GameID: '',
-            User: {
-              Username: this.user.Username,
-              ID: this.user.ID,
-            },
+            User: this.user.Username,
+            UserID: this.user.ID,
             Life: 40,
             Commander: [],
             Library: [],
@@ -73,7 +71,8 @@ export default {
             Revealed: [],
             Controlled: [],
           }],
-      })
+      }
+      this.$store.dispatch('createGame', g)
     },
   },
 };

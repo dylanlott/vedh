@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zeebo/errs"
 )
 
 // GameObserver binds a UserID to a Channel.
@@ -33,9 +32,33 @@ type FullGame struct {
 	Observers map[string]*GameObserver
 }
 
-// Games returns a list of Games.
+// Games returns a list of Games that are unmarshaled from the payload column of the
+// games table.
 func (s *graphQLServer) Games(ctx context.Context, limit int, offset int) ([]*Game, error) {
-	return nil, fmt.Errorf("not impl")
+	if offset > 0 {
+		return nil, fmt.Errorf("not impl")
+	}
+
+	rows, err := s.db.Query("SELECT id, payload FROM games LIMIT $1", limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query games: %w", err)
+	}
+	defer rows.Close()
+
+	var games []*Game
+	for rows.Next() {
+		var id string
+		var pbz []byte
+		if err := rows.Scan(&id, &pbz); err != nil {
+			return nil, fmt.Errorf("failed to scan game: %w", err)
+		}
+		game := &Game{}
+		if err := json.Unmarshal(pbz, &game); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal game %s: %w", id, err)
+		}
+		games = append(games, game)
+	}
+	return games, nil
 }
 
 // GetGame returns a single game from the
@@ -57,6 +80,8 @@ func (s *graphQLServer) GetGame(ctx context.Context, gameID string) (*Game, erro
 func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID string) (<-chan *Game, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	log.Printf("registering game observer %s to %s", userID, gameID)
 
 	g, ok := s.games[gameID]
 	if !ok {
@@ -109,11 +134,11 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 	game := &Game{}
 	b, err := json.Marshal(new)
 	if err != nil {
-		return nil, errs.New("failed to marshal input game: %s", err)
+		return nil, fmt.Errorf("failed to marshal input game: %s", err)
 	}
 	err = json.Unmarshal(b, &game)
 	if err != nil {
-		return nil, errs.New("failed to unmarshal game: %s", err)
+		return nil, fmt.Errorf("failed to unmarshal game: %s", err)
 	}
 
 	go s.publishGame(game.ID, game)
@@ -130,8 +155,8 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	// TODO: Handle rejoins by detecting if that player's user.ID already exists
 	// in a given game. If it does, just return that same setup.
 	// TODO: Check context for User auth and append user info that way
-	// TODO: PUll user boardstate creation out into a function since we do it multiple places
-	if input.User.Username == "" {
+	// TODO: Pull user boardstate creation out into a function since we do it multiple places
+	if input.User == "" {
 		return nil, errors.New("must provide a username to join a game")
 	}
 
@@ -148,10 +173,9 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	}
 
 	user := &User{
-		Username: input.User.Username,
-		ID:       *input.User.ID,
+		Username: input.User,
 		Boardstate: &BoardState{
-			User:       input.User.Username,
+			User:       input.User,
 			Life:       input.BoardState.Life,
 			Exiled:     getBareCard(input.BoardState.Exiled),
 			Revealed:   getBareCard(input.BoardState.Revealed),
@@ -243,22 +267,22 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	for _, player := range inputGame.Players {
 		// TODO: Deck validation should happen here.
 		user := &User{
-			ID:       *player.User.ID,
-			Username: player.User.Username,
+			ID:       player.UserID,
+			Username: player.User,
+			Boardstate: &BoardState{
+				UserID:     player.UserID,
+				User:       player.User,
+				Life:       player.Life,
+				GameID:     g.ID,
+				Hand:       getBareCard(player.Hand),
+				Exiled:     getBareCard(player.Exiled),
+				Revealed:   getBareCard(player.Revealed),
+				Field:      getBareCard(player.Field),
+				Controlled: getBareCard(player.Controlled),
+			},
 		}
 
 		// Set default boardstate, handle library and commander specifically
-		bs := &BoardState{
-			User:       user.Username,
-			Life:       player.Life,
-			GameID:     g.ID,
-			Hand:       getBareCard(player.Hand),
-			Exiled:     getBareCard(player.Exiled),
-			Revealed:   getBareCard(player.Revealed),
-			Field:      getBareCard(player.Field),
-			Controlled: getBareCard(player.Controlled),
-		}
-
 		var decklist string
 		if inputGame.Players[0].Decklist != nil {
 			decklist = string(*inputGame.Players[0].Decklist)
@@ -269,10 +293,10 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		if err != nil {
 			// Fail gracefully and still populate basic cards
 			log.Printf("error creating library from decklist: %+v", err)
-			bs.Library = getBareCard(player.Library)
+			user.Boardstate.Library = getBareCard(player.Library)
 		} else {
 			// Happy path
-			bs.Library = library
+			user.Boardstate.Library = library
 		}
 
 		// handle commander selection
@@ -282,24 +306,18 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 				log.Printf("error getting commander for deck: %+v", err)
 				// fail gracefully and use their card name so they can still play a game
 				inputCard := getBareCard(player.Commander)
-				bs.Commander = []*Card{inputCard[0]}
+				user.Boardstate.Commander = []*Card{inputCard[0]}
 			} else {
-				bs.Commander = []*Card{commander}
+				user.Boardstate.Commander = []*Card{commander}
 			}
 		}
 
 		// shuffle their library
-		shuff, err := Shuffle(bs.Library)
+		shuff, err := Shuffle(user.Boardstate.Library)
 		if err != nil {
-			log.Printf("error shuffling library: %s", err)
-			return nil, err
+			return nil, fmt.Errorf("failed to shuffle")
 		}
-		bs.Library = shuff
-
-		// add players boardstate to the game after everything is hydrated
-		user.Boardstate = bs
-		fmt.Printf("adding user to game: %v\n", user)
-		fmt.Printf("user.Boardstate: %v\n", user.Boardstate)
+		user.Boardstate.Library = shuff
 		g.Players = append(g.Players, user)
 	}
 
@@ -307,12 +325,11 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		return nil, fmt.Errorf("failed to update game: %w", err)
 	}
 
-	log.Printf("updated game %+v in postgres", g)
-
 	return g, nil
 }
 
-// upsert inserts or updates a Game in the games table.
+// upsert inserts or updates a Game in the games table. It detects conflicts
+// by checking game IDs.
 func (s *graphQLServer) upsertGame(g *Game) error {
 	if g.ID == "" {
 		return fmt.Errorf("ErrInvalidGameID: game ID must be set: %+v", g)
@@ -353,7 +370,7 @@ func getBareCard(inputCards []*InputCard) []*Card {
 // createLibraryFromDecklist parses the provided decklist string as CSV.
 func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist string) ([]*Card, error) {
 	if decklist == "" {
-		return []*Card{}, errs.New("must provide cards in decklist to create a library")
+		return []*Card{}, fmt.Errorf("must provide cards in decklist to create a library")
 	}
 
 	trimmed := strings.TrimSpace(decklist)
