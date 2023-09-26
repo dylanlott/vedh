@@ -49,7 +49,6 @@ export const Games = {
         },
         updateGame(state, game) {
             const g = Object.assign(state.game, game)
-            console.log("updating game to: ", g)
             state.game = g
         },
         updateTurn(state, turn) {
@@ -90,10 +89,7 @@ export const Games = {
                 }
             })
             sub.subscribe({
-                next(data) {
-                    console.log('sub data: ', data)
-                    commit('updateGame', data.data.game)
-                },
+                next(data) { commit('updateGame', data.data.gameUpdated) },
                 error(err) {
                     console.error('vuex error: subscribeToGame: game subscription error: ', err)
                     commit('error', err)
