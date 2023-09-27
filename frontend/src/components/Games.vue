@@ -72,7 +72,7 @@ export default {
             Controlled: [],
           }],
       }
-      this.$store.dispatch('createGame', g)
+      this.$store.dispatch('Games/createGame', g)
     },
   },
 };
