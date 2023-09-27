@@ -187,6 +187,8 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 			Revealed:   getBareCard(input.BoardState.Revealed),
 			Field:      getBareCard(input.BoardState.Field),
 			Controlled: getBareCard(input.BoardState.Controlled),
+			Hand:       make([]*Card, 0),
+			Graveyard:  make([]*Card, 0),
 		},
 	}
 

@@ -33,16 +33,11 @@ export const Games = {
                 Phase: "",
                 Number: 0
             },
-            Players: []
+            Players: [],
+            Self: {}
         },
         error: undefined,
         loading: false,
-    },
-    getters: {
-        self: state => {
-            // console.log(state.game)
-            return state.game
-        }
     },
     mutations: {
         error(state, err) {
@@ -87,7 +82,7 @@ export const Games = {
                 return err
             })
         },
-        subscribeToGame({ commit }, { gameID, userID }) {
+        subscribeToGame({ state, commit }, { gameID, userID }) {
             const sub = api.subscribe({
                 query: gameUpdatedSubscription,
                 variables: {
@@ -96,7 +91,13 @@ export const Games = {
                 }
             })
             sub.subscribe({
-                next(data) { commit('updateGame', data.data.gameUpdated) },
+                next(data) { 
+                    commit('updateGame', data.data.gameUpdated) 
+                    console.log(state.Users.User, state.Games.game)
+                    let self = state.Games.game.Players.find(x => x.ID === state.Users.User.ID)
+                    console.log(self)
+                    // commit('updateSelf', self)
+                },
                 error(err) {
                     console.error('vuex error: subscribeToGame: game subscription error: ', err)
                     commit('error', err)
