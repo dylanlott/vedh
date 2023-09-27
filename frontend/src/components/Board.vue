@@ -1,19 +1,26 @@
 <template>
   <section>
-    <code>  
+
+    <!-- DEBUG UTILITIES - UNCOMMENT TO SEE THIS DATA -->
+    <!-- <code>  
       {{ self }}
-      {{  game }}
     </code>
+    <br>
+    <code>  
+      {{  game }}
+    </code> -->
+
     <section>
       <!-- ### BATTLEFIELD -->
-      <section id="Battlefield" class="battlefield dropzone outer-dropzone">
+      <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone">
         BATTLEFIELD
-        <DraggableCard v-if="self" v-for="card in self.Field" :card="card" :user="user" :key="card.ID" />
+        <DraggableCard v-for="card in self.Boardstate.Field" :card="card" :user="user" :key="card.ID" />
       </section>
 
-      <section id="Hand" class="hand dropzone outer-dropzone">
+      <section id="Hand" v-if="self" class="hand dropzone outer-dropzone">
         HAND
-        <DraggableCard v-for="card in self.Hand" :card="card" :user="user" :key="card.ID" />
+        {{  self.Boardstate.Hand }}
+        <DraggableCard v-for="card in self.Boardstate.Hand" :card="card" :user="user" :key="card.ID" />
       </section>
 
       <!-- INVITE LINK -->
@@ -31,7 +38,7 @@
       <!-- END INVITE LINK -->
 
       <!-- COMMANDER SELECTION  -->
-      <section>
+      <!-- <section>
         <b-modal
           has-modal-card
           :active="isCommanderSelectionOpen"
@@ -86,7 +93,7 @@
             </footer>
           </div>
         </b-modal>
-      </section>
+      </section> -->
 
       <!-- SCRY MODAL  -->
       <b-modal :active="isScryModalOpen">
@@ -140,7 +147,6 @@
               >
               <a @click="handleTapAll()" class="button is-dark is-small"><strong>Tap All</strong></a>
               <a @click="handleUntapAll()" class="button is-light is-small">Untap All</a>
-              <!-- <a @click="toggleCreateTokenModal" class="button is-primary">Create Token</a> -->
             </div>
           </b-navbar-item>
         </template>
@@ -258,55 +264,63 @@ export default {
   },
   computed: {
     // TECHDEBT this belongs with Commander Selection modal in its own component
-    filteredCommanderData() {
-      if (this.self.Library && this.self.Library.length > 0) {
-        return this.self.Library.filter((option) => {
-          return option.Name.toString().toLowerCase().indexOf(this.name.toLowerCase()) >= 0;
-        });
-      }
-    },
     ...mapState({
       game: (state) => state.Games.game,
       players: (state) => state.Games.game.Players,
       user: (state) => state.Users.User,
     }),
-    ...mapGetters({
-      self: 'Games/self'
-    })
+    // self returns the authenticated user's player object from the game's players.
+    self() {
+      const userID = this.$store.state.Users.User.ID
+      const players = this.$store.state.Games.game.Players
+      const found = players.find(x => x.ID === userID)
+      return found
+    },
+    // opps returns an array of players that are not the self player
+    opps() {
+      const players = this.$store.state.Games.game.Players
+      const userID = this.$store.state.Users.User.ID
+      const opps = players.filter(x => x.ID != userID)
+      return opps
+    }
   },
   methods: {
     handleDraw() {
-      this.$store.dispatch('draw', this.self);
+      // This is the model for how boardstate actions should be carried out.
+      let draw = this.self.Boardstate.Library.shift()
+      this.self.Boardstate.Hand.push(draw)
+      // TODO update the game after the mutation has been created. 
+      // Consider the memo pattern at this point.
     },
     handleChange() {
-      this.$store.dispatch('mutateBoardState', this.self);
+      // this.$store.dispatch('mutateBoardState', this.self);
     },
     handleTap(card) {
       // TODO: Make this a vuex boardstate action
-      card.Tapped = !card.Tapped;
-      this.handleChange();
+      // card.Tapped = !card.Tapped;
+      // this.handleChange();
     },
     handleTapAll() {
-      this.$store.dispatch('tapAll', this.self);
+      // this.$store.dispatch('tapAll', this.self);
     },
     handleUntapAll() {
-      this.$store.dispatch('untapAll', this.self);
+      // this.$store.dispatch('untapAll', this.self);
     },
     toggleScryModal() {
-      this.isScryModalOpen = !this.isScryModalOpen;
+      // this.isScryModalOpen = !this.isScryModalOpen;
     },
     toggleCreateTokenModal() {
-      this.isCreateTokenModalOpen = !this.isCreateTokenModalOpen;
+      // this.isCreateTokenModalOpen = !this.isCreateTokenModalOpen;
     },
     handleScryBottom() {
-      this.isScryModalOpen = false;
-      const copy = Object.assign({}, this.self);
-      const card = copy.Library.shift();
-      if (card) {
-        // scrying an empty library causes nothing to happen
-        copy.Library.push(card);
-        return this.$store.dispatch('mutateBoardState', copy);
-      }
+      // this.isScryModalOpen = false;
+      // const copy = Object.assign({}, this.self);
+      // const card = copy.Library.shift();
+      // if (card) {
+      //   // scrying an empty library causes nothing to happen
+      //   copy.Library.push(card);
+      //   return this.$store.dispatch('mutateBoardState', copy);
+      // }
     },
     // TODO: pull invite link out into its own component
     inviteLink() {
@@ -329,14 +343,14 @@ export default {
     },
     // commander is a card type here
     addCommander(commander) {
-      this.self.Library = this.self.Library.filter((option) => (option ? commander.Name != option.Name : false));
-      this.self.Commander.push(commander);
-      this.handleChange();
+      // this.self.Library = this.self.Library.filter((option) => (option ? commander.Name != option.Name : false));
+      // this.self.Commander.push(commander);
+      // this.handleChange();
     },
     removeCommander(commander) {
-      this.self.Library.push(commander);
-      this.self.Commander = this.self.Commander.filter((option) => commander.Name != option.Name);
-      this.handleChange();
+      // this.self.Library.push(commander);
+      // this.self.Commander = this.self.Commander.filter((option) => commander.Name != option.Name);
+      // this.handleChange();
     },
   },
   components: {

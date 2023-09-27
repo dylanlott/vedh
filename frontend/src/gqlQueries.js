@@ -1,25 +1,89 @@
 import gql from 'graphql-tag';
 
+export const cardFragment = gql`
+fragment CardFields on Card {
+  __typename
+  ID
+  Name
+  Quantity
+  Tapped
+  Flipped
+  Counters {
+    Name
+    Value
+  }
+  Colors
+  ColorIdentity
+  CMC
+  FaceName
+  FaceManaValue
+  FaceConvertedManaCost
+  ManaCost
+  UUID
+  Power
+  Toughness
+  Types
+  Subtypes
+  Supertypes
+  Text
+  TCGID
+  ScryfallID
+}
+`
+
 // gameUpdateQuery powers the TurnTracker and Opponents components.
 export const gameUpdatedSubscription = gql`subscription($gameID: String!, $userID: String!) {
   gameUpdated(gameID: $gameID, userID: $userID) {
     ID
-    Players {
-      Username
-      Boardstate {
-        GameID
-        UserID
-        User
-        Life
-      }
+    Rules {
+      Name
+      Value
     }
     Turn {
-      Phase
       Player
+      Phase
       Number
     }
+    Players {
+      Username
+      ID
+      Boardstate {
+      	User
+        UserID
+        Life
+        GameID
+        Library {
+          ...CardFields
+        }
+        Exiled {
+          ...CardFields
+        }
+        Graveyard {
+          ...CardFields
+        }
+        Revealed {
+          ...CardFields
+        }
+        Hand {
+          ...CardFields
+        }
+        Commander {
+          ...CardFields
+        }
+        Field {
+          ...CardFields
+        }
+        Controlled {
+          ...CardFields
+        }
+        Counters {
+          Name
+          Value
+        }
+      }
+    }
   }
-} 
+}${cardFragment}
 `
 
 export const getGameQuery = gql`query($gameID: String!){
@@ -29,21 +93,91 @@ export const getGameQuery = gql`query($gameID: String!){
       Username
       ID
       Boardstate {
-        UserID
         User
+        UserID
         Life
         GameID
+        Library {
+          ...CardFields
+        }
+        Exiled {
+          ...CardFields
+        }
+        Graveyard {
+          ...CardFields
+        }
+        Revealed {
+          ...CardFields
+        }
+        Hand {
+          ...CardFields
+        }
+        Commander {
+          ...CardFields
+        }
+        Field {
+          ...CardFields
+        }
+        Controlled {
+          ...CardFields
+        }
+        Counters {
+          Name
+          Value
+        }
       }
     }
   }
-}`
+}${cardFragment}`
 
 export const gameQuery = gql`
 query gameQuery($limit: Int!, $offset: Int!) {
   games(limit: $limit, offset: $offset) {
     ID
+    Players {
+      Username
+      ID
+      Boardstate {
+        Username
+        UserID
+        Boardstate {
+          User
+          UserID
+          Life
+          GameID
+          Library {
+            ...CardFields
+          }
+          Exiled {
+            ...CardFields
+          }
+          Graveyard {
+            ...CardFields
+          }
+          Revealed {
+            ...CardFields
+          }
+          Hand {
+            ...CardFields
+          }
+          Commander {
+            ...CardFields
+          }
+          Field {
+            ...CardFields
+          }
+          Controlled {
+            ...CardFields
+          }
+          Counters {
+            Name
+            Value
+          }
+        }
+      }
+    }
   }
-}
+}${cardFragment}
 `
 
 export const updateGame = gql`
@@ -60,6 +194,35 @@ mutation updateGame($input: InputGame!) {
         User
         UserID
         Life
+        GameID
+        Library {
+          ...CardFields
+        }
+        Exiled {
+          ...CardFields
+        }
+        Graveyard {
+          ...CardFields
+        }
+        Revealed {
+          ...CardFields
+        }
+        Hand {
+          ...CardFields
+        }
+        Commander {
+          ...CardFields
+        }
+        Field {
+          ...CardFields
+        }
+        Controlled {
+          ...CardFields
+        }
+        Counters {
+          Name
+          Value
+        }
       }
     }
     Turn {
@@ -68,7 +231,7 @@ mutation updateGame($input: InputGame!) {
       Number
     }
   }
-}
+}${cardFragment}
 `
 
 export const signup = gql`
