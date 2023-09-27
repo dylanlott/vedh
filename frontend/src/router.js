@@ -74,7 +74,7 @@ export default new Router({
 // handle auth before each route change
 router.beforeEach((to, from, next) => {
   if ((to.matched.length > 0) && (to.matched[0].meta.auth)) {
-    const authed = store.getters.authenticated
+    const authed = store.getters["Users/authenticated"]
     if (!authed) {
       return next({
         path: '/login',

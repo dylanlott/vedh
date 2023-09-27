@@ -38,6 +38,12 @@ export const Games = {
         error: undefined,
         loading: false,
     },
+    getters: {
+        self: state => {
+            // console.log(state.game)
+            return state.game
+        }
+    },
     mutations: {
         error(state, err) {
             state.error = err

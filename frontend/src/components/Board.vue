@@ -1,10 +1,14 @@
 <template>
   <section>
+    <code>  
+      {{ self }}
+      {{  game }}
+    </code>
     <section>
       <!-- ### BATTLEFIELD -->
       <section id="Battlefield" class="battlefield dropzone outer-dropzone">
         BATTLEFIELD
-        <DraggableCard v-for="card in self.Field" :card="card" :user="user" :key="card.ID" />
+        <DraggableCard v-if="self" v-for="card in self.Field" :card="card" :user="user" :key="card.ID" />
       </section>
 
       <section id="Hand" class="hand dropzone outer-dropzone">
@@ -149,7 +153,7 @@ import _ from 'lodash';
 import interact from 'interactjs';
 import DraggableCard from '@/components/DraggableCard';
 import Card from '@/components/Card';
-import { mapState } from 'vuex';
+import { mapState, mapGetters } from 'vuex';
 
 export default {
   name: 'board',
@@ -170,12 +174,12 @@ export default {
   },
   created() {
     // load the initial game state
-    this.$store.dispatch('getGame', { 
+    this.$store.dispatch('Games/getGame', { 
       gameID: this.$route.params.id
     })
 
     // subscribe to updates
-    this.$store.dispatch('subscribeToGame', {
+    this.$store.dispatch('Games/subscribeToGame', {
       gameID: this.$route.params.id,
       userID: this.user.ID,
     });
@@ -266,6 +270,9 @@ export default {
       players: (state) => state.Games.game.Players,
       user: (state) => state.Users.User,
     }),
+    ...mapGetters({
+      self: 'Games/self'
+    })
   },
   methods: {
     handleDraw() {

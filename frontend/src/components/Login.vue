@@ -33,7 +33,6 @@
   </section>
 </template>
 <script>
-import { mapState } from 'vuex';
 export default {
   name: 'login',
   data() {
@@ -61,7 +60,7 @@ export default {
       if (this.isInputValid) {
         this.isLoading = true;
         this.$store
-          .dispatch('login', {
+          .dispatch('Users/login', {
             username: this.username,
             password: this.password,
           })
