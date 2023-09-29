@@ -34,7 +34,6 @@ export const Games = {
                 Number: 0
             },
             Players: [],
-            Self: {}
         },
         error: undefined,
         loading: false,
@@ -82,7 +81,7 @@ export const Games = {
                 return err
             })
         },
-        subscribeToGame({ state, commit }, { gameID, userID }) {
+        subscribeToGame({ commit }, { gameID, userID }) {
             const sub = api.subscribe({
                 query: gameUpdatedSubscription,
                 variables: {
@@ -93,10 +92,6 @@ export const Games = {
             sub.subscribe({
                 next(data) { 
                     commit('updateGame', data.data.gameUpdated) 
-                    console.log(state.Users.User, state.Games.game)
-                    let self = state.Games.game.Players.find(x => x.ID === state.Users.User.ID)
-                    console.log(self)
-                    // commit('updateSelf', self)
                 },
                 error(err) {
                     console.error('vuex error: subscribeToGame: game subscription error: ', err)
@@ -192,6 +187,24 @@ export const Games = {
                 console.error('updateGame failed: ', err)
                 return err
             })
+        },
+        updateSelf({ rootState, state, dispatch }, payload) {
+            const userID = rootState.Users.User.ID
+
+            // console.log('### userID: ', userID)
+            // console.log('### state: ', state)
+            // console.log('### payload', payload)
+
+            if (payload.ID !== userID) {
+                // TODO handle this better
+                console.error('mismatch detected', payload.UserID, userID)
+                return
+            }
+
+            let g = state.game
+            let updatedGame = Object.assign({}, g)
+            console.log('updated game: ', updatedGame)
+            dispatch('updateGame', g)
         }
     },
 }

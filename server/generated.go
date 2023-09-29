@@ -6798,11 +6798,11 @@ func (ec *executionContext) unmarshalInputInputCard(ctx context.Context, obj int
 
 	for k, v := range asMap {
 		switch k {
-		case "ID":
+		case "FaceName":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ID"))
-			it.ID, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("FaceName"))
+			it.FaceName, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -6814,19 +6814,19 @@ func (ec *executionContext) unmarshalInputInputCard(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
-		case "Counters":
+		case "ID":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Counters"))
-			it.Counters, err = ec.unmarshalOInputCounter2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputCounter(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ID"))
+			it.ID, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-		case "Labels":
+		case "Quantity":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Labels"))
-			it.Labels, err = ec.unmarshalOInputLabel2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputLabel(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Quantity"))
+			it.Quantity, err = ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -6846,11 +6846,11 @@ func (ec *executionContext) unmarshalInputInputCard(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
-		case "Quantity":
+		case "Counters":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Quantity"))
-			it.Quantity, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Counters"))
+			it.Counters, err = ec.unmarshalOInputCounter2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputCounter(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -6867,6 +6867,22 @@ func (ec *executionContext) unmarshalInputInputCard(ctx context.Context, obj int
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ColorIdentity"))
 			it.ColorIdentity, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "FaceManaValue":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("FaceManaValue"))
+			it.FaceManaValue, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "FaceConvertedManaCost":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("FaceConvertedManaCost"))
+			it.FaceConvertedManaCost, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -6934,14 +6950,6 @@ func (ec *executionContext) unmarshalInputInputCard(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
-		case "IsTextless":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("IsTextless"))
-			it.IsTextless, err = ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
 		case "Text":
 			var err error
 
@@ -6981,11 +6989,11 @@ func (ec *executionContext) unmarshalInputInputCounter(ctx context.Context, obj 
 
 	for k, v := range asMap {
 		switch k {
-		case "Card":
+		case "Source":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Card"))
-			it.Card, err = ec.unmarshalOInputCard2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputCard(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Source"))
+			it.Source, err = ec.unmarshalOInputCard2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputCard(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7372,6 +7380,14 @@ func (ec *executionContext) unmarshalInputInputUser(ctx context.Context, obj int
 
 	for k, v := range asMap {
 		switch k {
+		case "ID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ID"))
+			it.ID, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "Username":
 			var err error
 
@@ -9226,34 +9242,6 @@ func (ec *executionContext) unmarshalOInputJoinGame2ᚖgithubᚗcomᚋopenmtgᚋ
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputInputJoinGame(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalOInputLabel2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputLabel(ctx context.Context, v interface{}) ([]*InputLabel, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var vSlice []interface{}
-	if v != nil {
-		vSlice = graphql.CoerceList(v)
-	}
-	var err error
-	res := make([]*InputLabel, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalOInputLabel2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputLabel(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) unmarshalOInputLabel2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputLabel(ctx context.Context, v interface{}) (*InputLabel, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := ec.unmarshalInputInputLabel(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 

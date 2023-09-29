@@ -366,8 +366,8 @@ func getBareCard(inputCards []*InputCard) []*Card {
 			Name: card.Name,
 		}
 
-		if card.ID != nil {
-			c.ID = *card.ID
+		if card.ID != "" {
+			c.ID = card.ID
 		}
 
 		cardList = append(cardList, c)

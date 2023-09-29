@@ -78,33 +78,34 @@ type InputBoardState struct {
 }
 
 type InputCard struct {
-	ID            *string         `json:"ID"`
-	Name          string          `json:"Name"`
-	Counters      []*InputCounter `json:"Counters"`
-	Labels        []*InputLabel   `json:"Labels"`
-	Tapped        *bool           `json:"Tapped"`
-	Flipped       *bool           `json:"Flipped"`
-	Quantity      *int            `json:"Quantity"`
-	Colors        *string         `json:"Colors"`
-	ColorIdentity *string         `json:"ColorIdentity"`
-	Cmc           *string         `json:"CMC"`
-	ManaCost      *string         `json:"ManaCost"`
-	UUID          *string         `json:"UUID"`
-	Power         *string         `json:"Power"`
-	Toughness     *string         `json:"Toughness"`
-	Types         *string         `json:"Types"`
-	Subtypes      *string         `json:"Subtypes"`
-	Supertypes    *string         `json:"Supertypes"`
-	IsTextless    *string         `json:"IsTextless"`
-	Text          *string         `json:"Text"`
-	Tcgid         *string         `json:"TCGID"`
-	ScryfallID    *string         `json:"ScryfallID"`
+	FaceName              *string         `json:"FaceName"`
+	Name                  string          `json:"Name"`
+	ID                    string          `json:"ID"`
+	Quantity              *int            `json:"Quantity"`
+	Tapped                *bool           `json:"Tapped"`
+	Flipped               *bool           `json:"Flipped"`
+	Counters              []*InputCounter `json:"Counters"`
+	Colors                *string         `json:"Colors"`
+	ColorIdentity         *string         `json:"ColorIdentity"`
+	FaceManaValue         *string         `json:"FaceManaValue"`
+	FaceConvertedManaCost *string         `json:"FaceConvertedManaCost"`
+	Cmc                   *string         `json:"CMC"`
+	ManaCost              *string         `json:"ManaCost"`
+	UUID                  *string         `json:"UUID"`
+	Power                 *string         `json:"Power"`
+	Toughness             *string         `json:"Toughness"`
+	Types                 *string         `json:"Types"`
+	Subtypes              *string         `json:"Subtypes"`
+	Supertypes            *string         `json:"Supertypes"`
+	Text                  *string         `json:"Text"`
+	Tcgid                 *string         `json:"TCGID"`
+	ScryfallID            *string         `json:"ScryfallID"`
 }
 
 type InputCounter struct {
-	Card  *InputCard `json:"Card"`
-	Name  string     `json:"Name"`
-	Value string     `json:"Value"`
+	Source *InputCard `json:"Source"`
+	Name   string     `json:"Name"`
+	Value  string     `json:"Value"`
 }
 
 type InputCreateGame struct {
@@ -161,6 +162,7 @@ type InputTurn struct {
 }
 
 type InputUser struct {
+	ID         *string          `json:"ID"`
 	Username   string           `json:"Username"`
 	Boardstate *InputBoardState `json:"Boardstate"`
 }
