@@ -96,15 +96,17 @@ type BoardState {
 }
 
 input InputCard {
-  ID: String
+  FaceName: String
   Name: String!
-  Counters: [InputCounter]
-  Labels: [InputLabel]
-  Tapped: Boolean 
-  Flipped: Boolean
+  ID: String!
   Quantity: Int
+  Tapped: Boolean
+  Flipped: Boolean
+  Counters: [InputCounter] 
   Colors: String
   ColorIdentity: String
+  FaceManaValue: String
+  FaceConvertedManaCost: String
   CMC: String
   ManaCost: String
   UUID: String
@@ -113,14 +115,13 @@ input InputCard {
   Types: String
   Subtypes: String
   Supertypes: String
-  IsTextless: String
   Text: String
   TCGID: String
   ScryfallID: String
 }
 
 input InputCounter {
-  Card: InputCard
+  Source: InputCard
   Name: String!
   Value: String!
 }
@@ -149,6 +150,7 @@ input InputSignup {
 }
 
 input InputUser {
+  ID: String
   Username: String!
   Boardstate: InputBoardState
 }

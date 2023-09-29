@@ -134,6 +134,15 @@ export const gameQuery = gql`
 query gameQuery($limit: Int!, $offset: Int!) {
   games(limit: $limit, offset: $offset) {
     ID
+    Rules {
+      Name
+      Value
+    }
+    Turn {
+      Player
+      Phase
+      Number
+    }
     Players {
       Username
       ID
@@ -184,11 +193,17 @@ export const updateGame = gql`
 mutation updateGame($input: InputGame!) {
   updateGame(input: $input) {
     ID
-    Username
-    UserID
+    Rules {
+      Name
+      Value
+    }
+    Turn {
+      Player
+      Phase
+      Number
+    }
     Players {
       ID
-      UserID
       Username
       Boardstate {
         User
@@ -224,11 +239,6 @@ mutation updateGame($input: InputGame!) {
           Value
         }
       }
-    }
-    Turn {
-      Phase
-      Player
-      Number
     }
   }
 }${cardFragment}

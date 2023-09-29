@@ -19,7 +19,6 @@
 
       <section id="Hand" v-if="self" class="hand dropzone outer-dropzone">
         HAND
-        {{  self.Boardstate.Hand }}
         <DraggableCard v-for="card in self.Boardstate.Hand" :card="card" :user="user" :key="card.ID" />
       </section>
 
@@ -179,6 +178,8 @@ export default {
     };
   },
   created() {
+    let store = this.$store
+
     // load the initial game state
     this.$store.dispatch('Games/getGame', { 
       gameID: this.$route.params.id
@@ -266,7 +267,6 @@ export default {
     // TECHDEBT this belongs with Commander Selection modal in its own component
     ...mapState({
       game: (state) => state.Games.game,
-      players: (state) => state.Games.game.Players,
       user: (state) => state.Users.User,
     }),
     // self returns the authenticated user's player object from the game's players.
@@ -287,10 +287,10 @@ export default {
   methods: {
     handleDraw() {
       // This is the model for how boardstate actions should be carried out.
-      let draw = this.self.Boardstate.Library.shift()
-      this.self.Boardstate.Hand.push(draw)
-      // TODO update the game after the mutation has been created. 
-      // Consider the memo pattern at this point.
+      let self = this.self
+      let draw = self.Boardstate.Library.shift()
+      self.Boardstate.Hand.push(draw)
+      this.$store.dispatch('Games/updateSelf', self)
     },
     handleChange() {
       // this.$store.dispatch('mutateBoardState', this.self);
