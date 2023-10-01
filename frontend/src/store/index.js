@@ -104,18 +104,18 @@ export const Games = {
             return new Promise((resolve, reject) => {
                 api.mutate({
                     mutation: gql`mutation ($InputJoinGame: InputJoinGame) {
-                    joinGame(input: $InputJoinGame) {
-                        ID
-                        Players {
-                            Username
+                        joinGame(input: $InputJoinGame) {
                             ID
+                            Players {
+                                Username
+                                ID
+                            }
+                            Turn {
+                                Phase
+                                Player
+                                Number
+                            }
                         }
-                        Turn {
-                            Phase
-                            Player
-                            Number
-                        }
-                    }
                     }`,
                     variables: {
                         InputJoinGame: payload.inputGame,
@@ -172,7 +172,9 @@ export const Games = {
                 })
             })
         },
-        updateGame({ commit }, payload) {
+        // sync copies the current game state and then attempts to save it.
+        sync({ commit }, payload) {
+            console.table('upating game: ', payload)
             return api.mutate({
                 mutation: updateGame,
                 variables: {
@@ -188,24 +190,6 @@ export const Games = {
                 return err
             })
         },
-        updateSelf({ rootState, state, dispatch }, payload) {
-            const userID = rootState.Users.User.ID
-
-            // console.log('### userID: ', userID)
-            // console.log('### state: ', state)
-            // console.log('### payload', payload)
-
-            if (payload.ID !== userID) {
-                // TODO handle this better
-                console.error('mismatch detected', payload.UserID, userID)
-                return
-            }
-
-            let g = state.game
-            let updatedGame = Object.assign({}, g)
-            console.log('updated game: ', updatedGame)
-            dispatch('updateGame', g)
-        }
     },
 }
 
@@ -328,7 +312,7 @@ export const Cards = {
                 .catch((err) => reject(err))
             })
         },
-        searchByName({commit}, name) {
+        searchByName({ commit }, name) {
             api.query({
                 query: commanderQuery,
                 variables: {
