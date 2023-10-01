@@ -17,9 +17,9 @@
         <DraggableCard v-for="card in self.Boardstate.Field" :card="card" :user="user" :key="card.ID" />
       </section>
 
-      <section id="Hand" v-if="self" class="hand dropzone outer-dropzone">
+      <section id="Hand" v-if="self" class="hand dropzone outer-dropzone container">
         HAND
-        <DraggableCard v-for="card in self.Boardstate.Hand" :card="card" :user="user" :key="card.ID" />
+        <DraggableCard class="item" v-for="card in self.Boardstate.Hand" :card="card" :user="user" :key="card.ID" />
       </section>
 
       <!-- INVITE LINK -->
@@ -158,7 +158,7 @@ import _ from 'lodash';
 import interact from 'interactjs';
 import DraggableCard from '@/components/DraggableCard';
 import Card from '@/components/Card';
-import { mapState, mapGetters } from 'vuex';
+import { mapState } from 'vuex';
 
 export default {
   name: 'board',
@@ -178,8 +178,6 @@ export default {
     };
   },
   created() {
-    let store = this.$store
-
     // load the initial game state
     this.$store.dispatch('Games/getGame', { 
       gameID: this.$route.params.id
@@ -219,6 +217,7 @@ export default {
         // event.relatedTarget.textContent = 'Dragged out';
       },
       ondrop: function (event) {
+        console.log("dropped into battlefield:", event)
       },
       ondropdeactivate: function (event) {
         // console.log('ON DROP DEACTIVATE', event);
@@ -234,7 +233,6 @@ export default {
 
       // listen for drop related events:
       ondropactivate: function (event) {
-        // console.log('ON DRAG ACTIVATE HAND');
         // add active dropzone feedback
         event.target.classList.add('drop-active');
       },
@@ -255,6 +253,7 @@ export default {
         event.relatedTarget.classList.remove('can-drop');
       },
       ondrop: function (event) {
+        console.log("dropped into hand: ", event)
       },
       ondropdeactivate: function (event) {
         // remove active dropzone feedback
@@ -286,14 +285,13 @@ export default {
   },
   methods: {
     handleDraw() {
-      // This is the model for how boardstate actions should be carried out.
       let self = this.self
       let draw = self.Boardstate.Library.shift()
       self.Boardstate.Hand.push(draw)
-      this.$store.dispatch('Games/updateSelf', self)
+      this.handleChange()
     },
     handleChange() {
-      // this.$store.dispatch('mutateBoardState', this.self);
+      this.$store.dispatch('Games/sync', this.game);
     },
     handleTap(card) {
       // TODO: Make this a vuex boardstate action
@@ -360,6 +358,10 @@ export default {
 };
 </script>
 <style media="screen" scoped>
+#Battlefield {
+  display: flex;
+  height: 500px;
+}
 .shell {
   padding: 0.5rem;
   border: 1px solid #efefef;
@@ -370,6 +372,7 @@ export default {
 }
 .hand {
   height: 170px;
+  display: flex;
 }
 .bordered {
   border: 1px #000;
@@ -379,18 +382,18 @@ export default {
  * InteractJS styles 
 */
 .outer-dropzone {
-  background-color: #bfe4ff;
+  background-color: #e3c5ff;
   min-height: 250px;
   height: auto;
 }
 
 .inner-dropzone {
-  background-color: #bfe4ff;
+  background-color: #e3c5ff;
   height: 80px;
 }
 
 .dropzone {
-  background-color: #bfe4ff;
+  background-color: #e3c5ff;
   border: dashed 4px transparent;
   border-radius: 4px;
   margin: 10px auto 30px;
@@ -424,4 +427,22 @@ export default {
   margin: 1rem 0 0 1rem;
   border: solid 2px #fff;
 }
+
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  align-items: center;
+  border: 1px solid black;
+}
+
+.item {
+  position: relative;
+  margin: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
 </style>

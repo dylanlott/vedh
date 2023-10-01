@@ -28,6 +28,9 @@ fragment CardFields on Card {
   Text
   TCGID
   ScryfallID
+  ScreenX
+  ScreenY
+  CurrentZone
 }
 `
 

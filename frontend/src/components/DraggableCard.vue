@@ -1,11 +1,7 @@
 <template>
   <div ref="myDraggable" class="draggable">
     <!--  Wrap Card here -->
-    <Card v-bind="card" />
-    X: {{ screenX }} <br>
-    Y: {{ screenY }} <br>
-    LastSource: {{ lastSource }} <br>
-    Last Destination: {{ lastDestination }}
+    <Card v-bind="card" :ScreenX="screenX" v-bind:ScreenY="screenY"/>
   </div>
 </template>
 
@@ -52,38 +48,47 @@ export default {
       // translate the element
       target.style.webkitTransform = target.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
 
-      // update the posiion attributes
+      // update the position attributes
       target.setAttribute('data-x', x);
       target.setAttribute('data-y', y);
 
-      // save last known source and destination events
       if (!!event.dragLeave) {
         this.lastSource = event.dragLeave.id
       }
-
       if (!!event.dragEnter) {
         this.lastDestination = event.dragEnter.id
-      }
-
-      if (this.lastDestination && this.lastSource) {
-        // call move action and reset lastSource and lastDestination fields
-        // we can fire an atomic leave and enter transaction now
-        this.$store.dispatch('leave', { card: this.card, user: this.user, zone: this.lastDestination })
-        this.$store.dispatch('enter', { card: this.card, user: this.user, zone: this.lastDestination })
-        // reset the last destination and source to mark the end of a transaction.
-        this.lastDestination = ''
-        this.lastSource = ''
+        this.card.CurrentZone = this.lastDestination
       }
     },
     onDragEnd: function (event) {
       var target = event.target;
-      // update the state
-      // TODO: do we need to persist this into the server as well?
       this.screenX = target.getBoundingClientRect().left;
       this.screenY = target.getBoundingClientRect().top;
+      this.card.ScreenX = this.screenX
+      this.card.ScreenY = this.screenY
+      this.move({ 
+        source: this.lastSource, 
+        destination: this.lastDestination, 
+        card: this.card
+      })
+      let g = this.$store.state.Games.game
+      this.$store.dispatch('Games/sync', g)
     },
     capitalize: function (word) {
       return word[0].toUpperCase() + word.slice(1).toLowerCase();
+    },
+    move: function({ source, destination, card}) {
+      console.log('source: ', source)
+      console.log('destination: ', destination)
+      console.log('card: ', card)
+    },
+    checkOverlap(elem1, elem2) {
+      const rect1 = elem1.getBoundingClientRect();
+      const rect2 = elem2.getBoundingClientRect();
+      return !(rect2.left > rect1.right ||
+                rect2.right < rect1.left ||
+                rect2.top > rect1.bottom ||
+                rect2.bottom < rect1.top);
     },
   },
   components: {

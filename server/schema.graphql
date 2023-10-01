@@ -45,6 +45,9 @@ type Card {
   Text: String
   TCGID: String
   ScryfallID: String
+  ScreenX: Float
+  ScreenY: Float
+  CurrentZone: String
 }
 
 type User {
@@ -118,6 +121,9 @@ input InputCard {
   Text: String
   TCGID: String
   ScryfallID: String
+  ScreenX: Float
+  ScreenY: Float
+  CurrentZone: String
 }
 
 input InputCounter {

@@ -45,6 +45,9 @@ type Card struct {
 	Text                  *string    `json:"Text"`
 	Tcgid                 *string    `json:"TCGID"`
 	ScryfallID            *string    `json:"ScryfallID"`
+	ScreenX               *float64   `json:"ScreenX"`
+	ScreenY               *float64   `json:"ScreenY"`
+	CurrentZone           *string    `json:"CurrentZone"`
 }
 
 type Counter struct {
@@ -100,6 +103,9 @@ type InputCard struct {
 	Text                  *string         `json:"Text"`
 	Tcgid                 *string         `json:"TCGID"`
 	ScryfallID            *string         `json:"ScryfallID"`
+	ScreenX               *float64        `json:"ScreenX"`
+	ScreenY               *float64        `json:"ScreenY"`
+	CurrentZone           *string         `json:"CurrentZone"`
 }
 
 type InputCounter struct {

@@ -68,6 +68,7 @@ type ComplexityRoot struct {
 		ColorIdentity         func(childComplexity int) int
 		Colors                func(childComplexity int) int
 		Counters              func(childComplexity int) int
+		CurrentZone           func(childComplexity int) int
 		FaceConvertedManaCost func(childComplexity int) int
 		FaceManaValue         func(childComplexity int) int
 		FaceName              func(childComplexity int) int
@@ -77,6 +78,8 @@ type ComplexityRoot struct {
 		Name                  func(childComplexity int) int
 		Power                 func(childComplexity int) int
 		Quantity              func(childComplexity int) int
+		ScreenX               func(childComplexity int) int
+		ScreenY               func(childComplexity int) int
 		ScryfallID            func(childComplexity int) int
 		Subtypes              func(childComplexity int) int
 		Supertypes            func(childComplexity int) int
@@ -297,6 +300,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Card.Counters(childComplexity), true
 
+	case "Card.CurrentZone":
+		if e.complexity.Card.CurrentZone == nil {
+			break
+		}
+
+		return e.complexity.Card.CurrentZone(childComplexity), true
+
 	case "Card.FaceConvertedManaCost":
 		if e.complexity.Card.FaceConvertedManaCost == nil {
 			break
@@ -359,6 +369,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Card.Quantity(childComplexity), true
+
+	case "Card.ScreenX":
+		if e.complexity.Card.ScreenX == nil {
+			break
+		}
+
+		return e.complexity.Card.ScreenX(childComplexity), true
+
+	case "Card.ScreenY":
+		if e.complexity.Card.ScreenY == nil {
+			break
+		}
+
+		return e.complexity.Card.ScreenY(childComplexity), true
 
 	case "Card.ScryfallID":
 		if e.complexity.Card.ScryfallID == nil {
@@ -1393,6 +1417,12 @@ func (ec *executionContext) fieldContext_BoardState_Commander(ctx context.Contex
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1483,6 +1513,12 @@ func (ec *executionContext) fieldContext_BoardState_Library(ctx context.Context,
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1573,6 +1609,12 @@ func (ec *executionContext) fieldContext_BoardState_Graveyard(ctx context.Contex
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1663,6 +1705,12 @@ func (ec *executionContext) fieldContext_BoardState_Exiled(ctx context.Context, 
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1753,6 +1801,12 @@ func (ec *executionContext) fieldContext_BoardState_Field(ctx context.Context, f
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1843,6 +1897,12 @@ func (ec *executionContext) fieldContext_BoardState_Hand(ctx context.Context, fi
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1933,6 +1993,12 @@ func (ec *executionContext) fieldContext_BoardState_Revealed(ctx context.Context
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -2023,6 +2089,12 @@ func (ec *executionContext) fieldContext_BoardState_Controlled(ctx context.Conte
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -2979,6 +3051,129 @@ func (ec *executionContext) _Card_ScryfallID(ctx context.Context, field graphql.
 }
 
 func (ec *executionContext) fieldContext_Card_ScryfallID(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Card_ScreenX(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Card_ScreenX(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ScreenX, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Card_ScreenX(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Card_ScreenY(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Card_ScreenY(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ScreenY, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Card_ScreenY(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Card_CurrentZone(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Card_CurrentZone(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CurrentZone, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Card_CurrentZone(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Card",
 		Field:      field,
@@ -4003,6 +4198,12 @@ func (ec *executionContext) fieldContext_Query_card(ctx context.Context, field g
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -4104,6 +4305,12 @@ func (ec *executionContext) fieldContext_Query_cards(ctx context.Context, field 
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -4202,6 +4409,12 @@ func (ec *executionContext) fieldContext_Query_search(ctx context.Context, field
 				return ec.fieldContext_Card_TCGID(ctx, field)
 			case "ScryfallID":
 				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -6974,6 +7187,30 @@ func (ec *executionContext) unmarshalInputInputCard(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
+		case "ScreenX":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ScreenX"))
+			it.ScreenX, err = ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "ScreenY":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ScreenY"))
+			it.ScreenY, err = ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "CurrentZone":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CurrentZone"))
+			it.CurrentZone, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -7630,6 +7867,18 @@ func (ec *executionContext) _Card(ctx context.Context, sel ast.SelectionSet, obj
 		case "ScryfallID":
 
 			out.Values[i] = ec._Card_ScryfallID(ctx, field, obj)
+
+		case "ScreenX":
+
+			out.Values[i] = ec._Card_ScreenX(ctx, field, obj)
+
+		case "ScreenY":
+
+			out.Values[i] = ec._Card_ScreenY(ctx, field, obj)
+
+		case "CurrentZone":
+
+			out.Values[i] = ec._Card_CurrentZone(ctx, field, obj)
 
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -9164,6 +9413,22 @@ func (ec *executionContext) marshalOCounter2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgo
 		return graphql.Null
 	}
 	return ec._Counter(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v interface{}) (*float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	res := graphql.MarshalFloatContext(*v)
+	return graphql.WrapContextMarshaler(ctx, res)
 }
 
 func (ec *executionContext) marshalOGame2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGame(ctx context.Context, sel ast.SelectionSet, v *Game) graphql.Marshaler {
