@@ -91,7 +91,7 @@ type BoardState {
   Library: [Card!]!
   Graveyard: [Card!]!
   Exiled: [Card!]!
-  Field: [Card!]!
+  Battlefield: [Card!]!
   Hand: [Card!]!
   Revealed: [Card!]!
   Controlled: [Card!]!
@@ -142,7 +142,7 @@ input InputBoardState {
   Library: [InputCard]
   Graveyard: [InputCard]
   Exiled: [InputCard]
-  Field: [InputCard]
+  Battlefield: [InputCard]
   Hand: [InputCard]
   Revealed: [InputCard]
   Controlled: [InputCard]

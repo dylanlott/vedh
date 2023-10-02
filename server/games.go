@@ -181,14 +181,14 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	user := &User{
 		Username: input.User,
 		Boardstate: &BoardState{
-			User:       input.User,
-			Life:       input.BoardState.Life,
-			Exiled:     getBareCard(input.BoardState.Exiled),
-			Revealed:   getBareCard(input.BoardState.Revealed),
-			Field:      getBareCard(input.BoardState.Field),
-			Controlled: getBareCard(input.BoardState.Controlled),
-			Hand:       make([]*Card, 0),
-			Graveyard:  make([]*Card, 0),
+			User:        input.User,
+			Life:        input.BoardState.Life,
+			Exiled:      getBareCard(input.BoardState.Exiled),
+			Revealed:    getBareCard(input.BoardState.Revealed),
+			Battlefield: getBareCard(input.BoardState.Battlefield),
+			Controlled:  getBareCard(input.BoardState.Controlled),
+			Hand:        make([]*Card, 0),
+			Graveyard:   make([]*Card, 0),
 		},
 	}
 
@@ -278,15 +278,15 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			ID:       player.UserID,
 			Username: player.User,
 			Boardstate: &BoardState{
-				UserID:     player.UserID,
-				User:       player.User,
-				Life:       player.Life,
-				GameID:     g.ID,
-				Hand:       getBareCard(player.Hand),
-				Exiled:     getBareCard(player.Exiled),
-				Revealed:   getBareCard(player.Revealed),
-				Field:      getBareCard(player.Field),
-				Controlled: getBareCard(player.Controlled),
+				UserID:      player.UserID,
+				User:        player.User,
+				Life:        player.Life,
+				GameID:      g.ID,
+				Hand:        getBareCard(player.Hand),
+				Exiled:      getBareCard(player.Exiled),
+				Revealed:    getBareCard(player.Revealed),
+				Battlefield: getBareCard(player.Battlefield),
+				Controlled:  getBareCard(player.Controlled),
 			},
 		}
 

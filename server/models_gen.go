@@ -7,19 +7,19 @@ import (
 )
 
 type BoardState struct {
-	UserID     string     `json:"UserID"`
-	User       string     `json:"User"`
-	Life       int        `json:"Life"`
-	GameID     string     `json:"GameID"`
-	Commander  []*Card    `json:"Commander"`
-	Library    []*Card    `json:"Library"`
-	Graveyard  []*Card    `json:"Graveyard"`
-	Exiled     []*Card    `json:"Exiled"`
-	Field      []*Card    `json:"Field"`
-	Hand       []*Card    `json:"Hand"`
-	Revealed   []*Card    `json:"Revealed"`
-	Controlled []*Card    `json:"Controlled"`
-	Counters   []*Counter `json:"Counters"`
+	UserID      string     `json:"UserID"`
+	User        string     `json:"User"`
+	Life        int        `json:"Life"`
+	GameID      string     `json:"GameID"`
+	Commander   []*Card    `json:"Commander"`
+	Library     []*Card    `json:"Library"`
+	Graveyard   []*Card    `json:"Graveyard"`
+	Exiled      []*Card    `json:"Exiled"`
+	Battlefield []*Card    `json:"Battlefield"`
+	Hand        []*Card    `json:"Hand"`
+	Revealed    []*Card    `json:"Revealed"`
+	Controlled  []*Card    `json:"Controlled"`
+	Counters    []*Counter `json:"Counters"`
 }
 
 type Card struct {
@@ -64,20 +64,20 @@ type Game struct {
 }
 
 type InputBoardState struct {
-	UserID     string          `json:"UserID"`
-	User       string          `json:"User"`
-	GameID     string          `json:"GameID"`
-	Life       int             `json:"Life"`
-	Decklist   *string         `json:"Decklist"`
-	Commander  []*InputCard    `json:"Commander"`
-	Library    []*InputCard    `json:"Library"`
-	Graveyard  []*InputCard    `json:"Graveyard"`
-	Exiled     []*InputCard    `json:"Exiled"`
-	Field      []*InputCard    `json:"Field"`
-	Hand       []*InputCard    `json:"Hand"`
-	Revealed   []*InputCard    `json:"Revealed"`
-	Controlled []*InputCard    `json:"Controlled"`
-	Counters   []*InputCounter `json:"Counters"`
+	UserID      string          `json:"UserID"`
+	User        string          `json:"User"`
+	GameID      string          `json:"GameID"`
+	Life        int             `json:"Life"`
+	Decklist    *string         `json:"Decklist"`
+	Commander   []*InputCard    `json:"Commander"`
+	Library     []*InputCard    `json:"Library"`
+	Graveyard   []*InputCard    `json:"Graveyard"`
+	Exiled      []*InputCard    `json:"Exiled"`
+	Battlefield []*InputCard    `json:"Battlefield"`
+	Hand        []*InputCard    `json:"Hand"`
+	Revealed    []*InputCard    `json:"Revealed"`
+	Controlled  []*InputCard    `json:"Controlled"`
+	Counters    []*InputCounter `json:"Counters"`
 }
 
 type InputCard struct {
