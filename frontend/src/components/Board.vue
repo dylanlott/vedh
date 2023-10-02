@@ -14,7 +14,7 @@
       <!-- ### BATTLEFIELD -->
       <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone">
         BATTLEFIELD
-        <DraggableCard v-for="card in self.Boardstate.Field" :card="card" :user="user" :key="card.ID" />
+        <DraggableCard v-for="card in self.Boardstate.Battlefield" :card="card" :user="user" :key="card.ID" />
       </section>
 
       <section id="Hand" v-if="self" class="hand dropzone outer-dropzone container">
