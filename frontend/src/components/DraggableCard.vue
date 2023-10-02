@@ -86,8 +86,8 @@ export default {
 
         if (moved) {
           console.log("moved - updated state: ", self)
-          let found = this.$store.state.Games.game.Players.find(x => x.ID === userID) 
-          found = self
+          // let found = this.$store.state.Games.game.Players.find(x => x.ID === userID) 
+          // found = self
           this.$store.dispatch('Games/sync', this.$store.state.Games.game)
         } else {
           console.log("not moved - current state: ", self)
