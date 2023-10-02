@@ -73,7 +73,7 @@ export const gameUpdatedSubscription = gql`subscription($gameID: String!, $userI
         Commander {
           ...CardFields
         }
-        Field {
+        Battlefield {
           ...CardFields
         }
         Controlled {
@@ -118,7 +118,7 @@ export const getGameQuery = gql`query($gameID: String!){
         Commander {
           ...CardFields
         }
-        Field {
+        Battlefield {
           ...CardFields
         }
         Controlled {
@@ -175,7 +175,7 @@ query gameQuery($limit: Int!, $offset: Int!) {
           Commander {
             ...CardFields
           }
-          Field {
+          Battlefield {
             ...CardFields
           }
           Controlled {
@@ -231,7 +231,7 @@ mutation updateGame($input: InputGame!) {
         Commander {
           ...CardFields
         }
-        Field {
+        Battlefield {
           ...CardFields
         }
         Controlled {

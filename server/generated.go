@@ -48,19 +48,19 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	BoardState struct {
-		Commander  func(childComplexity int) int
-		Controlled func(childComplexity int) int
-		Counters   func(childComplexity int) int
-		Exiled     func(childComplexity int) int
-		Field      func(childComplexity int) int
-		GameID     func(childComplexity int) int
-		Graveyard  func(childComplexity int) int
-		Hand       func(childComplexity int) int
-		Library    func(childComplexity int) int
-		Life       func(childComplexity int) int
-		Revealed   func(childComplexity int) int
-		User       func(childComplexity int) int
-		UserID     func(childComplexity int) int
+		Battlefield func(childComplexity int) int
+		Commander   func(childComplexity int) int
+		Controlled  func(childComplexity int) int
+		Counters    func(childComplexity int) int
+		Exiled      func(childComplexity int) int
+		GameID      func(childComplexity int) int
+		Graveyard   func(childComplexity int) int
+		Hand        func(childComplexity int) int
+		Library     func(childComplexity int) int
+		Life        func(childComplexity int) int
+		Revealed    func(childComplexity int) int
+		User        func(childComplexity int) int
+		UserID      func(childComplexity int) int
 	}
 
 	Card struct {
@@ -181,6 +181,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	_ = ec
 	switch typeName + "." + field {
 
+	case "BoardState.Battlefield":
+		if e.complexity.BoardState.Battlefield == nil {
+			break
+		}
+
+		return e.complexity.BoardState.Battlefield(childComplexity), true
+
 	case "BoardState.Commander":
 		if e.complexity.BoardState.Commander == nil {
 			break
@@ -208,13 +215,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.BoardState.Exiled(childComplexity), true
-
-	case "BoardState.Field":
-		if e.complexity.BoardState.Field == nil {
-			break
-		}
-
-		return e.complexity.BoardState.Field(childComplexity), true
 
 	case "BoardState.GameID":
 		if e.complexity.BoardState.GameID == nil {
@@ -1718,8 +1718,8 @@ func (ec *executionContext) fieldContext_BoardState_Exiled(ctx context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _BoardState_Field(ctx context.Context, field graphql.CollectedField, obj *BoardState) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_BoardState_Field(ctx, field)
+func (ec *executionContext) _BoardState_Battlefield(ctx context.Context, field graphql.CollectedField, obj *BoardState) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BoardState_Battlefield(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1732,7 +1732,7 @@ func (ec *executionContext) _BoardState_Field(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Field, nil
+		return obj.Battlefield, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1749,7 +1749,7 @@ func (ec *executionContext) _BoardState_Field(ctx context.Context, field graphql
 	return ec.marshalNCard2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐCardᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_BoardState_Field(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_BoardState_Battlefield(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "BoardState",
 		Field:      field,
@@ -3901,8 +3901,8 @@ func (ec *executionContext) fieldContext_Mutation_updateBoardState(ctx context.C
 				return ec.fieldContext_BoardState_Graveyard(ctx, field)
 			case "Exiled":
 				return ec.fieldContext_BoardState_Exiled(ctx, field)
-			case "Field":
-				return ec.fieldContext_BoardState_Field(ctx, field)
+			case "Battlefield":
+				return ec.fieldContext_BoardState_Battlefield(ctx, field)
 			case "Hand":
 				return ec.fieldContext_BoardState_Hand(ctx, field)
 			case "Revealed":
@@ -5085,8 +5085,8 @@ func (ec *executionContext) fieldContext_User_Boardstate(ctx context.Context, fi
 				return ec.fieldContext_BoardState_Graveyard(ctx, field)
 			case "Exiled":
 				return ec.fieldContext_BoardState_Exiled(ctx, field)
-			case "Field":
-				return ec.fieldContext_BoardState_Field(ctx, field)
+			case "Battlefield":
+				return ec.fieldContext_BoardState_Battlefield(ctx, field)
 			case "Hand":
 				return ec.fieldContext_BoardState_Hand(ctx, field)
 			case "Revealed":
@@ -6956,11 +6956,11 @@ func (ec *executionContext) unmarshalInputInputBoardState(ctx context.Context, o
 			if err != nil {
 				return it, err
 			}
-		case "Field":
+		case "Battlefield":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Field"))
-			it.Field, err = ec.unmarshalOInputCard2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputCard(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Battlefield"))
+			it.Battlefield, err = ec.unmarshalOInputCard2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputCard(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7721,9 +7721,9 @@ func (ec *executionContext) _BoardState(ctx context.Context, sel ast.SelectionSe
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "Field":
+		case "Battlefield":
 
-			out.Values[i] = ec._BoardState_Field(ctx, field, obj)
+			out.Values[i] = ec._BoardState_Battlefield(ctx, field, obj)
 
 			if out.Values[i] == graphql.Null {
 				invalids++
