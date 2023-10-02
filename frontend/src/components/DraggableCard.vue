@@ -1,7 +1,7 @@
 <template>
   <div ref="myDraggable" class="draggable">
     <!--  Wrap Card here -->
-    <Card v-bind="card" :ScreenX="screenX" v-bind:ScreenY="screenY"/>
+    <Card v-bind="card" :ScreenX="screenX" v-bind:ScreenY="screenY" />
   </div>
 </template>
 
@@ -66,29 +66,62 @@ export default {
       this.screenY = target.getBoundingClientRect().top;
       this.card.ScreenX = this.screenX
       this.card.ScreenY = this.screenY
-      this.move({ 
-        source: this.lastSource, 
-        destination: this.lastDestination, 
-        card: this.card
-      })
-      let g = this.$store.state.Games.game
-      this.$store.dispatch('Games/sync', g)
+
+      let game = this.$store.state.Games.game
+      let userID = this.$store.state.Users.User.ID
+      let self = game.Players.find(x => x.ID === userID)
+      if (self === undefined) {
+        console.log("cannot find self: investigate this problem", game, userID)
+        return
+      }
+      if (!!this.lastSource && !!this.lastDestination) {
+        let sourceArray = self.Boardstate[this.lastSource]
+        let targetArray = self.Boardstate[this.lastDestination]
+
+        let moved = this.move({
+          sourceArray: sourceArray,
+          targetArray: targetArray,
+          card: this.card,
+        })
+
+        if (moved) {
+          console.log("moved - updated state: ", self)
+          let found = this.$store.state.Games.game.Players.find(x => x.ID === userID) 
+          found = self
+          this.$store.dispatch('Games/sync', this.$store.state.Games.game)
+        } else {
+          console.log("not moved - current state: ", self)
+        }
+      }
     },
     capitalize: function (word) {
       return word[0].toUpperCase() + word.slice(1).toLowerCase();
     },
-    move: function({ source, destination, card}) {
-      console.log('source: ', source)
-      console.log('destination: ', destination)
-      console.log('card: ', card)
+    /**
+     * Moves an object with a specific ID from one array to another.
+     * 
+     * @param {Array} sourceArray - The array to remove the object from.
+     * @param {Array} targetArray - The array to add the object to.
+     * @param {string|number} id - The ID of the object to move.
+     * @returns {boolean} - Returns true if the object was moved successfully, false otherwise.
+     */
+    move({ sourceArray, targetArray, card }) {
+      console.log('moving ', card.ID, ' from ', sourceArray, ' to ', targetArray)
+      const index = sourceArray.findIndex(obj => obj.ID === card.ID);
+      if (index !== -1) {
+        const [movedObject] = sourceArray.splice(index, 1);
+        targetArray.push(movedObject);
+        return true;
+      }
+      return false;
     },
     checkOverlap(elem1, elem2) {
       const rect1 = elem1.getBoundingClientRect();
       const rect2 = elem2.getBoundingClientRect();
       return !(rect2.left > rect1.right ||
-                rect2.right < rect1.left ||
-                rect2.top > rect1.bottom ||
-                rect2.bottom < rect1.top);
+        rect2.right < rect1.left ||
+        rect2.top > rect1.bottom ||
+        rect2.bottom < rect1.top);
     },
   },
   components: {

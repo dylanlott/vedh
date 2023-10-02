@@ -211,11 +211,11 @@ export const Users = {
     },
     mutations: {
         setUser(state, payload) {
-            state.User.Username = payload.Username
-            Cookies.set("username", payload.Username)
             state.User.ID = payload.ID
-            Cookies.set("userID", payload.ID)
+            state.User.Username = payload.Username
             state.User.Token = payload.Token
+            Cookies.set("userID", payload.ID)
+            Cookies.set("username", payload.Username)
             Cookies.set("token", payload.Token)
             Cookies.set("user_info", JSON.stringify(payload))
         },
