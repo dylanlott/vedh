@@ -12,14 +12,29 @@
 
     <section>
       <!-- ### BATTLEFIELD -->
-      <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone">
+      <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone container">
         BATTLEFIELD
-        <DraggableCard v-for="card in self.Boardstate.Battlefield" :card="card" :user="user" :key="card.ID" />
+        <DraggableCard class="item" v-for="card in self.Boardstate.Battlefield" :card="card" :user="user" :key="card.ID" />
       </section>
 
       <section id="Hand" v-if="self" class="hand dropzone outer-dropzone container">
         HAND
         <DraggableCard class="item" v-for="card in self.Boardstate.Hand" :card="card" :user="user" :key="card.ID" />
+      </section>
+      
+      <section id="Graveyard" v-if="self" class="dropzone outer-dropzone container">
+       GRAVEYARD 
+        <DraggableCard class="item" v-for="card in self.Boardstate.Graveyard" :card="card" :user="user" :key="card.ID" />
+      </section>
+      
+      <section id="Exiled" v-if="self" class="dropzone outer-dropzone container">
+       EXILED
+        <DraggableCard class="item" v-for="card in self.Boardstate.Exiled" :card="card" :user="user" :key="card.ID" />
+      </section>
+      
+      <section id="Revealed" v-if="self" class="dropzone outer-dropzone container">
+        REVEALED
+        <DraggableCard class="item" v-for="card in self.Boardstate.Revealed" :card="card" :user="user" :key="card.ID" />
       </section>
 
       <!-- INVITE LINK -->
@@ -261,6 +276,114 @@ export default {
         event.target.classList.remove('drop-target');
       },
     });  
+
+    interact('#Graveyard').dropzone({
+      // Require a 50% element overlap for a drop to be possible
+      overlap: 0.50,
+
+      // listen for drop related events:
+      ondropactivate: function (event) {
+        // add active dropzone feedback
+        event.target.classList.add('drop-active');
+      },
+      ondragenter: function (event) {
+        // console.log('ON DRAG ENTER HAND', event);
+        var draggableElement = event.relatedTarget;
+        var dropzoneElement = event.target;
+
+        // feedback the possibility of a drop
+        dropzoneElement.classList.add('drop-target');
+        draggableElement.classList.add('can-drop');
+        // draggableElement.textContent = 'Dragged in';
+      },
+      ondragleave: function (event) {
+        // remove the drop feedback style
+        // console.log('ON DRAG LEAVE HAND', event);
+        event.target.classList.remove('drop-target');
+        event.relatedTarget.classList.remove('can-drop');
+      },
+      ondrop: function (event) {
+        console.log("dropped into hand: ", event)
+      },
+      ondropdeactivate: function (event) {
+        // remove active dropzone feedback
+        event.target.classList.remove('drop-active');
+        event.target.classList.remove('drop-target');
+      },
+    });  
+
+
+    interact('#Exiled').dropzone({
+      // Require a 50% element overlap for a drop to be possible
+      overlap: 0.50,
+
+      // listen for drop related events:
+      ondropactivate: function (event) {
+        // add active dropzone feedback
+        event.target.classList.add('drop-active');
+      },
+      ondragenter: function (event) {
+        // console.log('ON DRAG ENTER HAND', event);
+        var draggableElement = event.relatedTarget;
+        var dropzoneElement = event.target;
+
+        // feedback the possibility of a drop
+        dropzoneElement.classList.add('drop-target');
+        draggableElement.classList.add('can-drop');
+        // draggableElement.textContent = 'Dragged in';
+      },
+      ondragleave: function (event) {
+        // remove the drop feedback style
+        // console.log('ON DRAG LEAVE HAND', event);
+        event.target.classList.remove('drop-target');
+        event.relatedTarget.classList.remove('can-drop');
+      },
+      ondrop: function (event) {
+        console.log("dropped into hand: ", event)
+      },
+      ondropdeactivate: function (event) {
+        // remove active dropzone feedback
+        event.target.classList.remove('drop-active');
+        event.target.classList.remove('drop-target');
+      },
+    });  
+    
+    
+    interact('#Revealed').dropzone({
+      // Require a 50% element overlap for a drop to be possible
+      overlap: 0.50,
+
+      // listen for drop related events:
+      ondropactivate: function (event) {
+        // add active dropzone feedback
+        event.target.classList.add('drop-active');
+      },
+      ondragenter: function (event) {
+        // console.log('ON DRAG ENTER HAND', event);
+        var draggableElement = event.relatedTarget;
+        var dropzoneElement = event.target;
+
+        // feedback the possibility of a drop
+        dropzoneElement.classList.add('drop-target');
+        draggableElement.classList.add('can-drop');
+        // draggableElement.textContent = 'Dragged in';
+      },
+      ondragleave: function (event) {
+        // remove the drop feedback style
+        // console.log('ON DRAG LEAVE HAND', event);
+        event.target.classList.remove('drop-target');
+        event.relatedTarget.classList.remove('can-drop');
+      },
+      ondrop: function (event) {
+        console.log("dropped into hand: ", event)
+      },
+      ondropdeactivate: function (event) {
+        // remove active dropzone feedback
+        event.target.classList.remove('drop-active');
+        event.target.classList.remove('drop-target');
+      },
+    });  
+
   },
   computed: {
     // TECHDEBT this belongs with Commander Selection modal in its own component
@@ -361,6 +484,24 @@ export default {
 #Battlefield {
   display: flex;
   height: 500px;
+}
+
+#Graveyard {
+  display: flex;
+  height: auto;
+  width: auto;
+}
+
+#Exiled {
+  display: flex;
+  height: auto;
+  width: auto;
+}
+
+#Revealed {
+  display: flex;
+  height: auto;
+  width: auto;
 }
 .shell {
   padding: 0.5rem;
