@@ -56,6 +56,15 @@ func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
 	err = m.Up()
 	if err != nil {
 		if err.Error() == "no change" {
+			v, dirty, err := m.Version()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get migration version: %w", err)
+			}
+			if dirty {
+				log.Printf("[WARN] database migration state is dirty - version %d", v)
+			} else {
+				log.Printf("no migration changes detected - latest migration is %d", v)
+			}
 			return db, nil
 		}
 		// should we fail here? regardless, we should not be silent
