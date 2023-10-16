@@ -138,8 +138,6 @@ type InputGame struct {
 
 type InputJoinGame struct {
 	ID         string           `json:"ID"`
-	User       string           `json:"User"`
-	Handle     *string          `json:"Handle"`
 	Decklist   *string          `json:"Decklist"`
 	BoardState *InputBoardState `json:"BoardState"`
 }

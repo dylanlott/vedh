@@ -7422,22 +7422,6 @@ func (ec *executionContext) unmarshalInputInputJoinGame(ctx context.Context, obj
 			if err != nil {
 				return it, err
 			}
-		case "User":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("User"))
-			it.User, err = ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "Handle":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Handle"))
-			it.Handle, err = ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
 		case "Decklist":
 			var err error
 

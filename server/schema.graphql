@@ -170,8 +170,6 @@ input InputCreateGame {
 
 input InputJoinGame {
   ID: String!
-  User: String!
-  Handle: String
   Decklist: String
   BoardState: InputBoardState!
 }
