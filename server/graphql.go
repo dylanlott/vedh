@@ -50,7 +50,6 @@ func NewGraphQLServer(
 	db *sql.DB,
 	cfg Conf,
 ) (*graphQLServer, error) {
-
 	return &graphQLServer{
 		mutex:  sync.RWMutex{},
 		db:     db,
@@ -59,6 +58,9 @@ func NewGraphQLServer(
 	}, nil
 }
 
+// Serve is a blocking function that runs the server until anything returns an error.
+// It sets up the muxed routing, exposes the prometheus endpoint, and serves the
+// GraphQL playground and API at the given route and port.
 func (s *graphQLServer) Serve(route string, port int) error {
 	mux := http.NewServeMux()
 	mux.Handle(
