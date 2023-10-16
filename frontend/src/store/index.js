@@ -106,15 +106,6 @@ export const Games = {
                     mutation: gql`mutation ($InputJoinGame: InputJoinGame) {
                         joinGame(input: $InputJoinGame) {
                             ID
-                            Players {
-                                Username
-                                ID
-                            }
-                            Turn {
-                                Phase
-                                Player
-                                Number
-                            }
                         }
                     }`,
                     variables: {

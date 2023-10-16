@@ -162,10 +162,17 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	// in a given game. If it does, just return that same setup.
 	// TODO: Check context for User auth and append user info that way
 	// TODO: Pull user boardstate creation out into a function since we do it multiple places
-	if input.User == "" {
-		return nil, errors.New("must provide a username to join a game")
+	if input.BoardState.UserID == "" {
+		return nil, errors.New("must provide user ID to join a game")
+	}
+	if input.BoardState.GameID == "" {
+		return nil, errors.New("must provide a game ID to join")
+	}
+	if input.BoardState.User == "" {
+		return nil, errors.New("must provide a username to join")
 	}
 
+	// get the game and verify itself
 	game, err := s.GetGame(ctx, input.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -179,9 +186,10 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	}
 
 	user := &User{
-		Username: input.User,
+		Username: input.BoardState.User,
+		ID:       input.BoardState.UserID,
 		Boardstate: &BoardState{
-			User:        input.User,
+			User:        input.BoardState.User,
 			Life:        input.BoardState.Life,
 			Exiled:      getBareCard(input.BoardState.Exiled),
 			Revealed:    getBareCard(input.BoardState.Revealed),

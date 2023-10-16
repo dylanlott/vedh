@@ -213,7 +213,6 @@ func TestJoinGame(t *testing.T) {
 						},
 					},
 				},
-				User: userID2,
 			},
 			err: nil,
 			want: &Game{

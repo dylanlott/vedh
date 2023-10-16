@@ -138,29 +138,29 @@
               <span>Draw</span>
             </button>
           </b-navbar-item>
-          <b-navbar-item @click="toggleScryModal()" href="#">
+          <!-- <b-navbar-item @click="toggleScryModal()" href="#">
             <button class="button is-primary is-small">
               <span class="icon">
                 <i class="fa fa-book"></i>
               </span>
               <span>Scry</span>
             </button>
-          </b-navbar-item>
-          <b-navbar-item>
+          </b-navbar-item> -->
+          <!-- <b-navbar-item>
             <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen"
               >Invite a friend</b-button
             >
-          </b-navbar-item>
+          </b-navbar-item> -->
         </template>
 
         <template #end>
           <b-navbar-item tag="div">
             <div class="buttons">
-              <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen" class="button is-dark is-small"
+              <!-- <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen" class="button is-dark is-small"
                 >Commanders</a
               >
               <a @click="handleTapAll()" class="button is-dark is-small"><strong>Tap All</strong></a>
-              <a @click="handleUntapAll()" class="button is-light is-small">Untap All</a>
+              <a @click="handleUntapAll()" class="button is-light is-small">Untap All</a> -->
             </div>
           </b-navbar-item>
         </template>
@@ -232,7 +232,7 @@ export default {
         // event.relatedTarget.textContent = 'Dragged out';
       },
       ondrop: function (event) {
-        console.log("dropped into battlefield:", event)
+        // console.log("dropped into battlefield:", event)
       },
       ondropdeactivate: function (event) {
         // console.log('ON DROP DEACTIVATE', event);
