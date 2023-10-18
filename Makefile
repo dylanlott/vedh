@@ -43,7 +43,11 @@ docker-ui:
 		--platform linux/amd64 ./frontend
 docker-server:
 	docker build -t openmtg/edhgo-server:$(BUILD_TAG) .
-deploy: confirm deploy-server deploy-ui
+sync:
+	@echo "syncing git files to remote server"
+	scripts/sync.sh
+deploy: confirm sync deploy-server deploy-ui
+	@echo "----- deploying edhgo -----"
 deploy-ui: confirm docker-ui
 	docker push openmtg/edhgo-ui:$(BUILD_TAG)
 deploy-server: confirm docker-server

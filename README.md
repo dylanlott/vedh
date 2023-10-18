@@ -95,6 +95,8 @@ A copy of the frontend environment file for development is included in this repo
 
 ## Deploying with Make
 
+`scripts/sync.sh` must be run before loading any migrations. It syncs the local git ls-files output to the production remote. This allows the server to access migration files at runtime.
+
 - `make deploy` will deploy a new version of both the server and the UI.
 - `make deploy-ui` and `make deploy-server` will deploy them each individually.
 

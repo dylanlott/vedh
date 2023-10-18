@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Variables
 REMOTE_USER="root"
 REMOTE_HOST="www.edhgo.com"
-REMOTE_DIR="/root/edh-go/"
+REMOTE_DIR="/home/shakezula/edh-go"
 
-# Rsync command
-rsync -avz --progress ./ "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR"
+# rsync -avz --progress ./ "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR"
+git ls-files | rsync -av --progress --files-from=- ./ "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR"
 
-echo "Sync completed."
+echo ""
+echo "↘️↖️ Sync completed ✅"
