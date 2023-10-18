@@ -6,7 +6,8 @@ persistence/mtgallcards.sqlite
 bin/*
 *.env
 *.env*
-
+.pg.env
+.edhgo.env
 
 # Frontend 
 frontend/coverage/
