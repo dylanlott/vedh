@@ -47,7 +47,7 @@ sync:
 	@echo "syncing git files to remote server"
 	scripts/sync.sh
 deploy: confirm sync deploy-server deploy-ui
-	@echo "----- deploying edhgo -----"
+	@echo "----- edhgo deployed 🚀 -----"
 deploy-ui: confirm docker-ui
 	docker push openmtg/edhgo-ui:$(BUILD_TAG)
 deploy-server: confirm docker-server
