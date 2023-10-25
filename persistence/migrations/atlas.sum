@@ -1,0 +1,15 @@
+h1:/BYqchIdVA9/fMJAv5KdtAfelzAQDhjGXPuVFt6mtHQ=
+20210307154621_init_db.down.sql h1:2zHKn0BpP/+jFcm2oDWtRdcvblRuspCMv8FIgUsY1lI=
+20210307154621_init_db.up.sql h1:jcAKvPB/mWeZDviU7y8xWJPI5Z2RGpcmY1Ivy5wRuqI=
+20211011150143_allprintings.down.sql h1:of2wu4xTv1rHEk3ag35MpqBWPQGznl04CqLot9JJXRI=
+20211011150143_allprintings.up.sql h1:GoQz1znh2wL41PXAYfBpdDNM6RIBCiZbkWAbWHQfq/Y=
+20211011211724_gamelog.down.sql h1:jnwV65e+tqsms/bqkbbes3i70gVZ8Jnk01I9ICn7nxQ=
+20211011211724_gamelog.up.sql h1:0KXU33FWH6ejxa7VvhY9v4f1FmJ9TXK1vRaBkyzEuBc=
+20211107215344_add_facename.down.sql h1:/gypn16y44v9uD7Dn2S1yAKPC5L4OmJsDiuYu2K/1Eo=
+20211107215344_add_facename.up.sql h1:bwFaNzJ1mmZJ0tGgVq2YDkFYTUwFYeN+ydwlP3mOWHI=
+20211229130157_enforce_unique_usernames.down.sql h1:8VmaGVoAHFrvs6ZhtVIJgnF7vOPpF7nlsu0LloWLzjk=
+20211229130157_enforce_unique_usernames.up.sql h1:Al3xCHhFT/SLCejL8vaLbnI2qNtE381RIm+520axPCM=
+20231001215936_create_games.down.sql h1:nbwZKbMtkzpNeg5bu/Tmhd8jE/HL/MX94HG6OQAuajY=
+20231001215936_create_games.up.sql h1:aULJjTxQ468kaPLKorp0PE6qiEHNbmvqTCx09U6PHus=
+20231018183754_add_games_id.down.sql h1:mtUyQqMqOr1iuQ53AwgNKV2B8d1IxmGW0Gipr3rHhdA=
+20231018183754_add_games_id.up.sql h1:8jyRq8e/dqTzl7R/hzu5gOLVt7O50cNe8fR3tad1Mr4=
