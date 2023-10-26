@@ -67,6 +67,9 @@ export default new Router({
       path: '/join/:id',
       name: 'join',
       component: JoinGame,
+      meta: {
+        auth: true,
+      },
     }
   ],
 });
