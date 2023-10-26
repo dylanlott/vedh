@@ -12,17 +12,13 @@
                     </a>
                 </div>
             </template>
-
             <div class="card-content">
-                <section class="section opponent-battlefield" v-for="(card, idx) in boardstate.Battlefield">
+                <div class="opponent-battlefield" v-for="(card, idx) in boardstate.Battlefield">
                     <Card :key="idx" v-bind="card" />
-                </section>
+                </div>
             </div>
-            <footer class="card-footer">
-                <!-- <a class="card-footer-item">Save</a>
-          <a class="card-footer-item">Edit</a>
-          <a class="card-footer-item">Delete</a> -->
-            </footer>
+            <!-- <footer class="card-footer">
+            </footer> -->
         </b-collapse>
     </div>
 </template>
