@@ -12,30 +12,39 @@
 
     <section>
       <!-- ### BATTLEFIELD -->
-      <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone container">
-        BATTLEFIELD
-        <DraggableCard class="item" v-for="card in self.Boardstate.Battlefield" :card="card" :user="user" :key="card.ID" />
-      </section>
+      <div class="field">
+        <label class="label">Battlefield</label>
+        <div class="control">
 
-      <section id="Hand" v-if="self" class="hand dropzone outer-dropzone container">
+        <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone">
+          <!-- BATTLEFIELD -->
+          <DraggableCard class="item" v-for="card in self.Boardstate.Battlefield" :card="card" :user="user" :key="card.ID" />
+        </section>
+
+        </div>
+      </div>
+
+      <section id="Hand" v-if="self" class="hand dropzone outer-dropzone">
         HAND
         <DraggableCard class="item" v-for="card in self.Boardstate.Hand" :card="card" :user="user" :key="card.ID" />
       </section>
-      
-      <section id="Graveyard" v-if="self" class="dropzone outer-dropzone container">
-       GRAVEYARD 
-        <DraggableCard class="item" v-for="card in self.Boardstate.Graveyard" :card="card" :user="user" :key="card.ID" />
-      </section>
-      
-      <section id="Exiled" v-if="self" class="dropzone outer-dropzone container">
-       EXILED
-        <DraggableCard class="item" v-for="card in self.Boardstate.Exiled" :card="card" :user="user" :key="card.ID" />
-      </section>
-      
-      <section id="Revealed" v-if="self" class="dropzone outer-dropzone container">
-        REVEALED
-        <DraggableCard class="item" v-for="card in self.Boardstate.Revealed" :card="card" :user="user" :key="card.ID" />
-      </section>
+
+      <div class="columns">
+        <section id="Graveyard" v-if="self" class="dropzone outer-dropzone column">
+        GRAVEYARD 
+          <DraggableCard class="item" v-for="card in self.Boardstate.Graveyard" :card="card" :user="user" :key="card.ID" />
+        </section>
+        
+        <section id="Exiled" v-if="self" class="dropzone outer-dropzone column">
+        EXILED
+          <DraggableCard class="item" v-for="card in self.Boardstate.Exiled" :card="card" :user="user" :key="card.ID" />
+        </section>
+        
+        <section id="Revealed" v-if="self" class="dropzone outer-dropzone column">
+          REVEALED
+          <DraggableCard class="item" v-for="card in self.Boardstate.Revealed" :card="card" :user="user" :key="card.ID" />
+        </section>
+      </div>
 
       <!-- INVITE LINK -->
       <section>
@@ -204,7 +213,6 @@ export default {
       userID: this.user.ID,
     });
 
-    // enable draggables to be dropped into this
     interact('#Battlefield').dropzone({
       // Require a 50% element overlap for a drop to be possible
       overlap: 0.50,
@@ -311,7 +319,6 @@ export default {
         event.target.classList.remove('drop-target');
       },
     });  
-
 
     interact('#Exiled').dropzone({
       // Require a 50% element overlap for a drop to be possible
@@ -490,26 +497,26 @@ export default {
   display: flex;
   height: auto;
   width: auto;
+  margin: 10px;
 }
 
 #Exiled {
   display: flex;
   height: auto;
   width: auto;
+  margin: 10px;
 }
 
 #Revealed {
   display: flex;
   height: auto;
   width: auto;
+  margin: 10px;
 }
 .shell {
   padding: 0.5rem;
   border: 1px solid #efefef;
   margin: 0.25rem 0rem;
-}
-.battlefield {
-  border: 1px black;
 }
 .hand {
   height: 170px;
@@ -574,7 +581,6 @@ export default {
   flex-wrap: wrap;
   justify-content: space-around;
   align-items: center;
-  border: 1px solid black;
 }
 
 .item {
