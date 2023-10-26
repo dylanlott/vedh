@@ -393,24 +393,51 @@ func TestMultipleSubscriptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 
-	ch1, err := s.GameUpdated(context.Background(), created.ID, seedUserID)
+	ch1, err := s.GameUpdated(context.Background(), created.ID, mastershake)
 	assert.NoError(t, err)
 	assert.NotNil(t, ch1)
 
-	ch2, err := s.GameUpdated(context.Background(), created.ID, "0xDEADBEEF")
+	ch2, err := s.GameUpdated(context.Background(), created.ID, carl)
 	assert.NoError(t, err)
 	assert.NotNil(t, ch2)
+
+	ch3, err := s.GameUpdated(context.Background(), created.ID, meatwad)
+	assert.NoError(t, err)
+	assert.NotNil(t, ch3)
 
 	updated, err := s.UpdateGame(context.Background(), InputGame{
 		ID: created.ID,
 		Players: []*InputUser{
-			{Username: "meatwad"},
-			{Username: "shakezula"},
-		},
-		Turn: &InputTurn{
-			Player: "meatwad",
-			Phase:  "pregame",
-			Number: -1,
+			{
+				ID:       &mastershake,
+				Username: mastershake,
+				Boardstate: &InputBoardState{
+					UserID: mastershake,
+					User:   mastershake,
+					GameID: created.ID,
+					Life:   33,
+				},
+			},
+			{
+				ID:       &carl,
+				Username: carl,
+				Boardstate: &InputBoardState{
+					UserID: carl,
+					User:   carl,
+					GameID: created.ID,
+					Life:   40,
+				},
+			},
+			{
+				ID:       &meatwad,
+				Username: meatwad,
+				Boardstate: &InputBoardState{
+					UserID: meatwad,
+					User:   meatwad,
+					GameID: created.ID,
+					Life:   33,
+				},
+			},
 		},
 		CreatedAt: &created.CreatedAt,
 	})
@@ -419,7 +446,11 @@ func TestMultipleSubscriptions(t *testing.T) {
 
 	first := <-ch1
 	second := <-ch2
+	third := <-ch3
+
 	assert.Equal(t, first, second)
+	assert.Equal(t, first, third)
+	assert.Equal(t, second, third)
 }
 
 func TestCreateLibraryFromDecklist(t *testing.T) {
@@ -549,9 +580,10 @@ func decklist() *string {
 
 // Seed values for tests
 var (
-	seedUserID   string = "xfeedbeefx"
-	seedGameID   string = "xdeadbeefx"
-	seedUsername string = "shakezula"
+	seedGameID  string = "xdeadbeefx"
+	mastershake string = "Mastershake"
+	carl        string = "carl"
+	meatwad     string = "meatwad"
 )
 
 // seedInputGame is a bare minimum game input that passes validation
@@ -560,7 +592,7 @@ var seedInputGame = &InputCreateGame{
 	Players: []*InputBoardState{
 		{
 			GameID:   seedGameID,
-			User:     seedUsername,
+			User:     mastershake,
 			Life:     40,
 			Decklist: decklist(),
 			Commander: []*InputCard{
@@ -571,7 +603,7 @@ var seedInputGame = &InputCreateGame{
 		},
 	},
 	Turn: &InputTurn{
-		Player: seedUsername,
+		Player: mastershake,
 		Phase:  "pregame",
 		Number: 0,
 	},
