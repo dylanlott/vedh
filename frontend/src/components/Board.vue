@@ -176,11 +176,11 @@
               <span>Scry</span>
             </button>
           </b-navbar-item> -->
-          <!-- <b-navbar-item>
+          <b-navbar-item>
             <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen"
               >Invite a friend</b-button
             >
-          </b-navbar-item> -->
+          </b-navbar-item>
         </template>
 
         <template #end>
