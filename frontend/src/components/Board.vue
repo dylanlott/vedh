@@ -10,16 +10,33 @@
     </code> -->
     <section class="myself">
       <!-- ### OPPONENTS -->
-      <section v-if="opps" id="Opponents" class="opponents dropzone outer-dropzone">
+      <section v-if="self && opps" id="Opponents" class="opponents dropzone outer-dropzone">
         OPPONENTS
         <div v-for="opp in opps">
-          {{ opp }}
-          <!-- <Opponent v-bind="{
+          <Opponent v-bind="{
             boardstate: opp.Boardstate,
-            username: opp.Username, 
-          }"></Opponent> -->
+            username: opp.Username,
+          }"></Opponent>
         </div>
       </section>
+
+      <div class="block">
+      </div>
+
+      <!-- TODO add the stack drop zone and field to the game object
+        <b-collapse aria-id="contentIdForA11y2" class="panel" animation="slide" v-model="isStackOpen">
+        <template #trigger>
+          <div class="panel-heading" role="button" aria-controls="contentIdForA11y2" :aria-expanded="isStackOpen">
+            <strong>Stack</strong>
+          </div>
+        </template>
+        <div class="panel-block">
+          <div>
+            STACK DROP ZONE
+          </div>
+        </div>
+      </b-collapse> -->
+
 
       <!-- ### BATTLEFIELD -->
       <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone">
@@ -199,6 +216,7 @@ export default {
       keepFirst: false,
       openOnFocus: false,
       name: '',
+      isStackOpen: true,
       selected: '',
       clearable: true,
       isCommanderSelectionOpen: true, // NB: default open at start

@@ -49,9 +49,7 @@ export const Games = {
             })
         },
         updateGame(state, game) {
-            console.log("UPDATE GAME MUTATION ", game)
-            const g = Object.assign(state.game, game)
-            state.game = g
+            state.game = game
         },
         updateTurn(state, turn) {
             state.game.Turn = turn
