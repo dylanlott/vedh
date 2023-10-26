@@ -49,6 +49,7 @@ export const Games = {
             })
         },
         updateGame(state, game) {
+            console.log("UPDATE GAME MUTATION ", game)
             const g = Object.assign(state.game, game)
             state.game = g
         },
@@ -91,6 +92,7 @@ export const Games = {
             })
             sub.subscribe({
                 next(data) { 
+                    console.log("### subscription event recvd: ", data)
                     commit('updateGame', data.data.gameUpdated) 
                 },
                 error(err) {
@@ -165,7 +167,6 @@ export const Games = {
         },
         // sync copies the current game state and then attempts to save it.
         sync({ commit }, payload) {
-            console.table('upating game: ', payload)
             return api.mutate({
                 mutation: updateGame,
                 variables: {

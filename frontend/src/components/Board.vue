@@ -1,7 +1,6 @@
 <template>
-  <section>
-
-    <!-- DEBUG UTILITIES - UNCOMMENT TO SEE THIS DATA -->
+  <div class="board">
+    <!-- DEBUG COMMENTS - UNCOMMENT TO SEE THIS DATA -->
     <!-- <code>  
       {{ self }}
     </code>
@@ -9,8 +8,19 @@
     <code>  
       {{  game }}
     </code> -->
+    <section class="myself">
+      <!-- ### OPPONENTS -->
+      <section v-if="opps" id="Opponents" class="opponents dropzone outer-dropzone">
+        OPPONENTS
+        <div v-for="opp in opps">
+          {{ opp }}
+          <!-- <Opponent v-bind="{
+            boardstate: opp.Boardstate,
+            username: opp.Username, 
+          }"></Opponent> -->
+        </div>
+      </section>
 
-    <section>
       <!-- ### BATTLEFIELD -->
       <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone">
         BATTLEFIELD
@@ -38,7 +48,8 @@
 
           <section id="Revealed" v-if="self" class="dropzone outer-dropzone column">
             REVEALED
-            <DraggableCard class="item" v-for="card in self.Boardstate.Revealed" :card="card" :user="user" :key="card.ID" />
+            <DraggableCard class="item" v-for="card in self.Boardstate.Revealed" :card="card" :user="user"
+              :key="card.ID" />
           </section>
         </div>
       </div>
@@ -171,20 +182,20 @@
         </template>
       </b-navbar>
     </template>
-  </section>
+  </div>
 </template>
 <script>
 import _ from 'lodash';
 import interact from 'interactjs';
 import DraggableCard from '@/components/DraggableCard';
 import Card from '@/components/Card';
+import Opponent from '@/components/Opponent';
 import { mapState } from 'vuex';
 
 export default {
   name: 'board',
   data() {
     return {
-      // TODO get rid of soon
       keepFirst: false,
       openOnFocus: false,
       name: '',
@@ -479,6 +490,7 @@ export default {
   },
   components: {
     Card,
+    Opponent,
     DraggableCard,
   },
 };
@@ -589,4 +601,5 @@ export default {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-}</style>
+}
+</style>
