@@ -1,6 +1,5 @@
 <template>
-  <div ref="myDraggable" class="draggable">
-    <!--  Wrap Card here -->
+  <div ref="draggableCard" class="draggable">
     <Card v-bind="card" :ScreenX="screenX" v-bind:ScreenY="screenY" />
   </div>
 </template>
@@ -23,8 +22,8 @@ export default {
     user: Object,
   },
   mounted: function () {
-    let myDraggable = this.$refs.myDraggable;
-    this.initInteract(myDraggable);
+    let draggableCard = this.$refs.draggableCard;
+    this.initInteract(draggableCard);
   },
   methods: {
     initInteract: function (selector) {
