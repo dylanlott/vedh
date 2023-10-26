@@ -14,22 +14,9 @@
             </template>
 
             <div class="card-content">
-                <div class="content">
-                    <div>
-                        BATTLEFIELD
-                        <div v-for="card in boardstate.Battlefield">
-                            <Card v-bind="card"/>
-                        </div>
-                    </div>
-                    <div>
-                        REVEALED
-                        <div v-for="card in boardstate.Revealed">
-                            <Card v-bind="card"/>
-                        </div>
-                    </div>
-                    <!-- Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus nec iaculis mauris.
-            <a>#buefy</a>. -->
-                </div>
+                <section class="section opponent-battlefield" v-for="(card, idx) in boardstate.Battlefield">
+                    <Card :key="idx" v-bind="card" />
+                </section>
             </div>
             <footer class="card-footer">
                 <!-- <a class="card-footer-item">Save</a>
@@ -42,7 +29,6 @@
 
 <script>
 import Card from '@/components/Card';
-import { mapState } from 'vuex';
 export default {
     name: 'Opponent',
     data() {
@@ -58,3 +44,8 @@ export default {
     components: { Card },
 }
 </script>
+<style>
+.opponent-battlefield {
+    display: inline-block;
+}
+</style>
