@@ -20,9 +20,6 @@
         </div>
       </section>
 
-      <div class="block">
-      </div>
-
       <!-- TODO add the stack drop zone and field to the game object
         <b-collapse aria-id="contentIdForA11y2" class="panel" animation="slide" v-model="isStackOpen">
         <template #trigger>

@@ -983,3 +983,8 @@ I'm in the process of adding tool menus to the cards for easier interaction.
 - The background of the app should be static on mobile when dragging.
 - Cards can jump around after dragging has ended.
 - Cards zones are sometimes not saved and jump back to their previous zone on refresh
+
+## Notes 
+
+- I need to remove the event time column from the game store, it isn't even used and it should just be a property on the json object anyway.
+  - `alter table games drop column eventtime` or something like that.

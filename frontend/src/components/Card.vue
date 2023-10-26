@@ -1,16 +1,14 @@
 <template>
-  <div
-    v-bind:class="{
-      'd-none': hidden,
-      tapped: Tapped,
-      flipped: flipped,
-    }"
-  >
+  <div v-bind:class="{
+    'd-none': hidden,
+    tapped: Tapped,
+    flipped: flipped,
+  }">
     <div class="card">
       <div class="card-image fixed-size">
-        <figure class="image">
+        <!-- <figure class=""> -->
           <img :src="`https://api.scryfall.com/cards/${ScryfallID}?format=image`">
-        </figure>
+        <!-- </figure> -->
       </div>
 
       <footer class="card-footer">
@@ -19,7 +17,6 @@
         <a href="#" class="card-footer-item">Send</a> -->
       </footer>
     </div>
-
   </div>
 </template>
 <script>
@@ -58,12 +55,15 @@ export default {
   width: 160px;
   max-width: 160px;
 }
+
 .flipped {
   color: #000;
 }
+
 .column {
   padding: 0rem;
 }
+
 .card-content {
   padding: 0.7rem;
 }
