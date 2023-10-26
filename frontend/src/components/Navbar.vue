@@ -57,7 +57,7 @@ export default {
   }),
   methods: {
       handleLogout() {
-          this.$store.dispatch('logout')
+          this.$store.dispatch('Users/logout')
       }
   }
 }

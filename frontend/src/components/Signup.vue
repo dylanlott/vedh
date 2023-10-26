@@ -39,7 +39,7 @@ export default {
   },
   methods: {
     handleSignup() {
-      this.$store.dispatch('signup', {
+      this.$store.dispatch('Users/signup', {
         username: this.username,
         password: this.password,
       })
