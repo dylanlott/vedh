@@ -12,40 +12,36 @@
 
     <section>
       <!-- ### BATTLEFIELD -->
-      <div class="field">
-        <label class="label">Battlefield</label>
-        <div class="control">
-
-        <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone">
-          <!-- BATTLEFIELD -->
-          <DraggableCard class="item" v-for="card in self.Boardstate.Battlefield" :card="card" :user="user" :key="card.ID" />
-        </section>
-
-        </div>
-      </div>
+      <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone">
+        BATTLEFIELD
+        <DraggableCard class="item" v-for="card in self.Boardstate.Battlefield" :card="card" :user="user"
+          :key="card.ID" />
+      </section>
 
       <section id="Hand" v-if="self" class="hand dropzone outer-dropzone">
         HAND
         <DraggableCard class="item" v-for="card in self.Boardstate.Hand" :card="card" :user="user" :key="card.ID" />
       </section>
 
-      <div class="columns">
-        <section id="Graveyard" v-if="self" class="dropzone outer-dropzone column">
-        GRAVEYARD 
-          <DraggableCard class="item" v-for="card in self.Boardstate.Graveyard" :card="card" :user="user" :key="card.ID" />
-        </section>
-        
-        <section id="Exiled" v-if="self" class="dropzone outer-dropzone column">
-        EXILED
-          <DraggableCard class="item" v-for="card in self.Boardstate.Exiled" :card="card" :user="user" :key="card.ID" />
-        </section>
-        
-        <section id="Revealed" v-if="self" class="dropzone outer-dropzone column">
-          REVEALED
-          <DraggableCard class="item" v-for="card in self.Boardstate.Revealed" :card="card" :user="user" :key="card.ID" />
-        </section>
-      </div>
+      <div class="shell">
+        <div class="columns">
+          <section id="Graveyard" v-if="self" class="dropzone outer-dropzone column">
+            GRAVEYARD
+            <DraggableCard class="item" v-for="card in self.Boardstate.Graveyard" :card="card" :user="user"
+              :key="card.ID" />
+          </section>
 
+          <section id="Exiled" v-if="self" class="dropzone outer-dropzone column">
+            EXILED
+            <DraggableCard class="item" v-for="card in self.Boardstate.Exiled" :card="card" :user="user" :key="card.ID" />
+          </section>
+
+          <section id="Revealed" v-if="self" class="dropzone outer-dropzone column">
+            REVEALED
+            <DraggableCard class="item" v-for="card in self.Boardstate.Revealed" :card="card" :user="user" :key="card.ID" />
+          </section>
+        </div>
+      </div>
       <!-- INVITE LINK -->
       <section>
         <b-modal :active="isInviteModalOpen">
@@ -203,7 +199,7 @@ export default {
   },
   created() {
     // load the initial game state
-    this.$store.dispatch('Games/getGame', { 
+    this.$store.dispatch('Games/getGame', {
       gameID: this.$route.params.id
     })
 
@@ -283,7 +279,7 @@ export default {
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
       },
-    });  
+    });
 
     interact('#Graveyard').dropzone({
       // Require a 50% element overlap for a drop to be possible
@@ -318,7 +314,7 @@ export default {
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
       },
-    });  
+    });
 
     interact('#Exiled').dropzone({
       // Require a 50% element overlap for a drop to be possible
@@ -353,9 +349,9 @@ export default {
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
       },
-    });  
-    
-    
+    });
+
+
     interact('#Revealed').dropzone({
       // Require a 50% element overlap for a drop to be possible
       overlap: 0.50,
@@ -389,7 +385,7 @@ export default {
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
       },
-    });  
+    });
 
   },
   computed: {
@@ -513,15 +509,18 @@ export default {
   width: auto;
   margin: 10px;
 }
+
 .shell {
   padding: 0.5rem;
   border: 1px solid #efefef;
   margin: 0.25rem 0rem;
 }
+
 .hand {
   height: 170px;
   display: flex;
 }
+
 .bordered {
   border: 1px #000;
 }
@@ -590,6 +589,4 @@ export default {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-}
-
-</style>
+}</style>
