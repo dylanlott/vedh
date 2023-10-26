@@ -82,41 +82,42 @@
       <!-- END INVITE LINK -->
 
       <!-- COMMANDER SELECTION  -->
-      <!-- <section>
+      <section>
         <b-modal
           has-modal-card
           :active="isCommanderSelectionOpen"
           trap-focus
           :destroy-on-hide="false"
           aria-role="dialog"
-          aria-label="Example Modal"
+          aria-label="Commander Selection Modal"
           close-button-aria-label="Close"
           aria-modal
         >
           <div class="card">
             <div class="card-content">
-              <div class="content">
+              <div class="content" v-if="self">
                 <b-field label="Select your Commander(s) from your library:">
                   <b-autocomplete
-                    v-model="name"
+                  v-model="searchQuery"
                     placeholder="e.g. Kykar, Wind's Fury"
                     :open-on-focus="openOnFocus"
                     :data="filteredCommanderData"
                     field="Name"
-                    @select="
-                      (option) => {
-                        option ? addCommander(option) : null;
-                      }
-                    "
                     :clearable="clearable"
+                    @select="option => {
+                      if (!!searchQuery) {
+                        selectedCommander = option
+                        addCommander(option)
+                      }
+                    }" 
                   >
                   </b-autocomplete>
                 </b-field>
                 <b-field>
                   <b-tag
                     :key="key"
-                    v-if="self.Commander.length > 0"
-                    v-for="(obj, key) in self.Commander"
+                    v-if="self.Boardstate.Commander.length > 0"
+                    v-for="(obj, key) in self.Boardstate.Commander"
                     type="is-primary"
                     closable
                     aria-close-label="Close tag"
@@ -137,15 +138,15 @@
             </footer>
           </div>
         </b-modal>
-      </section> -->
+      </section>
 
       <!-- SCRY MODAL  -->
       <b-modal :active="isScryModalOpen">
         <div v-if="self" class="modal-card" width="400px">
           <header class="modal-card-head"></header>
-          <section v-if="self.Library" class="modal-card-body">
+          <section v-if="self.Boardstate.Library" class="modal-card-body">
             <!-- TODO: Handle scry X instead of assuming just scry 1 -->
-            <Card v-if="isScryModalOpen" v-bind="self.Library[0]" />
+            <Card v-if="isScryModalOpen" v-bind="self.Boardstate.Library[0]" />
           </section>
           <footer class="modal-card-foot">
             <b-button @click="toggleScryModal()">Close</b-button>
@@ -168,14 +169,14 @@
               <span>Draw</span>
             </button>
           </b-navbar-item>
-          <!-- <b-navbar-item @click="toggleScryModal()" href="#">
+          <b-navbar-item @click="toggleScryModal()" href="#">
             <button class="button is-primary is-small">
               <span class="icon">
                 <i class="fa fa-book"></i>
               </span>
               <span>Scry</span>
             </button>
-          </b-navbar-item> -->
+          </b-navbar-item>
           <b-navbar-item>
             <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen"
               >Invite a friend</b-button
@@ -186,11 +187,11 @@
         <template #end>
           <b-navbar-item tag="div">
             <div class="buttons">
-              <!-- <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen" class="button is-dark is-small"
+              <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen" class="button is-dark is-small"
                 >Commanders</a
               >
-              <a @click="handleTapAll()" class="button is-dark is-small"><strong>Tap All</strong></a>
-              <a @click="handleUntapAll()" class="button is-light is-small">Untap All</a> -->
+              <!-- <a @click="handleTapAll()" class="button is-dark is-small"><strong>Tap All</strong></a> -->
+              <!-- <a @click="handleUntapAll()" class="button is-light is-small">Untap All</a> -->
             </div>
           </b-navbar-item>
         </template>
@@ -212,12 +213,12 @@ export default {
     return {
       keepFirst: false,
       openOnFocus: false,
-      name: '',
+      searchQuery: '',
       isStackOpen: true,
       selected: '',
       clearable: true,
-      isCommanderSelectionOpen: true, // NB: default open at start
-      // modal bools
+      selectedCommander: undefined,
+      isCommanderSelectionOpen: true,
       isInviteModalOpen: false,
       isScryModalOpen: false,
       isCreateTokenModalOpen: false,
@@ -433,6 +434,14 @@ export default {
       const userID = this.$store.state.Users.User.ID
       const opps = players.filter(x => x.ID != userID)
       return opps
+    },
+    filteredCommanderData() {
+      const filteredCommanders = this.self.Boardstate.Library.filter((card) => {
+        const name = card.Name.toLowerCase() 
+        const query = this.searchQuery.toLowerCase()
+        return name.includes(query);
+      })
+      return filteredCommanders
     }
   },
   methods: {
@@ -446,18 +455,17 @@ export default {
       this.$store.dispatch('Games/sync', this.game);
     },
     handleTap(card) {
-      // TODO: Make this a vuex boardstate action
-      // card.Tapped = !card.Tapped;
-      // this.handleChange();
+      card.Tapped = !card.Tapped;
+      this.handleChange();
     },
     handleTapAll() {
-      // this.$store.dispatch('tapAll', this.self);
+      // this.$store.dispatch('tapAll', this.self);  // TODO
     },
     handleUntapAll() {
-      // this.$store.dispatch('untapAll', this.self);
+      // this.$store.dispatch('untapAll', this.self); // TODO 
     },
     toggleScryModal() {
-      // this.isScryModalOpen = !this.isScryModalOpen;
+      this.isScryModalOpen = !this.isScryModalOpen;
     },
     toggleCreateTokenModal() {
       // this.isCreateTokenModalOpen = !this.isCreateTokenModalOpen;
@@ -493,15 +501,18 @@ export default {
     },
     // commander is a card type here
     addCommander(commander) {
-      // this.self.Library = this.self.Library.filter((option) => (option ? commander.Name != option.Name : false));
-      // this.self.Commander.push(commander);
-      // this.handleChange();
+      this.self.Boardstate.Library = this.self.Boardstate.Library.filter((option) => (option ? commander.Name != option.Name : false));
+      this.self.Boardstate.Commander.push(commander);
+      this.handleChange();
     },
     removeCommander(commander) {
-      // this.self.Library.push(commander);
-      // this.self.Commander = this.self.Commander.filter((option) => commander.Name != option.Name);
-      // this.handleChange();
+      this.self.Boardstate.Library.push(commander);
+      this.self.Boardstate.Commander = this.self.Boardstate.Commander.filter((option) => commander.Name != option.Name);
+      this.handleChange();
     },
+    triggerShuffle() {
+      // todo 
+    }
   },
   components: {
     Card,

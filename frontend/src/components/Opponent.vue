@@ -1,10 +1,18 @@
 <template>
     <div>
+        <div>
+        </div>
         <b-collapse class="card" animation="slide" aria-id="contentIdForA11y3">
             <template #trigger="props">
                 <div class="card-header" role="button" aria-controls="contentIdForA11y3" :aria-expanded="props.open">
                     <p class="card-header-title">
                         {{ username }} - [ {{ boardstate.Life }} ]
+
+                    <div v-if="boardstate.Commander">
+                        <div v-for="cmd in boardstate.Commander">
+                            Commander: {{ cmd.Name }}
+                        </div>
+                    </div>
                     </p>
                     <a class="card-header-icon">
                         <b-icon :icon="props.open ? 'menu-down' : 'menu-up'">
@@ -40,6 +48,7 @@ export default {
     components: { Card },
 }
 </script>
+
 <style>
 .opponent-battlefield {
     display: inline-block;
