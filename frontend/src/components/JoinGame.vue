@@ -6,21 +6,21 @@
           <h1 class="title is-1">You've been invited to a Commander game.</h1>
           <h1 class="title is-4">Paste a decklist and join.</h1>
 
-          <!-- <code>{{ game }}</code> -->
-
           <p v-if="game.Players.length > 1">There are {{ game.Players.length }} other players in this game.</p>
           <p v-if="game.Players.length === 1">There is {{ game.Players.length }} other player in this game.</p>
-          <p v-if="game.Players.length === 0">There is no other player in this game. Are you sure you got the code right?</p><br>
+          <p v-if="game.Players.length === 0">There is no other player in this game. Are you sure you got the code right?
+          </p><br>
 
           <b-field label="Decklist" label-position="on-border">
             <b-input maxlength="200000" v-model="decklist" type="textarea"></b-input>
           </b-field>
 
-          <div v-if="!user.Username">
+          <!-- Uncomment when anonymous players are supported again -->
+          <!-- <div v-if="!user.Username">
             <b-field label="Add a username?">
               <b-input v-model="username"></b-input>
             </b-field>
-          </div>
+          </div> -->
 
           <b-button @click="handleJoinGame()" type="button" class="is-success">Join Game</b-button>
         </div>
@@ -46,16 +46,16 @@ export default {
     }),
   },
   created() {
-    this.$store.dispatch('Games/getGame', { 
+    this.$store.dispatch('Games/getGame', {
       gameID: this.$route.params.id
     })
   },
   methods: {
     handleJoinGame() {
-      // var rid = this.uuid()
-      // let userID = this.user.ID
       if (this.isUserAnonymous()) {
-        // TODO  set user properties correctly for later assignment to `self`
+        // TODO support anonymous players in the future
+        // var rid = this.uuid()
+        // let userID = this.user.ID
       }
       this.$store.dispatch('Games/joinGame', {
         inputGame: {
@@ -64,8 +64,8 @@ export default {
           BoardState: {
             GameID: this.$route.params.id,
             UserID: this.user.ID,
-            User: this.username,
-            Life: 40, // TODO assign based on game's format instead of hard coding
+            User: this.user.Username,
+            Life: 40,
           },
         },
       });
@@ -85,5 +85,4 @@ export default {
   },
 };
 </script>
-<style>
-</style>
+<style></style>
