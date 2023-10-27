@@ -61,6 +61,7 @@ type Game struct {
 	Rules     []*Rule   `json:"Rules"`
 	Turn      *Turn     `json:"Turn"`
 	Players   []*User   `json:"Players"`
+	Stack     []*Card   `json:"Stack"`
 }
 
 type InputBoardState struct {
@@ -134,6 +135,7 @@ type InputGame struct {
 	Handle    *string      `json:"Handle"`
 	Rules     []*InputRule `json:"Rules"`
 	Players   []*InputUser `json:"Players"`
+	Stack     []*InputCard `json:"Stack"`
 }
 
 type InputJoinGame struct {
