@@ -328,7 +328,6 @@ export const Cards = {
 }
 
 export const store = new Vuex.Store({
-
   modules: {
     Cards,
     Games,
