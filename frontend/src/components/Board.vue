@@ -471,14 +471,14 @@ export default {
       // this.isCreateTokenModalOpen = !this.isCreateTokenModalOpen;
     },
     handleScryBottom() {
-      // this.isScryModalOpen = false;
-      // const copy = Object.assign({}, this.self);
-      // const card = copy.Library.shift();
-      // if (card) {
-      //   // scrying an empty library causes nothing to happen
-      //   copy.Library.push(card);
-      //   return this.$store.dispatch('mutateBoardState', copy);
-      // }
+      this.isScryModalOpen = false;
+      const copy = Object.assign({}, this.self);
+      const card = copy.Boardstate.Library.shift();
+      if (card) {
+        // scrying an empty library causes nothing to happen
+        copy.Boardstate.Library.push(card);
+        this.handleChange();
+      }
     },
     // TODO: pull invite link out into its own component
     inviteLink() {
