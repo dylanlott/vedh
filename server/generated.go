@@ -101,6 +101,7 @@ type ComplexityRoot struct {
 		ID        func(childComplexity int) int
 		Players   func(childComplexity int) int
 		Rules     func(childComplexity int) int
+		Stack     func(childComplexity int) int
 		Turn      func(childComplexity int) int
 	}
 
@@ -488,6 +489,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Game.Rules(childComplexity), true
+
+	case "Game.Stack":
+		if e.complexity.Game.Stack == nil {
+			break
+		}
+
+		return e.complexity.Game.Stack(childComplexity), true
 
 	case "Game.Turn":
 		if e.complexity.Game.Turn == nil {
@@ -3511,6 +3519,99 @@ func (ec *executionContext) fieldContext_Game_Players(ctx context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Game_Stack(ctx context.Context, field graphql.CollectedField, obj *Game) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Game_Stack(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Stack, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*Card)
+	fc.Result = res
+	return ec.marshalOCard2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐCard(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Game_Stack(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Game",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "FaceName":
+				return ec.fieldContext_Card_FaceName(ctx, field)
+			case "Name":
+				return ec.fieldContext_Card_Name(ctx, field)
+			case "ID":
+				return ec.fieldContext_Card_ID(ctx, field)
+			case "Quantity":
+				return ec.fieldContext_Card_Quantity(ctx, field)
+			case "Tapped":
+				return ec.fieldContext_Card_Tapped(ctx, field)
+			case "Flipped":
+				return ec.fieldContext_Card_Flipped(ctx, field)
+			case "Counters":
+				return ec.fieldContext_Card_Counters(ctx, field)
+			case "Colors":
+				return ec.fieldContext_Card_Colors(ctx, field)
+			case "ColorIdentity":
+				return ec.fieldContext_Card_ColorIdentity(ctx, field)
+			case "FaceManaValue":
+				return ec.fieldContext_Card_FaceManaValue(ctx, field)
+			case "FaceConvertedManaCost":
+				return ec.fieldContext_Card_FaceConvertedManaCost(ctx, field)
+			case "CMC":
+				return ec.fieldContext_Card_CMC(ctx, field)
+			case "ManaCost":
+				return ec.fieldContext_Card_ManaCost(ctx, field)
+			case "UUID":
+				return ec.fieldContext_Card_UUID(ctx, field)
+			case "Power":
+				return ec.fieldContext_Card_Power(ctx, field)
+			case "Toughness":
+				return ec.fieldContext_Card_Toughness(ctx, field)
+			case "Types":
+				return ec.fieldContext_Card_Types(ctx, field)
+			case "Subtypes":
+				return ec.fieldContext_Card_Subtypes(ctx, field)
+			case "Supertypes":
+				return ec.fieldContext_Card_Supertypes(ctx, field)
+			case "Text":
+				return ec.fieldContext_Card_Text(ctx, field)
+			case "TCGID":
+				return ec.fieldContext_Card_TCGID(ctx, field)
+			case "ScryfallID":
+				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_signup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_signup(ctx, field)
 	if err != nil {
@@ -3694,6 +3795,8 @@ func (ec *executionContext) fieldContext_Mutation_createGame(ctx context.Context
 				return ec.fieldContext_Game_Turn(ctx, field)
 			case "Players":
 				return ec.fieldContext_Game_Players(ctx, field)
+			case "Stack":
+				return ec.fieldContext_Game_Stack(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3761,6 +3864,8 @@ func (ec *executionContext) fieldContext_Mutation_joinGame(ctx context.Context, 
 				return ec.fieldContext_Game_Turn(ctx, field)
 			case "Players":
 				return ec.fieldContext_Game_Players(ctx, field)
+			case "Stack":
+				return ec.fieldContext_Game_Stack(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3828,6 +3933,8 @@ func (ec *executionContext) fieldContext_Mutation_updateGame(ctx context.Context
 				return ec.fieldContext_Game_Turn(ctx, field)
 			case "Players":
 				return ec.fieldContext_Game_Players(ctx, field)
+			case "Stack":
+				return ec.fieldContext_Game_Stack(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -4033,6 +4140,8 @@ func (ec *executionContext) fieldContext_Query_games(ctx context.Context, field 
 				return ec.fieldContext_Game_Turn(ctx, field)
 			case "Players":
 				return ec.fieldContext_Game_Players(ctx, field)
+			case "Stack":
+				return ec.fieldContext_Game_Stack(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -4100,6 +4209,8 @@ func (ec *executionContext) fieldContext_Query_getGame(ctx context.Context, fiel
 				return ec.fieldContext_Game_Turn(ctx, field)
 			case "Players":
 				return ec.fieldContext_Game_Players(ctx, field)
+			case "Stack":
+				return ec.fieldContext_Game_Stack(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -4713,6 +4824,8 @@ func (ec *executionContext) fieldContext_Subscription_gameUpdated(ctx context.Co
 				return ec.fieldContext_Game_Turn(ctx, field)
 			case "Players":
 				return ec.fieldContext_Game_Players(ctx, field)
+			case "Stack":
+				return ec.fieldContext_Game_Stack(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -7399,6 +7512,14 @@ func (ec *executionContext) unmarshalInputInputGame(ctx context.Context, obj int
 			if err != nil {
 				return it, err
 			}
+		case "Stack":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Stack"))
+			it.Stack, err = ec.unmarshalOInputCard2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputCard(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -7945,6 +8066,10 @@ func (ec *executionContext) _Game(ctx context.Context, sel ast.SelectionSet, obj
 		case "Players":
 
 			out.Values[i] = ec._Game_Players(ctx, field, obj)
+
+		case "Stack":
+
+			out.Values[i] = ec._Game_Stack(ctx, field, obj)
 
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
