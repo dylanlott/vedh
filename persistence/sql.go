@@ -36,7 +36,7 @@ func NewDB(dbURL string) (*sql.DB, error) {
 // NewPostgres returns a migrated sql.DB with a Postgres database connection
 // migdir is the relative path to the migrations directory.
 func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
-	log.Printf("opening PostgreSQL database connection")
+	log.Printf("💾 opening PostgreSQL database connection")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Printf("failed to get new postgres: %s", err)
