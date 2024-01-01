@@ -1,12 +1,9 @@
 /*
-This is a script for downloading the latest zipped CSV from MTGJSON and then
-importing it into our database.
-
-It unzips the file into the project root, but will cleanup after itself.
-
-// MAKE SURE THAT THIS IS TRUE.
-It is idempotent and will upsert cards in the `cards` database based on
-their ID's retrieved from the AllPrintings CSV file.
+db_import.go is a script for downloading the latest zipped CSV from the MTGJSON source
+and then importing it into a target SQL database. It unzips the downloaded file into
+the project root and then attempts to import all of the cards in the `allprintings.csv`
+file. It is written as a CLI utility with some convenience functionality wrapped around
+it for verbose logging and targeting different databases.
 */
 
 package main
@@ -19,6 +16,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -36,8 +34,6 @@ func init() {
 
 // DBURL accesses a local Postgres instance running for local development.
 var DBURL = "postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable"
-
-// var DBURL = os.Getenv("EDHGO_PG_URL")
 
 // CSVCard is a struct that exactly follows the structure of the AllPrintingsCSV
 // file that we get from MTGJSON.
@@ -79,32 +75,42 @@ type CSVCard struct {
 	Types                  string `csv:"types"`
 	UUID                   string `csv:"uuid"`
 }
+type ImportReport struct {
+	success int64
+	errors  int64
+}
 
 // TODO: Make this a commandline utility.
 func main() {
-	var refresh bool = true
+	var refresh bool = false
 	var dburl string = DBURL
-	var drop bool = false
-
+	var verbose bool = false
 	flag.Bool("refresh", refresh, "refresh specifies whether the card database should be downloaded fresh. defaults to false.")
-	flag.StringVar(&dburl, "db", DBURL, "import target database connection url. defaults to localhost:5432/edhgo")
-	flag.Bool("drop", drop, "if drop is enabled then the database table will be dropped before the new set is loaded")
-
+	flag.StringVar(&dburl, "db", DBURL, "connection URL for target import database. defaults to localhost:5432/edhgo")
+	flag.Bool("verbose", verbose, "specifies if the log output should be more verbose")
 	flag.Parse()
 
-	conn, err := persistence.NewDB(DBURL)
+	parsed, err := url.Parse(dburl)
 	if err != nil {
-		log.Fatalf("failed to connecto to postgres for import: %s", err)
+		log.Fatalf("🚨 failed to parse url: %s", err)
+	}
+	if verbose {
+		log.Printf("🚀 import targeting %s", parsed.Host)
+	}
+	conn, err := persistence.NewDB(dburl)
+	if err != nil {
+		log.Fatalf("🚨 failed to connecto to postgres for import: %s", err)
 	}
 
 	if refresh {
+		log.Printf("🔌 refreshing card sources before import")
 		updateAndUnzip()
 	}
 
 	// open up the file for reading
 	f, err := os.Open("./cards.csv")
 	if err != nil {
-		log.Fatalf("failed to open file: %s", err)
+		log.Fatalf("🚨 failed to open file: %s", err)
 	}
 	defer f.Close()
 
@@ -114,8 +120,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to unmarshal csv: %s", err)
 	}
-	log.Printf("attempting to insert %d cards into postgres", len(cards))
-	success := 0
+
+	log.Printf("📊 attempting to import %d cards into target database", len(cards))
+
+	report := ImportReport{
+		success: 0,
+		errors:  0,
+	}
+
 	for _, c := range cards {
 		// insert each card that we read in
 		_, err := conn.Exec(insertSQL, c.ID, c.Artist, c.AsciiName, c.Availability,
@@ -128,13 +140,15 @@ func main() {
 			c.Text, c.Toughness, c.Type, c.Types, c.UUID,
 		)
 		if err != nil {
-			log.Printf("failed to insert card [%s]: %s", c.Name, err)
+			log.Printf("🚨 failed to insert card [%s]: %s", c.Name, err)
+			report.errors++
 			continue
+		} else {
+			log.Printf("↘️ importing %v", c.Name)
+			report.success++
 		}
-		log.Printf("successfully imported %v", c.Name)
-		success++
 	}
-	log.Printf("imported %d cards", success)
+	log.Printf("📊 import report: %+v", report)
 }
 
 var insertSQL string = `INSERT INTO cards (
@@ -272,20 +286,21 @@ func DownloadFile(filepath string, url string) error {
 	_, err = io.Copy(out, resp.Body)
 	return err
 }
+
 func updateAndUnzip() {
-	log.Printf("refreshing allprintings.csv file")
+	log.Printf("✨ refreshing allprintings file")
 	// Let's take a stab at CSV rendering
 	// Download the CSV AllPrintings zip file
 	err := DownloadFile("./allprintings.csv.zip", "https://mtgjson.com/api/v5/AllPrintingsCSVFiles.zip")
 	if err != nil {
-		log.Fatalf("failed to download file: %s", err)
+		log.Fatalf("🚨 failed to download file: %s", err)
 	}
 
 	// // Commented out until cleanup is written.
 	// // Unzip the CSV file and get the path
 	err = UnzipFile("./allprintings.csv.zip")
 	if err != nil {
-		log.Fatalf("failed to unzip file: %s", err)
+		log.Fatalf("🚨 failed to unzip file: %s", err)
 	}
-	log.Printf("unzipped allprintings.csv file successfully")
+	log.Printf("👌 unzipped allprintings.csv file successfully")
 }
