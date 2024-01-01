@@ -81,7 +81,6 @@ type ImportReport struct {
 	errors  int64
 }
 
-// TODO: Make this a commandline utility.
 func main() {
 	var dburl = flag.String("db", DBURL, "connection URL for target import database. defaults to localhost:5432/edhgo")
 	var refresh = flag.Bool("refresh", false, "refresh specifies whether the card database should be downloaded fresh. defaults to false.")
