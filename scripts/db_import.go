@@ -75,6 +75,7 @@ type CSVCard struct {
 	Types                  string `csv:"types"`
 	UUID                   string `csv:"uuid"`
 }
+
 type ImportReport struct {
 	success int64
 	errors  int64
@@ -82,27 +83,27 @@ type ImportReport struct {
 
 // TODO: Make this a commandline utility.
 func main() {
-	var refresh bool = false
-	var dburl string = DBURL
-	var verbose bool = false
-	flag.Bool("refresh", refresh, "refresh specifies whether the card database should be downloaded fresh. defaults to false.")
-	flag.StringVar(&dburl, "db", DBURL, "connection URL for target import database. defaults to localhost:5432/edhgo")
-	flag.Bool("verbose", verbose, "specifies if the log output should be more verbose")
+	var dburl = flag.String("db", DBURL, "connection URL for target import database. defaults to localhost:5432/edhgo")
+	var refresh = flag.Bool("refresh", false, "refresh specifies whether the card database should be downloaded fresh. defaults to false.")
+	var verbose = flag.Bool("verbose", false, "specifies if the log output should be more verbose")
+
 	flag.Parse()
 
-	parsed, err := url.Parse(dburl)
+	parsed, err := url.Parse(*dburl)
 	if err != nil {
 		log.Fatalf("🚨 failed to parse url: %s", err)
 	}
-	if verbose {
+
+	if *verbose {
 		log.Printf("🚀 import targeting %s", parsed.Host)
 	}
-	conn, err := persistence.NewDB(dburl)
+
+	conn, err := persistence.NewDB(*dburl)
 	if err != nil {
 		log.Fatalf("🚨 failed to connecto to postgres for import: %s", err)
 	}
 
-	if refresh {
+	if *refresh {
 		log.Printf("🔌 refreshing card sources before import")
 		updateAndUnzip()
 	}
