@@ -431,10 +431,13 @@ export default {
       let self = this.self;
       let game = this.game;
 
+      if (card.CurrentZone === "Battlefield" || card.CurrentZone === "Stack") {
+        // don't do anything if the card is already on the battlefield.
+        return
+      }
+
       // find the card in hand, graveyard, or exile
       for (let zone in self.Boardstate) {
-        console.log('searching ', zone)
-
         // don't loop if it's not an array
         if (!Array.isArray(self.Boardstate[zone])) {
           continue
@@ -445,15 +448,14 @@ export default {
           continue
         }
 
-        console.log(self.Boardstate[zone])
-        
         // not an empty pile, try to find target card
         let idx = self.Boardstate[zone].findIndex(x => x.ID === card.ID)
         if (idx > -1) {
           // move it to stack 
-          console.log(self)
+          card.CurrentZone = "Stack"
           game.Stack.push(self.Boardstate[zone][idx])
           self.Boardstate[zone].splice(idx, 1)
+          this.handleChange();
         }
       }
     },
@@ -499,11 +501,11 @@ export default {
     },
     copyToClipboard(text) {
       var dummy = document.createElement('textarea');
-      // to avoid breaking orgain page when copying more words
+      // to avoid breaking origin page when copying more words
       // cant copy when adding below this code
       // dummy.style.display = 'none'
       document.body.appendChild(dummy);
-      //Be careful if you use texarea. setAttribute('value', value),
+      // Be careful if you use texarea. setAttribute('value', value),
       // which works with "input" does not work with "textarea"
       dummy.value = text;
       dummy.select();
@@ -523,7 +525,7 @@ export default {
       this.handleChange();
     },
     triggerShuffle() {
-      // todo 
+      // TODO 
     }
   },
   components: {
