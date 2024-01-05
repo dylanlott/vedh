@@ -1,13 +1,5 @@
 <template>
   <div class="board">
-    <!-- DEBUG COMMENTS - UNCOMMENT TO SEE THIS DATA -->
-    <!-- <code>  
-      {{ self }}
-    </code>
-    <br>
-    <code>  
-      {{  game }}
-    </code> -->
     <section class="myself">
       <!-- ### OPPONENTS -->
       <section v-if="self && opps" id="Opponents" class="opponents dropzone outer-dropzone">
@@ -20,33 +12,41 @@
         </div>
       </section>
 
-      <!-- TODO add the stack drop zone and field to the game object
-        <b-collapse aria-id="contentIdForA11y2" class="panel" animation="slide" v-model="isStackOpen">
+      <!-- ### STACK -->
+      <b-collapse aria-id="contentIdForA11y2" class="panel" animation="slide" v-model="isStackOpen">
         <template #trigger>
           <div class="panel-heading" role="button" aria-controls="contentIdForA11y2" :aria-expanded="isStackOpen">
             <strong>Stack</strong>
           </div>
         </template>
-        <div class="panel-block">
-          <div>
-            STACK DROP ZONE
+        <div id="Stack" class="panel-block stack dropzone outer-dropzone">
+          <div class="container">
+            <DraggableCard class="item" v-for="card in game.Stack" :card="card" :user="user" :handlers="{
+              tap: handlers.tap,
+              cast: handlers.cast,
+            }" :key="card.ID" />
           </div>
         </div>
-      </b-collapse> -->
-
+      </b-collapse>
 
       <!-- ### BATTLEFIELD -->
       <section v-if="self" id="Battlefield" class="battlefield dropzone outer-dropzone">
         BATTLEFIELD
-        <DraggableCard class="item" v-for="card in self.Boardstate.Battlefield" :card="card" :user="user"
-          :key="card.ID" />
+        <DraggableCard class="item" v-for="card in self.Boardstate.Battlefield" :card="card" :user="user" :key="card.ID"
+          :handlers="{
+            tap: handlers.tap,
+            cast: handlers.cast,
+          }" />
       </section>
 
-      <section id="Hand" v-if="self" class="hand dropzone outer-dropzone">
+      <!-- ### HAND -->
+      <section id="Hand" v-if="self" class="container hand dropzone outer-dropzone">
         HAND
-        <DraggableCard class="item" v-for="card in self.Boardstate.Hand" :card="card" :user="user" :key="card.ID" />
+        <DraggableCard class="item" v-for="card in self.Boardstate.Hand" :card="card" :user="user" :key="card.ID"
+          :handlers="handlers" />
       </section>
 
+      <!-- ### GRAVEYARD -->
       <div class="shell">
         <div class="columns">
           <section id="Graveyard" v-if="self" class="dropzone outer-dropzone column">
@@ -55,6 +55,7 @@
               :key="card.ID" />
           </section>
 
+          <!-- ### GRAVEYARD -->
           <section id="Exiled" v-if="self" class="dropzone outer-dropzone column">
             EXILED
             <DraggableCard class="item" v-for="card in self.Boardstate.Exiled" :card="card" :user="user" :key="card.ID" />
@@ -83,58 +84,33 @@
 
       <!-- COMMANDER SELECTION  -->
       <section>
-        <b-modal
-          has-modal-card
-          :active="isCommanderSelectionOpen"
-          trap-focus
-          :destroy-on-hide="false"
-          aria-role="dialog"
-          aria-label="Commander Selection Modal"
-          close-button-aria-label="Close"
-          aria-modal
-        >
+        <b-modal has-modal-card :active="isCommanderSelectionOpen" trap-focus :destroy-on-hide="false" aria-role="dialog"
+          aria-label="Commander Selection Modal" close-button-aria-label="Close" aria-modal>
           <div class="card">
             <div class="card-content">
               <div class="content" v-if="self">
                 <b-field label="Select your Commander(s) from your library:">
-                  <b-autocomplete
-                  v-model="searchQuery"
-                    placeholder="e.g. Kykar, Wind's Fury"
-                    :open-on-focus="openOnFocus"
-                    :data="filteredCommanderData"
-                    field="Name"
-                    :clearable="clearable"
-                    @select="option => {
+                  <b-autocomplete v-model="searchQuery" placeholder="e.g. Kykar, Wind's Fury" :open-on-focus="openOnFocus"
+                    :data="filteredCommanderData" field="Name" :clearable="clearable" @select="option => {
                       if (!!searchQuery) {
                         selectedCommander = option
                         addCommander(option)
                       }
-                    }" 
-                  >
+                    }">
                   </b-autocomplete>
                 </b-field>
                 <b-field>
-                  <b-tag
-                    :key="key"
-                    v-if="self.Boardstate.Commander.length > 0"
-                    v-for="(obj, key) in self.Boardstate.Commander"
-                    type="is-primary"
-                    closable
-                    aria-close-label="Close tag"
-                    @close="removeCommander(obj)"
-                  >
+                  <b-tag :key="key" v-if="self.Boardstate.Commander.length > 0"
+                    v-for="(obj, key) in self.Boardstate.Commander" type="is-primary" closable
+                    aria-close-label="Close tag" @close="removeCommander(obj)">
                     <b>{{ obj.Name }}</b>
                   </b-tag>
                 </b-field>
               </div>
             </div>
             <footer class="modal-card-foot">
-              <b-button
-                type="is-primary is-light"
-                size="is-small"
-                @click="isCommanderSelectionOpen = !isCommanderSelectionOpen"
-                >Done</b-button
-              >
+              <b-button type="is-primary is-light" size="is-small"
+                @click="isCommanderSelectionOpen = !isCommanderSelectionOpen">Done</b-button>
             </footer>
           </div>
         </b-modal>
@@ -178,18 +154,16 @@
             </button>
           </b-navbar-item>
           <b-navbar-item>
-            <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen"
-              >Invite a friend</b-button
-            >
+            <b-button type="is-primary is-small" @click="isInviteModalOpen = !isInviteModalOpen">Invite a
+              friend</b-button>
           </b-navbar-item>
         </template>
 
         <template #end>
           <b-navbar-item tag="div">
             <div class="buttons">
-              <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen" class="button is-dark is-small"
-                >Commanders</a
-              >
+              <a @click="isCommanderSelectionOpen = !isCommanderSelectionOpen"
+                class="button is-dark is-small">Commanders</a>
               <!-- <a @click="handleTapAll()" class="button is-dark is-small"><strong>Tap All</strong></a> -->
               <!-- <a @click="handleUntapAll()" class="button is-light is-small">Untap All</a> -->
             </div>
@@ -222,6 +196,10 @@ export default {
       isInviteModalOpen: false,
       isScryModalOpen: false,
       isCreateTokenModalOpen: false,
+      handlers: {
+        tap: this.handleTap,
+        cast: this.handleCast,
+      }
     };
   },
   created() {
@@ -236,37 +214,60 @@ export default {
       userID: this.user.ID,
     });
 
-    interact('#Battlefield').dropzone({
+    interact('#Stack').dropzone({
       // Require a 50% element overlap for a drop to be possible
       overlap: 0.50,
       // listen for drop related events:
       ondropactivate: function (event) {
-        // console.log('ON DRAG ACTIVATE BATTLEFIELD', event);
         // add active dropzone feedback
         event.target.classList.add('drop-active');
       },
       ondragenter: function (event) {
-        // console.log('ON DRAG ENTER BATTLEFIELD', event);
         var draggableElement = event.relatedTarget;
         var dropzoneElement = event.target;
 
         // feedback the possibility of a drop
         dropzoneElement.classList.add('drop-target');
         draggableElement.classList.add('can-drop');
-        // draggableElement.textContent = 'Dragged in';
       },
       ondragleave: function (event) {
-        // console.log('ON DRAG LEAVE BATTLEFIELD', event);
         // remove the drop feedback style
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
-        // event.relatedTarget.textContent = 'Dragged out';
       },
       ondrop: function (event) {
-        // console.log("dropped into battlefield:", event)
       },
       ondropdeactivate: function (event) {
-        // console.log('ON DROP DEACTIVATE', event);
+        // remove active dropzone feedback
+        event.target.classList.remove('drop-active');
+        event.target.classList.remove('drop-target');
+      },
+    });
+
+    interact('#Battlefield').dropzone({
+      // Require a 50% element overlap for a drop to be possible
+      overlap: 0.50,
+      // listen for drop related events:
+      ondropactivate: function (event) {
+        // add active dropzone feedback
+        event.target.classList.add('drop-active');
+      },
+      ondragenter: function (event) {
+        var draggableElement = event.relatedTarget;
+        var dropzoneElement = event.target;
+
+        // feedback the possibility of a drop
+        dropzoneElement.classList.add('drop-target');
+        draggableElement.classList.add('can-drop');
+      },
+      ondragleave: function (event) {
+        // remove the drop feedback style
+        event.target.classList.remove('drop-target');
+        event.relatedTarget.classList.remove('can-drop');
+      },
+      ondrop: function (event) {
+      },
+      ondropdeactivate: function (event) {
         // remove active dropzone feedback
         event.target.classList.remove('drop-active');
         event.target.classList.remove('drop-target');
@@ -283,23 +284,19 @@ export default {
         event.target.classList.add('drop-active');
       },
       ondragenter: function (event) {
-        // console.log('ON DRAG ENTER HAND', event);
         var draggableElement = event.relatedTarget;
         var dropzoneElement = event.target;
 
         // feedback the possibility of a drop
         dropzoneElement.classList.add('drop-target');
         draggableElement.classList.add('can-drop');
-        // draggableElement.textContent = 'Dragged in';
       },
       ondragleave: function (event) {
         // remove the drop feedback style
-        // console.log('ON DRAG LEAVE HAND', event);
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
       },
       ondrop: function (event) {
-        console.log("dropped into hand: ", event)
       },
       ondropdeactivate: function (event) {
         // remove active dropzone feedback
@@ -318,23 +315,19 @@ export default {
         event.target.classList.add('drop-active');
       },
       ondragenter: function (event) {
-        // console.log('ON DRAG ENTER HAND', event);
         var draggableElement = event.relatedTarget;
         var dropzoneElement = event.target;
 
         // feedback the possibility of a drop
         dropzoneElement.classList.add('drop-target');
         draggableElement.classList.add('can-drop');
-        // draggableElement.textContent = 'Dragged in';
       },
       ondragleave: function (event) {
         // remove the drop feedback style
-        // console.log('ON DRAG LEAVE HAND', event);
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
       },
       ondrop: function (event) {
-        console.log("dropped into hand: ", event)
       },
       ondropdeactivate: function (event) {
         // remove active dropzone feedback
@@ -353,23 +346,19 @@ export default {
         event.target.classList.add('drop-active');
       },
       ondragenter: function (event) {
-        // console.log('ON DRAG ENTER HAND', event);
         var draggableElement = event.relatedTarget;
         var dropzoneElement = event.target;
 
         // feedback the possibility of a drop
         dropzoneElement.classList.add('drop-target');
         draggableElement.classList.add('can-drop');
-        // draggableElement.textContent = 'Dragged in';
       },
       ondragleave: function (event) {
         // remove the drop feedback style
-        // console.log('ON DRAG LEAVE HAND', event);
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
       },
       ondrop: function (event) {
-        console.log("dropped into hand: ", event)
       },
       ondropdeactivate: function (event) {
         // remove active dropzone feedback
@@ -377,7 +366,6 @@ export default {
         event.target.classList.remove('drop-target');
       },
     });
-
 
     interact('#Revealed').dropzone({
       // Require a 50% element overlap for a drop to be possible
@@ -389,23 +377,19 @@ export default {
         event.target.classList.add('drop-active');
       },
       ondragenter: function (event) {
-        // console.log('ON DRAG ENTER HAND', event);
         var draggableElement = event.relatedTarget;
         var dropzoneElement = event.target;
 
         // feedback the possibility of a drop
         dropzoneElement.classList.add('drop-target');
         draggableElement.classList.add('can-drop');
-        // draggableElement.textContent = 'Dragged in';
       },
       ondragleave: function (event) {
         // remove the drop feedback style
-        // console.log('ON DRAG LEAVE HAND', event);
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
       },
       ondrop: function (event) {
-        console.log("dropped into hand: ", event)
       },
       ondropdeactivate: function (event) {
         // remove active dropzone feedback
@@ -413,10 +397,8 @@ export default {
         event.target.classList.remove('drop-target');
       },
     });
-
   },
   computed: {
-    // TECHDEBT this belongs with Commander Selection modal in its own component
     ...mapState({
       game: (state) => state.Games.game,
       user: (state) => state.Users.User,
@@ -437,7 +419,7 @@ export default {
     },
     filteredCommanderData() {
       const filteredCommanders = this.self.Boardstate.Library.filter((card) => {
-        const name = card.Name.toLowerCase() 
+        const name = card.Name.toLowerCase()
         const query = this.searchQuery.toLowerCase()
         return name.includes(query);
       })
@@ -445,6 +427,36 @@ export default {
     }
   },
   methods: {
+    handleCast(card) {
+      let self = this.self;
+      let game = this.game;
+
+      // find the card in hand, graveyard, or exile
+      for (let zone in self.Boardstate) {
+        console.log('searching ', zone)
+
+        // don't loop if it's not an array
+        if (!Array.isArray(self.Boardstate[zone])) {
+          continue
+        }
+
+        // don't loop if it's empty
+        if (self.Boardstate[zone].length === 0) {
+          continue
+        }
+
+        console.log(self.Boardstate[zone])
+        
+        // not an empty pile, try to find target card
+        let idx = self.Boardstate[zone].findIndex(x => x.ID === card.ID)
+        if (idx > -1) {
+          // move it to stack 
+          console.log(self)
+          game.Stack.push(self.Boardstate[zone][idx])
+          self.Boardstate[zone].splice(idx, 1)
+        }
+      }
+    },
     handleDraw() {
       let self = this.self
       let draw = self.Boardstate.Library.shift()
@@ -515,15 +527,21 @@ export default {
     }
   },
   components: {
-    Card,
     Opponent,
     DraggableCard,
   },
 };
 </script>
 <style media="screen" scoped>
+#Stack {
+  display: flex;
+  flex-wrap: row;
+  height: 500px;
+}
+
 #Battlefield {
   display: flex;
+  width: auto;
   height: 500px;
 }
 
@@ -557,6 +575,7 @@ export default {
 .hand {
   height: 170px;
   display: flex;
+  flex-wrap: row;
 }
 
 .bordered {

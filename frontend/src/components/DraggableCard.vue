@@ -1,12 +1,21 @@
 <template>
   <div ref="draggableCard" class="draggable">
-    <Card v-bind="card" :ScreenX="screenX" v-bind:ScreenY="screenY" />
+    <div class="card">
+      <div class="card-image">
+        <figure class="image base-size" :class="{ tapped: card.Tapped }">
+          <img :src="`https://api.scryfall.com/cards/${card.ScryfallID}?format=image`">
+        </figure>
+      </div>
+      <footer class="card-footer" v-if="handlers">
+        <a href="#" @click="handlers.tap(card)" class="card-footer-item">Tap</a>
+        <a href="#" @click="handlers.cast(card)" class="card-footer-item">Cast</a>
+      </footer>
+    </div>
   </div>
 </template>
 
 <script>
 import interact from 'interactjs';
-import Card from '@/components/Card';
 export default {
   name: 'DraggableCard',
   data() {
@@ -15,11 +24,16 @@ export default {
       screenY: 0,
       lastSource: '',
       lastDestination: '',
+      currentZone: '',
     };
   },
   props: {
     card: Object,
     user: Object,
+    // handlers contains a set of functions for triggers 
+    // card actions in the parent to keep DraggableCard "dumb".
+    handlers: Object,
+    zone: String
   },
   mounted: function () {
     let draggableCard = this.$refs.draggableCard;
@@ -69,13 +83,28 @@ export default {
       let game = this.$store.state.Games.game
       let userID = this.$store.state.Users.User.ID
       let self = game.Players.find(x => x.ID === userID)
-      if (self === undefined) {
+      if (!self) {
         console.log("cannot find self: investigate this problem", game, userID)
         return
       }
       if (!!this.lastSource && !!this.lastDestination) {
-        let sourceArray = self.Boardstate[this.lastSource]
-        let targetArray = self.Boardstate[this.lastDestination]
+        let targetArray, sourceArray
+        if (this.lastDestination === 'Stack') {
+          if (!game.Stack) {
+            game.Stack = []
+          }
+          targetArray = game.Stack
+        } else {
+          targetArray = self.Boardstate[this.lastDestination]
+        }
+        if (this.lastSource === 'Stack') {
+          if (!game.Stack) {
+            game.Stack = []
+          }
+          sourceArray = game.Stack
+        } else {
+          sourceArray = self.Boardstate[this.lastSource]
+        }
 
         let moved = this.move({
           sourceArray: sourceArray,
@@ -105,6 +134,7 @@ export default {
      * @returns {boolean} - Returns true if the object was moved successfully, false otherwise.
      */
     move({ sourceArray, targetArray, card }) {
+      console.log(sourceArray, targetArray, card.ID)
       console.log('moving ', card.ID, ' from ', sourceArray, ' to ', targetArray)
       const index = sourceArray.findIndex(obj => obj.ID === card.ID);
       if (index !== -1) {
@@ -123,16 +153,23 @@ export default {
         rect2.bottom < rect1.top);
     },
   },
-  components: {
-    Card,
-  },
 };
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 .draggable {
   padding: 5px;
-  position: absolute;
+}
+
+.tapped {
+  transform: rotate(90deg);
+  transform-origin: bottom left;
+  /* Adjusts the pivot point of the rotation */
+  transition: transform 0.3s ease-in-out;
+}
+
+.base-size {
+  width: 160px;
+  max-width: 160px;
 }
 </style>
