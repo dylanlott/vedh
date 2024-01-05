@@ -47,6 +47,9 @@ export const gameUpdatedSubscription = gql`subscription($gameID: String!, $userI
       Phase
       Number
     }
+    Stack {
+      ...CardFields
+    }
     Players {
       Username
       ID
@@ -92,6 +95,9 @@ export const gameUpdatedSubscription = gql`subscription($gameID: String!, $userI
 export const getGameQuery = gql`query($gameID: String!){
 	getGame(gameID: $gameID) {
     ID
+    Stack {
+      ...CardFields
+    }
     Players {
       Username
       ID
@@ -137,6 +143,9 @@ export const gameQuery = gql`
 query gameQuery($limit: Int!, $offset: Int!) {
   games(limit: $limit, offset: $offset) {
     ID
+    Stack {
+      ...CardFields
+    }
     Rules {
       Name
       Value
@@ -199,6 +208,9 @@ mutation updateGame($input: InputGame!) {
     Rules {
       Name
       Value
+    }
+    Stack {
+      ...CardFields
     }
     Turn {
       Player

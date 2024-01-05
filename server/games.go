@@ -256,6 +256,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		ID:        inputGame.ID,
 		CreatedAt: time.Now(),
 		Players:   []*User{},
+		Stack:     []*Card{},
 		Turn: &Turn{
 			Player: inputGame.Turn.Player,
 			Phase:  inputGame.Turn.Phase,

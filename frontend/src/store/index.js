@@ -33,7 +33,9 @@ export const Games = {
                 Phase: "",
                 Number: 0
             },
+            Stack: [],
             Players: [],
+            Rules: []
         },
         error: undefined,
         loading: false,
@@ -90,7 +92,6 @@ export const Games = {
             })
             sub.subscribe({
                 next(data) { 
-                    console.log("### subscription event recvd: ", data)
                     commit('updateGame', data.data.gameUpdated) 
                 },
                 error(err) {

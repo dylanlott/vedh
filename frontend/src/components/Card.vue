@@ -5,17 +5,6 @@
     flipped: flipped,
   }">
     <div class="card">
-      <div class="card-image fixed-size">
-        <!-- <figure class=""> -->
-          <img :src="`https://api.scryfall.com/cards/${ScryfallID}?format=image`">
-        <!-- </figure> -->
-      </div>
-
-      <footer class="card-footer">
-        <!-- // TODO implement the footer actions //
-          <a href="#" class="card-footer-item">Tap</a>
-        <a href="#" class="card-footer-item">Send</a> -->
-      </footer>
     </div>
   </div>
 </template>
