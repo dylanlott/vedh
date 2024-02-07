@@ -7,8 +7,8 @@
         </figure>
       </div>
       <footer class="card-footer" v-if="handlers">
-        <a href="#" @click="handlers.tap(card)" class="card-footer-item">Tap</a>
-        <a href="#" @click="handlers.cast(card)" class="card-footer-item">Cast</a>
+        <b-button type="is-primary" @click="handlers.tap(card)" class="card-footer-item">Tap</b-button>
+        <b-button type="is-primary" @click="handlers.cast(card)" class="card-footer-item">Cast</b-button>
       </footer>
     </div>
   </div>
@@ -163,13 +163,9 @@ export default {
 
 .tapped {
   transform: rotate(90deg);
-  transform-origin: bottom left;
-  /* Adjusts the pivot point of the rotation */
-  transition: transform 0.3s ease-in-out;
 }
 
 .base-size {
   width: 160px;
-  max-width: 160px;
 }
 </style>
