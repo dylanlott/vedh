@@ -56,7 +56,8 @@ export default {
 };
 </script>
 
-<style lang="sass">
-.already-a-member
+<style>
+.already-a-member {
   margin-top: 15px
+}
 </style>

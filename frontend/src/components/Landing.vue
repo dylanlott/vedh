@@ -105,38 +105,29 @@ export default {
   components: { Signup, Mailchimp }
 }
 </script>
-<style type="text/css" lang="scss" scoped>
-@import "@/scss/custom.scss";
-
+<style>
 .signup-button {
   margin: .75rem 0rem;
 }
-
 .benefits {
   margin: 1rem -.7rem;
 }
-
 .subscribe-button {
   margin: 1rem 0rem;
 }
-
 .footer {
   width: 100%;
 }
-
 .benefits {
   margin: 2rem;
 }
-
 .screenshot {
   margin: .25rem;
 }
-
 .screen {
-  border: solid 2px $primary;
+  border: solid 2px;
   border-radius: 5px;
 }
-
 .what-is-edhgo {
   margin: 1rem;
 }

@@ -99,8 +99,8 @@ A copy of the frontend environment file for development is included in this repo
 
 - `make deploy` will deploy a new version of both the server and the UI.
 - `make deploy-ui` and `make deploy-server` will deploy them each individually.
-
 The Makefile contains a `confirm` script that requires user confirmation before running deployment targets.
+
 
 After running any of the deployment targets, you'll be prompted with a yes / no before proceeding.
 
