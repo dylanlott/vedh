@@ -38,7 +38,7 @@ export default {
     },
 }
 </script>
-<style type="text/css" lang="scss" scoped>
+<style>
 .mailchimp {
     width: 400px;
 }

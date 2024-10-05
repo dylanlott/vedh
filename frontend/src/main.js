@@ -1,10 +1,9 @@
 import Vue from 'vue'
 import VueApollo from 'vue-apollo'
 import VueCookies from 'vue-cookies'
-import VueMatomo from 'vue-matomo'
+// import VueMatomo from 'vue-matomo'
 import Buefy from 'buefy'
 import 'buefy/dist/buefy.css'
-import './scss/custom.scss'
 
 import api from '@/gqlclient'
 import App from './App.vue'
