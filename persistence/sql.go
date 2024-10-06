@@ -39,18 +39,18 @@ func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
 	log.Printf("💾 opening PostgreSQL database connection")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Printf("failed to get new postgres: %s", err)
+		log.Printf("🚨 failed to get new postgres: %s", err)
 		return nil, errs.Wrap(err)
 	}
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
-		log.Printf("failed to get postgres instance: %s", err)
+		log.Printf("🚨 failed to get postgres instance: %s", err)
 		return nil, err
 	}
 	formattedMigrationsDir := fmt.Sprintf("file://%s", migdir)
 	m, err := migrate.NewWithDatabaseInstance(formattedMigrationsDir, "postgres", driver)
 	if err != nil {
-		log.Printf("failed to get instance for migration: %s", err)
+		log.Printf("🚨 failed to get instance for migration: %s", err)
 		return nil, errs.Wrap(err)
 	}
 	err = m.Up()
@@ -61,18 +61,18 @@ func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
 				return nil, fmt.Errorf("failed to get migration version: %w", err)
 			}
 			if dirty {
-				log.Printf("[WARN] database migration state is dirty - version %d", v)
+				log.Printf("🦑 database migration state is dirty - version %d", v)
 			} else {
-				log.Printf("no migration changes detected - latest migration is %d", v)
+				log.Printf(" no migration changes detected - latest migration is %d", v)
 			}
 			return db, nil
 		}
 		// should we fail here? regardless, we should not be silent
-		log.Printf("failed to run migrations: %s", err)
-		log.Printf("attempting migration rollback")
+		log.Printf("🚨 failed to run migrations: %s", err)
+		log.Printf("🪽 attempting migration rollback")
 		return nil, m.Down()
 	}
 
-	log.Printf("returning NewPostgres db: %+v", db)
+	log.Printf("💿 database created")
 	return db, err
 }
