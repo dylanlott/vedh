@@ -9,11 +9,11 @@ bin/*
 .pg.env
 .edhgo.env
 
-# Frontend 
+# Frontend
 frontend/coverage/
 
 # Import script and temp data
-scripts/db_import.go
+scripts/*
 *.csv
 allprintings.csv.zip
 .vscode/configurationCache.log
