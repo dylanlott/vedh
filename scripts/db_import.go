@@ -25,9 +25,8 @@ import (
 	"github.com/gocarina/gocsv"
 )
 
-// init runs our gob registration functions
+// init runs gob registration functions
 func init() {
-	// Register gob types for getBytes decoding
 	gob.Register(map[string]interface{}{})
 	gob.Register([]interface{}{})
 }
@@ -82,7 +81,7 @@ type ImportReport struct {
 }
 
 func main() {
-	var dburl = flag.String("db", DBURL, "connection URL for target import database. defaults to localhost:5432/edhgo")
+	var dburl = flag.String("db", DBURL, "connection URL for target import database. defaults to http://localhost:5432/vedh")
 	var refresh = flag.Bool("refresh", false, "refresh specifies whether the card database should be downloaded fresh. defaults to false.")
 	var verbose = flag.Bool("verbose", false, "specifies if the log output should be more verbose")
 
@@ -163,7 +162,7 @@ var insertSQL string = `INSERT INTO cards (
 		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
 		$17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
 		$31, $32, $33, $34, $35)
-	ON CONFLICT (id) DO 
+	ON CONFLICT (id) DO
 		UPDATE SET facename = EXCLUDED.facename;`
 
 // DownloadURL will download a url to a local file. It's efficient because it will

@@ -63,7 +63,7 @@ func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
 			if dirty {
 				log.Printf("🦑 database migration state is dirty - version %d", v)
 			} else {
-				log.Printf(" no migration changes detected - latest migration is %d", v)
+				log.Printf("⇅ no migration changes detected - latest migration is %d", v)
 			}
 			return db, nil
 		}

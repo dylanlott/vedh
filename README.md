@@ -17,7 +17,7 @@ Prerequisites:
 
 - Make
 - Go v1.17
-- PostgreSQL
+- PostgreSQL 14.15.0
 - Node 16
 
 ### Server
@@ -32,15 +32,15 @@ JWT_SECRET=""
 
 ```sh
 # .pg.env example
-POSTGRES_USERNAME=""
-POSTGRES_PASSWORD=""
-POSTGRES_DATABASE=""
+POSTGRESQL_USERNAME=""
+POSTGRESQL_PASSWORD=""
+POSTGRESQL_DATABASE=""
 ```
 
 ### FrontEnd
 
-The front end uses Node 16 and won't build with any other version. 
-I recommend NVM to manage the environment for it. 
+The front end uses Node 16 and won't build with any other version.
+I recommend NVM to manage the environment for it.
 The front end also supports an environment file, `.env.local`.
 
 ```sh
