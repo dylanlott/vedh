@@ -1,6 +1,15 @@
-# EDH-Go
+```text
+██╗   ██╗███████╗██████╗ ██╗  ██╗
+██║   ██║██╔════╝██╔══██╗██║  ██║
+██║   ██║█████╗  ██║  ██║███████║
+╚██╗ ██╔╝██╔══╝  ██║  ██║██╔══██║
+ ╚████╔╝ ███████╗██████╔╝██║  ██║
+  ╚═══╝  ╚══════╝╚═════╝ ╚═╝  ╚═╝
+
+```
 
 > A Magic: The Gathering boardstate tracker built with GraphQL, Vue, and Go.
+> Pronounced "vee-dee-aych"
 
 ## Development
 
@@ -8,8 +17,8 @@ Prerequisites:
 
 - Make
 - Go v1.17
-- Node 14
 - PostgreSQL
+- Node 16
 
 ### Server
 
@@ -27,6 +36,20 @@ POSTGRES_USERNAME=""
 POSTGRES_PASSWORD=""
 POSTGRES_DATABASE=""
 ```
+
+### FrontEnd
+
+The front end uses Node 16 and won't build with any other version. 
+I recommend NVM to manage the environment for it. 
+The front end also supports an environment file, `.env.local`.
+
+```sh
+NODE_ENV="development"
+VUE_APP_WEBSOCKET_URL="ws://127.0.0.1:8080/graphql"
+VUE_APP_BASE_URL="http://127.0.0.1:8080/graphql"
+```
+
+### Persistence
 
 You can quickly start the persistence dependencies by running `$ make persistence`
 
@@ -86,6 +109,8 @@ Once you have a Postgres instance running locally, you can run your tests. You m
 
 Deployments are run using `vtec2/watchtower` to watch for container updates to the Docker Hub. New builds are tested and then tagged `latest` and pushed to Docker Hub so that Watchtower detects them on the EDH-Go production server.
 
+Note: You must be logged into the OpenMTG Docker Hub account to push the images.
+
 ## Environments
 
 `frontend/.env.local` sets local environemnt variables and is used when `yarn start` is run.
@@ -100,7 +125,6 @@ A copy of the frontend environment file for development is included in this repo
 - `make deploy` will deploy a new version of both the server and the UI.
 - `make deploy-ui` and `make deploy-server` will deploy them each individually.
 The Makefile contains a `confirm` script that requires user confirmation before running deployment targets.
-
 
 After running any of the deployment targets, you'll be prompted with a yes / no before proceeding.
 
