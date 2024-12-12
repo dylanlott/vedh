@@ -24,3 +24,4 @@ atlas.hcl
 all-printings.sql
 importer
 scripts/sync.sh
+.git
