@@ -2,7 +2,9 @@
     <b-navbar>
         <template slot="brand">
             <b-navbar-item tag="router-link" :to="{ path: '/' }">
-              <img src="../logo.png" alt="EDH Go">
+                <!-- TODO: Replace with visual logo -->
+                <!-- <img src="../logo.png" alt="EDH Go"> -->
+               <h1 class="title"><b>vEDH.xyz</b></h1>
             </b-navbar-item>
         </template>
         <template slot="start">
