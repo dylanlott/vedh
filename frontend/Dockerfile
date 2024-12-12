@@ -5,8 +5,8 @@ COPY package*.json ./
 RUN yarn install
 COPY . .
 ENV NODE_ENV production
-ENV VUE_APP_WEBSOCKET_URL wss://api.edhgo.com/graphql
-ENV VUE_APP_BASE_URL https://api.edhgo.com/graphql
+ENV VUE_APP_WEBSOCKET_URL wss://api.vedh.xyz/graphql
+ENV VUE_APP_BASE_URL https://api.vedh.xyz/graphql
 RUN yarn build
 
 # production stage
