@@ -7,7 +7,7 @@
         <div class="hero-body">
           <div class="container">
             <h1 class="title is-1 has-text-centered">
-              Sign up below to play Commander with EDH Go.
+              Sign up below to play Commander with vEDH.
             </h1>
             <div class="columns is-centered">
               <div class="column is-4 is-mobile">
@@ -76,11 +76,10 @@
         </div>
       </div>
 
-
       <!-- Footer -->
       <footer class="footer">
         <div class="content has-text-centered">
-          <p class="text is-size-7"><strong>EDHGo</strong> powered by the Hivemind.</p>
+          <p class="text is-size-7"><strong>vEDH.xyz</strong> - powered by the Hivemind.</p>
           <p class="text is-size-7">Build v{{ version }} </p>
         </div>
       </footer>

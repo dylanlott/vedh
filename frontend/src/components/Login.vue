@@ -4,7 +4,7 @@
       <div class="column is-4 is-mobile">
         <form @submit.prevent="handleLogin">
           <div class="box">
-            <h1 class="title is-1">Login to EDH-Go</h1>
+            <h1 class="title is-1">Login to vEDH</h1>
             <b-field label="Username" :label-position="labelPosition">
               <b-input v-model="username"></b-input>
             </b-field>

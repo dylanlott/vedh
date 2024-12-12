@@ -3,7 +3,7 @@
     <div class="columns is-centered">
       <div class="column is-4 is-mobile">
         <div class="box">
-          <h1 class="title is-1">Signup for EDH-Go</h1>
+          <h1 class="title is-1">Signup for vEDH</h1>
           <b-field label="Username" :label-position="labelPosition">
             <b-input v-model="username"></b-input>
           </b-field>
