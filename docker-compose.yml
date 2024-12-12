@@ -23,7 +23,7 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
   postgres:
-    image: bitnami/postgresql:14
+    image: bitnami/postgresql:14.15.0
     volumes:
       - postgres-data:/bitnami/postgresql
     env_file:
