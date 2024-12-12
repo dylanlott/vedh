@@ -1,11 +1,10 @@
 {
   "name": "edh-go",
-  "version": "1.2.0-beta",
+  "version": "1.3.1-beta",
   "private": true,
   "scripts": {
     "start": "vue-cli-service serve --open",
     "build": "vue-cli-service build --mode production",
-    "deploy": "vue-cli-service build --mode production && heroku static:deploy --app edhgo-vue",
     "test": "vue-cli-service test:unit",
     "coverage": "vue-cli-service test:unit --coverage"
   },
