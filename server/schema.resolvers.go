@@ -6,72 +6,71 @@ package server
 
 import (
 	"context"
-	"fmt"
 )
 
 // Signup is the resolver for the signup field.
 func (r *mutationResolver) Signup(ctx context.Context, username string, password string) (*User, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.Signup(ctx, username, password)
 }
 
 // Login is the resolver for the login field.
 func (r *mutationResolver) Login(ctx context.Context, username string, password string) (*User, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.Login(ctx, username, password)
 }
 
 // CreateGame is the resolver for the createGame field.
 func (r *mutationResolver) CreateGame(ctx context.Context, input InputCreateGame) (*Game, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.CreateGame(ctx, input)
 }
 
 // JoinGame is the resolver for the joinGame field.
 func (r *mutationResolver) JoinGame(ctx context.Context, input *InputJoinGame) (*Game, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.JoinGame(ctx, input)
 }
 
 // UpdateGame is the resolver for the updateGame field.
 func (r *mutationResolver) UpdateGame(ctx context.Context, input InputGame) (*Game, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.UpdateGame(ctx, input)
 }
 
 // UpdateBoardState is the resolver for the updateBoardState field.
 func (r *mutationResolver) UpdateBoardState(ctx context.Context, input InputBoardState) (*BoardState, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.UpdateBoardState(ctx, input)
 }
 
 // Users is the resolver for the users field.
 func (r *queryResolver) Users(ctx context.Context, userID *string) ([]string, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.Users(ctx, userID)
 }
 
 // Games is the resolver for the games field.
 func (r *queryResolver) Games(ctx context.Context, offset int, limit int) ([]*Game, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.Games(ctx, offset, limit)
 }
 
 // GetGame is the resolver for the getGame field.
 func (r *queryResolver) GetGame(ctx context.Context, gameID string) (*Game, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.GetGame(ctx, gameID)
 }
 
 // Card is the resolver for the card field.
 func (r *queryResolver) Card(ctx context.Context, name string, id *string) (*Card, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.Card(ctx, name, id)
 }
 
 // Cards is the resolver for the cards field.
 func (r *queryResolver) Cards(ctx context.Context, list []string) ([]*Card, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.Cards(ctx, list)
 }
 
 // Search is the resolver for the search field.
 func (r *queryResolver) Search(ctx context.Context, name *string, colors []*string, colorIdentity []*string, keywords []*string) ([]*Card, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.Search(ctx, name, colors, colorIdentity, keywords)
 }
 
 // GameUpdated is the resolver for the gameUpdated field.
 func (r *subscriptionResolver) GameUpdated(ctx context.Context, gameID string, userID string) (<-chan *Game, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.GameUpdated(ctx, gameID, userID)
 }
 
 // Mutation returns MutationResolver implementation.
