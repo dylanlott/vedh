@@ -19,35 +19,35 @@ type BoardState struct {
 	Hand        []*Card    `json:"Hand"`
 	Revealed    []*Card    `json:"Revealed"`
 	Controlled  []*Card    `json:"Controlled"`
-	Counters    []*Counter `json:"Counters"`
+	Counters    []*Counter `json:"Counters,omitempty"`
 }
 
 type Card struct {
-	FaceName              *string    `json:"FaceName"`
+	FaceName              *string    `json:"FaceName,omitempty"`
 	Name                  string     `json:"Name"`
 	ID                    string     `json:"ID"`
-	Quantity              *int       `json:"Quantity"`
-	Tapped                *bool      `json:"Tapped"`
-	Flipped               *bool      `json:"Flipped"`
-	Counters              []*Counter `json:"Counters"`
-	Colors                *string    `json:"Colors"`
-	ColorIdentity         *string    `json:"ColorIdentity"`
-	FaceManaValue         *string    `json:"FaceManaValue"`
-	FaceConvertedManaCost *string    `json:"FaceConvertedManaCost"`
-	Cmc                   *string    `json:"CMC"`
-	ManaCost              *string    `json:"ManaCost"`
-	UUID                  *string    `json:"UUID"`
-	Power                 *string    `json:"Power"`
-	Toughness             *string    `json:"Toughness"`
-	Types                 *string    `json:"Types"`
-	Subtypes              *string    `json:"Subtypes"`
-	Supertypes            *string    `json:"Supertypes"`
-	Text                  *string    `json:"Text"`
-	Tcgid                 *string    `json:"TCGID"`
-	ScryfallID            *string    `json:"ScryfallID"`
-	ScreenX               *float64   `json:"ScreenX"`
-	ScreenY               *float64   `json:"ScreenY"`
-	CurrentZone           *string    `json:"CurrentZone"`
+	Quantity              *int       `json:"Quantity,omitempty"`
+	Tapped                *bool      `json:"Tapped,omitempty"`
+	Flipped               *bool      `json:"Flipped,omitempty"`
+	Counters              []*Counter `json:"Counters,omitempty"`
+	Colors                *string    `json:"Colors,omitempty"`
+	ColorIdentity         *string    `json:"ColorIdentity,omitempty"`
+	FaceManaValue         *string    `json:"FaceManaValue,omitempty"`
+	FaceConvertedManaCost *string    `json:"FaceConvertedManaCost,omitempty"`
+	Cmc                   *string    `json:"CMC,omitempty"`
+	ManaCost              *string    `json:"ManaCost,omitempty"`
+	UUID                  *string    `json:"UUID,omitempty"`
+	Power                 *string    `json:"Power,omitempty"`
+	Toughness             *string    `json:"Toughness,omitempty"`
+	Types                 *string    `json:"Types,omitempty"`
+	Subtypes              *string    `json:"Subtypes,omitempty"`
+	Supertypes            *string    `json:"Supertypes,omitempty"`
+	Text                  *string    `json:"Text,omitempty"`
+	Tcgid                 *string    `json:"TCGID,omitempty"`
+	ScryfallID            *string    `json:"ScryfallID,omitempty"`
+	ScreenX               *float64   `json:"ScreenX,omitempty"`
+	ScreenY               *float64   `json:"ScreenY,omitempty"`
+	CurrentZone           *string    `json:"CurrentZone,omitempty"`
 }
 
 type Counter struct {
@@ -58,10 +58,10 @@ type Counter struct {
 type Game struct {
 	ID        string    `json:"ID"`
 	CreatedAt time.Time `json:"CreatedAt"`
-	Rules     []*Rule   `json:"Rules"`
-	Turn      *Turn     `json:"Turn"`
-	Players   []*User   `json:"Players"`
-	Stack     []*Card   `json:"Stack"`
+	Rules     []*Rule   `json:"Rules,omitempty"`
+	Turn      *Turn     `json:"Turn,omitempty"`
+	Players   []*User   `json:"Players,omitempty"`
+	Stack     []*Card   `json:"Stack,omitempty"`
 }
 
 type InputBoardState struct {
@@ -69,48 +69,48 @@ type InputBoardState struct {
 	User        string          `json:"User"`
 	GameID      string          `json:"GameID"`
 	Life        int             `json:"Life"`
-	Decklist    *string         `json:"Decklist"`
-	Commander   []*InputCard    `json:"Commander"`
-	Library     []*InputCard    `json:"Library"`
-	Graveyard   []*InputCard    `json:"Graveyard"`
-	Exiled      []*InputCard    `json:"Exiled"`
-	Battlefield []*InputCard    `json:"Battlefield"`
-	Hand        []*InputCard    `json:"Hand"`
-	Revealed    []*InputCard    `json:"Revealed"`
-	Controlled  []*InputCard    `json:"Controlled"`
-	Counters    []*InputCounter `json:"Counters"`
+	Decklist    *string         `json:"Decklist,omitempty"`
+	Commander   []*InputCard    `json:"Commander,omitempty"`
+	Library     []*InputCard    `json:"Library,omitempty"`
+	Graveyard   []*InputCard    `json:"Graveyard,omitempty"`
+	Exiled      []*InputCard    `json:"Exiled,omitempty"`
+	Battlefield []*InputCard    `json:"Battlefield,omitempty"`
+	Hand        []*InputCard    `json:"Hand,omitempty"`
+	Revealed    []*InputCard    `json:"Revealed,omitempty"`
+	Controlled  []*InputCard    `json:"Controlled,omitempty"`
+	Counters    []*InputCounter `json:"Counters,omitempty"`
 }
 
 type InputCard struct {
-	FaceName              *string         `json:"FaceName"`
+	FaceName              *string         `json:"FaceName,omitempty"`
 	Name                  string          `json:"Name"`
 	ID                    string          `json:"ID"`
-	Quantity              *int            `json:"Quantity"`
-	Tapped                *bool           `json:"Tapped"`
-	Flipped               *bool           `json:"Flipped"`
-	Counters              []*InputCounter `json:"Counters"`
-	Colors                *string         `json:"Colors"`
-	ColorIdentity         *string         `json:"ColorIdentity"`
-	FaceManaValue         *string         `json:"FaceManaValue"`
-	FaceConvertedManaCost *string         `json:"FaceConvertedManaCost"`
-	Cmc                   *string         `json:"CMC"`
-	ManaCost              *string         `json:"ManaCost"`
-	UUID                  *string         `json:"UUID"`
-	Power                 *string         `json:"Power"`
-	Toughness             *string         `json:"Toughness"`
-	Types                 *string         `json:"Types"`
-	Subtypes              *string         `json:"Subtypes"`
-	Supertypes            *string         `json:"Supertypes"`
-	Text                  *string         `json:"Text"`
-	Tcgid                 *string         `json:"TCGID"`
-	ScryfallID            *string         `json:"ScryfallID"`
-	ScreenX               *float64        `json:"ScreenX"`
-	ScreenY               *float64        `json:"ScreenY"`
-	CurrentZone           *string         `json:"CurrentZone"`
+	Quantity              *int            `json:"Quantity,omitempty"`
+	Tapped                *bool           `json:"Tapped,omitempty"`
+	Flipped               *bool           `json:"Flipped,omitempty"`
+	Counters              []*InputCounter `json:"Counters,omitempty"`
+	Colors                *string         `json:"Colors,omitempty"`
+	ColorIdentity         *string         `json:"ColorIdentity,omitempty"`
+	FaceManaValue         *string         `json:"FaceManaValue,omitempty"`
+	FaceConvertedManaCost *string         `json:"FaceConvertedManaCost,omitempty"`
+	Cmc                   *string         `json:"CMC,omitempty"`
+	ManaCost              *string         `json:"ManaCost,omitempty"`
+	UUID                  *string         `json:"UUID,omitempty"`
+	Power                 *string         `json:"Power,omitempty"`
+	Toughness             *string         `json:"Toughness,omitempty"`
+	Types                 *string         `json:"Types,omitempty"`
+	Subtypes              *string         `json:"Subtypes,omitempty"`
+	Supertypes            *string         `json:"Supertypes,omitempty"`
+	Text                  *string         `json:"Text,omitempty"`
+	Tcgid                 *string         `json:"TCGID,omitempty"`
+	ScryfallID            *string         `json:"ScryfallID,omitempty"`
+	ScreenX               *float64        `json:"ScreenX,omitempty"`
+	ScreenY               *float64        `json:"ScreenY,omitempty"`
+	CurrentZone           *string         `json:"CurrentZone,omitempty"`
 }
 
 type InputCounter struct {
-	Source *InputCard `json:"Source"`
+	Source *InputCard `json:"Source,omitempty"`
 	Name   string     `json:"Name"`
 	Value  string     `json:"Value"`
 }
@@ -118,29 +118,29 @@ type InputCounter struct {
 type InputCreateGame struct {
 	ID      string             `json:"ID"`
 	Turn    *InputTurn         `json:"Turn"`
-	Handle  *string            `json:"Handle"`
+	Handle  *string            `json:"Handle,omitempty"`
 	Players []*InputBoardState `json:"Players"`
 }
 
 type InputDeck struct {
-	Name      *string  `json:"Name"`
-	Commander []string `json:"Commander"`
-	Cards     []string `json:"Cards"`
+	Name      *string  `json:"Name,omitempty"`
+	Commander []string `json:"Commander,omitempty"`
+	Cards     []string `json:"Cards,omitempty"`
 }
 
 type InputGame struct {
 	ID        string       `json:"ID"`
-	Turn      *InputTurn   `json:"Turn"`
-	CreatedAt *time.Time   `json:"CreatedAt"`
-	Handle    *string      `json:"Handle"`
-	Rules     []*InputRule `json:"Rules"`
-	Players   []*InputUser `json:"Players"`
-	Stack     []*InputCard `json:"Stack"`
+	Turn      *InputTurn   `json:"Turn,omitempty"`
+	CreatedAt *time.Time   `json:"CreatedAt,omitempty"`
+	Handle    *string      `json:"Handle,omitempty"`
+	Rules     []*InputRule `json:"Rules,omitempty"`
+	Players   []*InputUser `json:"Players,omitempty"`
+	Stack     []*InputCard `json:"Stack,omitempty"`
 }
 
 type InputJoinGame struct {
 	ID         string           `json:"ID"`
-	Decklist   *string          `json:"Decklist"`
+	Decklist   *string          `json:"Decklist,omitempty"`
 	BoardState *InputBoardState `json:"BoardState"`
 }
 
@@ -168,14 +168,23 @@ type InputTurn struct {
 }
 
 type InputUser struct {
-	ID         *string          `json:"ID"`
+	ID         *string          `json:"ID,omitempty"`
 	Username   string           `json:"Username"`
-	Boardstate *InputBoardState `json:"Boardstate"`
+	Boardstate *InputBoardState `json:"Boardstate,omitempty"`
+}
+
+type Mutation struct {
+}
+
+type Query struct {
 }
 
 type Rule struct {
 	Name  string `json:"Name"`
 	Value string `json:"Value"`
+}
+
+type Subscription struct {
 }
 
 type Turn struct {
@@ -187,7 +196,7 @@ type Turn struct {
 type User struct {
 	ID         string      `json:"ID"`
 	Username   string      `json:"Username"`
-	Password   *string     `json:"Password"`
-	Token      *string     `json:"Token"`
-	Boardstate *BoardState `json:"Boardstate"`
+	Password   *string     `json:"Password,omitempty"`
+	Token      *string     `json:"Token,omitempty"`
+	Boardstate *BoardState `json:"Boardstate,omitempty"`
 }

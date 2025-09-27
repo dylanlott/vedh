@@ -97,6 +97,7 @@ Once you have a Postgres instance running locally, you can run your tests. You m
 
 - Postgres stores application and card data.
 - Golang for the server
+- Migrate [CLI](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate) for managing database migrations.
 - GraphQL as a realtime API layer
 
 ## Documentation & Resources
