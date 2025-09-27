@@ -35,12 +35,10 @@ type FullGame struct {
 
 // Games returns a list of Games that are unmarshaled from the payload column of the
 // games table.
-func (s *graphQLServer) Games(ctx context.Context, limit int, offset int) ([]*Game, error) {
-	if offset > 0 {
-		return nil, fmt.Errorf("not impl")
-	}
-
-	rows, err := s.db.Query("SELECT id, payload FROM games LIMIT $1", limit)
+func (s *graphQLServer) Games(ctx context.Context, offset int, limit int) ([]*Game, error) {
+	// Basic pagination: order by id for stability and apply limit/offset.
+	// If you add created_at to the table, prefer ordering by that.
+	rows, err := s.db.Query("SELECT id, payload FROM games ORDER BY id DESC LIMIT $1 OFFSET $2", limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query games: %w", err)
 	}
