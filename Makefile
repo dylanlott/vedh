@@ -39,6 +39,12 @@ generate:
 migrate-prod: confirm
 	migrate -path ./persistence/migrations -database $(EDHGO_PG_URL) up
 
+# Run migrations directory against your local environment.
+migrate-local: confirm 
+	migrate \
+		-database "postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable" \
+		-source "file://./persistence/migrations/" up
+
 docker: docker-ui docker-server
 
 build-linux:
@@ -64,6 +70,14 @@ sync:
 # refresh the CSV file here: https://mtgjson.com/downloads/all-files
 import-db:
 	$(GOCMD) run scripts/db_import.go
+
+# import-allprintings assumes that AllPrintings.sql is present in the root directory.
+# Download from: https://mtgjson.com/downloads/all-files
+import-allprintings:
+	$(GOCMD) run scripts/db_import.go -sql AllPrintings.sql -verbose
+
+import-csv: 
+	$(GOCMD) run scripts/db_import.go -csv cards.csv -verbose
 
 deploy: confirm deploy-server deploy-ui
 	@echo "----- edhgo deployed 🚀 -----"
