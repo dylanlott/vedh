@@ -22,7 +22,7 @@ type PGCard struct {
 	CardKingdomId          string
 	ColorIdentity          string
 	Colors                 string
-	ConvertedManaCost      string
+	ManaCost               string
 	FaceConvertedManaCost  string
 	FaceManaValue          string
 	FlavorName             string
@@ -66,7 +66,7 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 		return nil, fmt.Errorf("failed to query card %s: %w", name, row.Err())
 	}
 	c := &PGCard{}
-	err := row.Scan(&c.Name, &c.Id, &c.Colors, &c.ConvertedManaCost, &c.Types,
+	err := row.Scan(&c.Name, &c.Id, &c.Colors, &c.ManaCost, &c.Types,
 		&c.Power, &c.Toughness, &c.Text, &c.Subtypes, &c.Supertypes,
 		&c.TcgplayerProductId, &c.ScryfallID, &c.Uuid)
 	if err != nil {
@@ -76,7 +76,7 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 		Name:       c.Name,
 		ID:         c.Id,
 		Colors:     &c.Colors,
-		Cmc:        &c.ConvertedManaCost,
+		Cmc:        &c.ManaCost,
 		Types:      &c.Types,
 		Power:      &c.Power,
 		Toughness:  &c.Toughness,
@@ -173,6 +173,70 @@ func (s *graphQLServer) Search(
 	return cards, nil
 }
 
+// SearchAll queries the larger `allcards` table which contains printings and
+// variants. It mirrors Search but hits the `allcards` table instead of
+// `cards`.
+func (s *graphQLServer) SearchAll(
+	ctx context.Context,
+	name *string,
+	colors []*string,
+	colorIdentity []*string,
+	keywords []*string,
+) ([]*Card, error) {
+	if name == nil {
+		return nil, nil
+	}
+
+	rows, err := s.db.Query(`SELECT name, uuid, text, manacost, power, toughness, types, subtypes, supertypes FROM allcards WHERE name LIKE $1`, name)
+	if err != nil {
+		log.Printf("error querying allcards table: %s", err)
+		return nil, errs.New("failed to search allcards db: %s", err)
+	}
+
+	cards := []*Card{}
+	for rows.Next() {
+		var (
+			nameVal    *string
+			uuid       *string
+			text       *string
+			manacost   *string
+			power      *string
+			toughness  *string
+			types      *string
+			subtypes   *string
+			supertypes *string
+		)
+
+		if err := rows.Scan(&nameVal, &uuid, &text, &manacost, &power, &toughness, &types, &subtypes, &supertypes); err != nil {
+			log.Printf("ERROR: failed to scan allcards row into struct: %s", err)
+			continue
+		}
+
+		idVal := ""
+		if uuid != nil {
+			idVal = *uuid
+		} else if nameVal != nil {
+			idVal = *nameVal
+		}
+
+		card := &Card{
+			ID:         idVal,
+			Name:       stringOrEmpty(nameVal),
+			UUID:       uuid,
+			Text:       text,
+			ManaCost:   manacost,
+			Power:      power,
+			Toughness:  toughness,
+			Types:      types,
+			Subtypes:   subtypes,
+			Supertypes: supertypes,
+		}
+
+		cards = append(cards, card)
+	}
+	return cards, nil
+}
+
 //
 // Shuffle functions
 //
@@ -186,4 +250,12 @@ func Shuffle(deck []*Card) ([]*Card, error) {
 		deck[i], deck[j] = deck[j], deck[i]
 	})
 	return deck, nil
+}
+
+// stringOrEmpty returns the dereferenced string or an empty string if nil.
+func stringOrEmpty(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
