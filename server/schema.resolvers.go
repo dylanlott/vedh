@@ -6,6 +6,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 )
 
 // Signup is the resolver for the signup field.
@@ -68,6 +69,11 @@ func (r *queryResolver) Search(ctx context.Context, name *string, colors []*stri
 	return r.Search(ctx, name, colors, colorIdentity, keywords)
 }
 
+// SearchAll is the resolver for the searchAll field.
+func (r *queryResolver) SearchAll(ctx context.Context, name *string, colors []*string, colorIdentity []*string, keywords []*string) ([]*Card, error) {
+	panic(fmt.Errorf("not implemented: SearchAll - searchAll"))
+}
+
 // GameUpdated is the resolver for the gameUpdated field.
 func (r *subscriptionResolver) GameUpdated(ctx context.Context, gameID string, userID string) (<-chan *Game, error) {
 	return r.GameUpdated(ctx, gameID, userID)
@@ -85,18 +91,3 @@ func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionRes
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func (r *subscriptionResolver) BoardstateUpdated(ctx context.Context, observerID string, userID string) (<-chan *BoardState, error) {
-	panic(fmt.Errorf("not implemented"))
-}
-func (r *queryResolver) Boardstates(ctx context.Context, gameID string, userID *string) ([]*BoardState, error) {
-	panic(fmt.Errorf("not implemented"))
-}
-*/
