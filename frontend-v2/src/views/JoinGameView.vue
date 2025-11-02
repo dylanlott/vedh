@@ -1,19 +1,100 @@
 <template>
   <section class="join-game">
     <h1>Join game</h1>
-    <p v-if="!gameID">Provide a valid invite link to join a game.</p>
+    
+    <form v-if="!gameID" @submit.prevent="submitInvite">
+      <label for="invite">Paste invite link or game ID</label>
+      <input id="invite" v-model.trim="invite" type="text" placeholder="e.g. https://app/join/abcd-1234 or abcd-1234" />
+      <div class="help" v-if="invite && !parsedID">Couldn’t detect a game ID from that input.</div>
+      <button class="primary" :disabled="!parsedID">Continue</button>
+    </form>
+
     <form v-else @submit.prevent="handleJoin">
       <p>You are about to join game <strong>{{ gameID }}</strong>.</p>
-      <button class="primary" :disabled="games.loading">{{ games.loading ? 'Joining…' : 'Join game' }}</button>
+
+      <label class="stacked">
+        <span>Commander</span>
+        <div class="inline">
+          <button class="secondary" type="button" @click="isCommanderModalOpen = true">Choose commander</button>
+          <span class="hint" v-if="selectedCommander">Selected: {{ selectedCommander.Name }}</span>
+          <span class="hint" v-else>No commander selected</span>
+        </div>
+      </label>
+
+      <label class="stacked">
+        <span>Decklist (CSV: quantity,name per line)</span>
+        <textarea v-model="decklist" rows="6" placeholder="1, Atraxa, Pr…\n99, Basic Island"></textarea>
+        <p class="hint">Deck count: {{ deckCount }}</p>
+      </label>
+
+      <footer class="actions">
+        <button class="primary" :disabled="games.loading">{{ games.loading ? 'Joining…' : 'Join game' }}</button>
+      </footer>
     </form>
+
+    <!-- Commander selection modal -->
+    <div v-if="isCommanderModalOpen" class="backdrop" @click.self="isCommanderModalOpen = false">
+      <section class="modal">
+        <header>
+          <h2>Select your Commander</h2>
+          <button class="link" type="button" @click="isCommanderModalOpen = false" aria-label="Close">×</button>
+        </header>
+        <label @keydown.stop>
+          <span>Search</span>
+          <input
+            v-model="commanderQuery"
+            @input="onCommanderInput"
+            @keydown.down.prevent="onCommanderKey('down')"
+            @keydown.up.prevent="onCommanderKey('up')"
+            @keydown.enter.prevent="onCommanderKey('enter')"
+            @keydown.esc.prevent="onCommanderKey('escape')"
+            @blur="onCommanderBlur"
+            placeholder="e.g., Atraxa"
+            autocomplete="off"
+            role="combobox"
+            :aria-expanded="showCommanderList ? 'true' : 'false'"
+            aria-autocomplete="list"
+            aria-controls="commander-typeahead"
+            :aria-activedescendant="activeIndex >= 0 ? `commander-opt-${activeIndex}` : undefined"
+          />
+          <ul v-if="showCommanderList" id="commander-typeahead" class="typeahead" role="listbox">
+            <li v-if="isSearching" class="hint" role="option" aria-disabled="true">Searching…</li>
+            <template v-else>
+              <li
+                v-for="(c, idx) in limitedCommanderResults"
+                :key="c.ID"
+                :id="`commander-opt-${idx}`"
+                role="option"
+                :aria-selected="idx === activeIndex ? 'true' : 'false'"
+                :class="{ active: idx === activeIndex }"
+                @mousedown.prevent="selectCommander(c)"
+                @mousemove="activeIndex = idx"
+              >
+                {{ c.Name }}
+              </li>
+              <li v-if="!limitedCommanderResults.length" class="hint" role="option" aria-disabled="true">No results</li>
+            </template>
+          </ul>
+          <p v-if="selectedCommander" class="hint">
+            Selected: {{ selectedCommander.Name }}
+            <button type="button" class="link" @click="clearCommander">Clear</button>
+          </p>
+        </label>
+        <footer class="actions">
+          <button class="secondary" type="button" @click="isCommanderModalOpen = false">Done</button>
+        </footer>
+      </section>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
+import { apolloClient } from '../services/apollo';
+import { SEARCH_CARDS_QUERY } from '../graphql/queries';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,18 +102,131 @@ const games = useGamesStore();
 const auth = useAuthStore();
 
 const gameID = computed(() => route.params.id as string | undefined);
+const invite = ref('');
+
+const parsedID = computed(() => {
+  const raw = invite.value.trim();
+  if (!raw) return '';
+  // Match URLs containing /join/:id or /games/:id
+  const match = raw.match(/\/(?:join|games)\/([A-Za-z0-9\-]+)/i);
+  if (match?.[1]) return match[1];
+  // If it looks like a bare id (uuid-ish or slug), accept alnum-dash 6+ chars
+  if (/^[A-Za-z0-9\-]{6,}$/.test(raw)) return raw;
+  return '';
+});
+
+function submitInvite() {
+  if (!parsedID.value) return;
+  router.push({ name: 'join-game', params: { id: parsedID.value } });
+}
+
+// Commander search state (mirrors FormCreateGame)
+const isCommanderModalOpen = ref(false);
+const commanderQuery = ref('');
+const commanderResults = ref<{ ID: string; Name: string }[]>([]);
+const selectedCommander = ref<{ ID: string; Name: string } | null>(null);
+const showCommanderList = ref(false);
+const isSearching = ref(false);
+const activeIndex = ref(-1);
+const resultsLimit = 8;
+let commanderDebounce: number | undefined;
+
+const limitedCommanderResults = computed(() => commanderResults.value.slice(0, resultsLimit));
+
+async function runCommanderSearch(query: string) {
+  if (query.length < 2) {
+    commanderResults.value = [];
+    isSearching.value = false;
+    return;
+  }
+  isSearching.value = true;
+  try {
+    const { data } = await apolloClient.query<{ search: { ID: string; Name: string }[] }>({
+      query: SEARCH_CARDS_QUERY,
+      variables: { name: `%${query}%` },
+      fetchPolicy: 'no-cache',
+    });
+    commanderResults.value = data?.search ?? [];
+  } catch (e) {
+    commanderResults.value = [];
+  } finally {
+    isSearching.value = false;
+  }
+}
+
+function onCommanderInput() {
+  showCommanderList.value = commanderQuery.value.length >= 2;
+  activeIndex.value = -1;
+  if (commanderDebounce) window.clearTimeout(commanderDebounce);
+  commanderDebounce = window.setTimeout(() => {
+    void runCommanderSearch(commanderQuery.value.trim());
+  }, 150);
+}
+
+function onCommanderKey(key: 'down' | 'up' | 'enter' | 'escape') {
+  if (!showCommanderList.value) {
+    if (key === 'down') {
+      showCommanderList.value = commanderQuery.value.length >= 2;
+      if (showCommanderList.value && !limitedCommanderResults.value.length) void runCommanderSearch(commanderQuery.value.trim());
+    }
+    return;
+  }
+  const max = limitedCommanderResults.value.length - 1;
+  if (key === 'down') {
+    activeIndex.value = activeIndex.value < max ? activeIndex.value + 1 : 0;
+  } else if (key === 'up') {
+    activeIndex.value = activeIndex.value > 0 ? activeIndex.value - 1 : max;
+  } else if (key === 'enter') {
+    if (activeIndex.value >= 0 && activeIndex.value <= max) {
+      selectCommander(limitedCommanderResults.value[activeIndex.value]);
+    }
+  } else if (key === 'escape') {
+    showCommanderList.value = false;
+  }
+}
+
+function onCommanderBlur() {
+  setTimeout(() => {
+    showCommanderList.value = false;
+  }, 120);
+}
+
+function selectCommander(card: { ID: string; Name: string }) {
+  selectedCommander.value = card;
+  commanderQuery.value = card.Name;
+  showCommanderList.value = false;
+}
+
+function clearCommander() {
+  selectedCommander.value = null;
+}
+
+// Decklist
+const decklist = ref('');
+const deckCount = computed(() => {
+  if (!decklist.value) return 0;
+  let count = 0;
+  for (const line of decklist.value.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const [qtyRaw] = trimmed.split(',');
+    const qty = parseInt(qtyRaw, 10);
+    if (!Number.isNaN(qty)) count += qty; else count += 1;
+  }
+  return count;
+});
 
 async function handleJoin() {
   if (!gameID.value || !auth.profile) return;
   const payload = {
     ID: gameID.value,
-    Decklist: '',
+    Decklist: decklist.value,
     BoardState: {
       UserID: auth.profile.ID,
       User: auth.profile.Username,
       GameID: gameID.value,
       Life: 40,
-      Commander: [],
+  Commander: selectedCommander.value ? [{ ID: selectedCommander.value.ID, Name: selectedCommander.value.Name }] : [],
       Library: [],
       Graveyard: [],
       Exiled: [],
@@ -70,4 +264,60 @@ button.primary {
   color: #0b1016;
   cursor: pointer;
 }
+
+button.secondary {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f5f5f5;
+  cursor: pointer;
+}
+
+.stacked { display: grid; gap: 0.5rem; }
+.inline { display: flex; gap: 0.75rem; align-items: center; }
+.hint { opacity: 0.8; font-size: 0.9rem; }
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 11, 0.7);
+  display: grid;
+  place-items: center;
+  z-index: 40;
+}
+
+.modal {
+  width: min(90vw, 420px);
+  background: rgba(18, 21, 28, 0.95);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1.5rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+header { display: flex; align-items: center; justify-content: space-between; }
+label { display: grid; gap: 0.5rem; }
+input, textarea { 
+  padding: 0.7rem 0.9rem; 
+  border-radius: 10px; 
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: inherit;
+}
+.actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+
+.typeahead {
+  margin-top: 0.25rem;
+  list-style: none;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  max-height: 200px;
+  overflow: auto;
+}
+.typeahead li { padding: 0.4rem 0.6rem; cursor: pointer; }
+.typeahead li:hover { background: rgba(255,255,255,0.06); }
+.typeahead li.active { background: rgba(255,255,255,0.12); }
 </style>
