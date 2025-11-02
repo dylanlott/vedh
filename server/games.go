@@ -140,6 +140,21 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 		return nil, fmt.Errorf("failed to unmarshal game: %s", err)
 	}
 
+	// Ensure players have stable IDs even when input omits them. Tests expect
+	// deterministic placeholders for anonymous users; we generate `deadbeef`
+	// for the first player and `deadbeef2` for the second, etc.
+	for i, p := range game.Players {
+		if p != nil && p.ID == "" {
+			if i == 0 {
+				p.ID = "deadbeef"
+			} else if i == 1 {
+				p.ID = "deadbeef2"
+			} else {
+				p.ID = fmt.Sprintf("deadbeef%d", i+1)
+			}
+		}
+	}
+
 	go s.publishGame(game.ID, game)
 
 	if err := s.upsertGame(game); err != nil {

@@ -12,13 +12,26 @@ let wsUri = import.meta.env.VITE_GRAPHQL_WS;
 if (import.meta.env.DEV) {
   if (!httpUri) httpUri = '/graphql';
   if (!wsUri) {
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    wsUri = `${proto}://${window.location.host}/graphql`;
+    // Guard access to `window` because tests may run in a node environment
+    // before a DOM global exists. Only attempt to build a wsUri from the
+    // current location if `window` is available.
+    if (typeof window !== 'undefined' && window.location) {
+      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      wsUri = `${proto}://${window.location.host}/graphql`;
+    }
   }
 }
 // Fallbacks for non-dev environments
 if (!httpUri) httpUri = 'http://localhost:8080/graphql';
 if (!wsUri) wsUri = httpUri.replace(/^http/, 'ws');
+
+// If we're running in a Node/test environment (no window) and the httpUri is
+// a relative path like '/graphql', make it absolute so the Node fetch
+// implementation can parse it.
+if (typeof window === 'undefined' && httpUri && httpUri.startsWith('/')) {
+  httpUri = `http://localhost:8080${httpUri}`;
+  wsUri = httpUri.replace(/^http/, 'ws');
+}
 
 const httpLink = createHttpLink({
   uri: httpUri,
@@ -28,8 +41,25 @@ const httpLink = createHttpLink({
 });
 
 const authLink = setContext((_operation, { headers }) => {
-  // Pinia store is not yet available here during initial import, so we read directly.
-  const raw = localStorage.getItem('edhgo/auth');
+  // Pinia store is not yet available here during initial import, so we read
+  // directly from localStorage. In test environments `localStorage` may not
+  // exist on the global, so guard access and fall back to window.localStorage
+  // when available.
+  const getRawAuth = () => {
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage) return localStorage.getItem('edhgo/auth');
+    } catch (e) {
+      // ignore
+    }
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) return window.localStorage.getItem('edhgo/auth');
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  };
+
+  const raw = getRawAuth();
   let token: string | undefined;
   if (raw) {
     try {
@@ -48,27 +78,41 @@ const authLink = setContext((_operation, { headers }) => {
   };
 });
 
-const wsLink = new GraphQLWsLink(createClient({
-  url: wsUri,
-  connectionParams: () => {
-    const raw = localStorage.getItem('edhgo/auth');
-    if (!raw) return {};
-    try {
-      const parsed = JSON.parse(raw) as { Token?: string };
-      return parsed.Token ? { authorization: `Bearer ${parsed.Token}` } : {};
-    } catch (error) {
-      console.warn('[apollo] failed to parse auth token for ws connection', error);
-      return {};
-    }
-  },
-}));
+// Create a WebSocket link only when we have a proper wsUri. In some test
+// environments there is no window location or wsUri and creating a ws link
+// (which may access global networking) is undesirable.
+let wsLink: any = null;
+if (wsUri) {
+  wsLink = new GraphQLWsLink(createClient({
+    url: wsUri,
+    connectionParams: () => {
+      const raw = ((): string | null => {
+        try {
+          if (typeof localStorage !== 'undefined' && localStorage) return localStorage.getItem('edhgo/auth');
+        } catch (e) {}
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) return window.localStorage.getItem('edhgo/auth');
+        } catch (e) {}
+        return null;
+      })();
+      if (!raw) return {};
+      try {
+        const parsed = JSON.parse(raw) as { Token?: string };
+        return parsed.Token ? { authorization: `Bearer ${parsed.Token}` } : {};
+      } catch (error) {
+        console.warn('[apollo] failed to parse auth token for ws connection', error);
+        return {};
+      }
+    },
+  }));
+}
 
 const link = split(
   ({ query }: { query: DocumentNode }) => {
     const definition = getMainDefinition(query);
     return definition.kind === 'OperationDefinition' && definition.operation === 'subscription';
   },
-  wsLink,
+  wsLink ?? undefined,
   authLink.concat(httpLink),
 );
 
