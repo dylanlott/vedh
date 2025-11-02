@@ -50,6 +50,78 @@
               </li>
             </ul>
           </div>
+          <div class="zone" :data-zone="'Graveyard'" @dragover.prevent @drop="onDrop(player.Username, 'Graveyard')">
+            <h3>Graveyard ({{ player.Boardstate?.Graveyard?.length ?? 0 }})</h3>
+            <ul>
+                <li
+                  v-for="card in player.Boardstate?.Graveyard ?? []"
+                  :key="card.ID"
+                  class="card"
+                  draggable="true"
+                  @dragstart="onDragStart(card, player.Username, 'Graveyard')"
+                  @click="quickMove(card, player.Username, 'Graveyard')"
+                >
+                  {{ card.Name }}
+                </li>
+            </ul>
+          </div>
+          <div class="zone" :data-zone="'Exiled'" @dragover.prevent @drop="onDrop(player.Username, 'Exiled')">
+            <h3>Exiled ({{ player.Boardstate?.Exiled?.length ?? 0 }})</h3>
+            <ul>
+                <li
+                  v-for="card in player.Boardstate?.Exiled ?? []"
+                  :key="card.ID"
+                  class="card"
+                  draggable="true"
+                  @dragstart="onDragStart(card, player.Username, 'Exiled')"
+                  @click="quickMove(card, player.Username, 'Exiled')"
+                >
+                  {{ card.Name }}
+                </li>
+            </ul>
+          </div>
+          <div class="zone" :data-zone="'Revealed'" @dragover.prevent @drop="onDrop(player.Username, 'Revealed')">
+            <h3>Revealed ({{ player.Boardstate?.Revealed?.length ?? 0 }})</h3>
+            <ul>
+                <li
+                  v-for="card in player.Boardstate?.Revealed ?? []"
+                  :key="card.ID"
+                  class="card"
+                  draggable="true"
+                  @dragstart="onDragStart(card, player.Username, 'Revealed')"
+                  @click="quickMove(card, player.Username, 'Revealed')"
+                >
+                  {{ card.Name }}
+                </li>
+            </ul>
+          </div>
+          <div class="zone" :data-zone="'Controlled'" @dragover.prevent @drop="onDrop(player.Username, 'Controlled')">
+            <h3>Controlled ({{ player.Boardstate?.Controlled?.length ?? 0 }})</h3>
+            <ul>
+                <li
+                  v-for="card in player.Boardstate?.Controlled ?? []"
+                  :key="card.ID"
+                  class="card"
+                  draggable="true"
+                  @dragstart="onDragStart(card, player.Username, 'Controlled')"
+                  @click="quickMove(card, player.Username, 'Controlled')"
+                >
+                  {{ card.Name }}
+                </li>
+            </ul>
+          </div>
+          <div class="zone" :data-zone="'Library'" @dragover.prevent @drop="onDrop(player.Username, 'Library')">
+            <h3>
+              Library ({{ player.Boardstate?.Library?.length ?? 0 }})
+              <small v-if="isSelf(player.Username) && (player.Boardstate?.Library?.length ?? 0) > 0" class="muted">
+                • Top: {{ player.Boardstate?.Library?.[0]?.Name ?? '—' }}
+              </small>
+            </h3>
+            <ul class="library">
+              <li v-if="isSelf(player.Username) && (player.Boardstate?.Library?.length ?? 0) === 0" class="card muted">Empty</li>
+              <li v-else-if="!isSelf(player.Username)" class="card muted">Hidden</li>
+            </ul>
+          </div>
         </article>
       </aside>
 
@@ -93,6 +165,10 @@ onBeforeUnmount(() => {
 
 function isActivePlayer(username: string) {
   return username === game.value?.Turn?.Player;
+}
+
+function isSelf(username: string) {
+  return username === auth.profile?.Username;
 }
 
 // Basic drag-and-drop state
@@ -240,6 +316,14 @@ async function moveCard(args: MoveCardArgs) {
   color: rgba(255, 255, 255, 0.65);
 }
 
+.zone h3 small {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: normal;
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .zone ul {
   list-style: none;
   padding: 0;
@@ -259,6 +343,10 @@ async function moveCard(args: MoveCardArgs) {
 
 .card:active {
   cursor: grabbing;
+}
+
+.muted {
+  opacity: 0.7;
 }
 
 .stack {
