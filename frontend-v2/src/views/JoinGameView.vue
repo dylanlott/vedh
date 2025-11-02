@@ -13,10 +13,16 @@
       <p>You are about to join game <strong>{{ gameID }}</strong>.</p>
 
       <label class="stacked">
-        <span>Commander</span>
+        <span>Commander(s) — up to 2 (Partners)</span>
         <div class="inline">
           <button class="secondary" type="button" @click="isCommanderModalOpen = true">Choose commander</button>
-          <span class="hint" v-if="selectedCommander">Selected: {{ selectedCommander.Name }}</span>
+          <div class="chips" v-if="selectedCommanders.length">
+            <span v-for="(cmd, idx) in selectedCommanders" :key="cmd.ID" class="chip">
+              {{ cmd.Name }}
+              <button type="button" class="remove" @click="removeCommander(idx)" aria-label="Remove">×</button>
+            </span>
+            <button type="button" class="link" @click="clearAllCommanders">Clear all</button>
+          </div>
           <span class="hint" v-else>No commander selected</span>
         </div>
       </label>
@@ -75,10 +81,14 @@
               <li v-if="!limitedCommanderResults.length" class="hint" role="option" aria-disabled="true">No results</li>
             </template>
           </ul>
-          <p v-if="selectedCommander" class="hint">
-            Selected: {{ selectedCommander.Name }}
-            <button type="button" class="link" @click="clearCommander">Clear</button>
-          </p>
+          <div class="chips" v-if="selectedCommanders.length">
+            <span v-for="(cmd, idx) in selectedCommanders" :key="cmd.ID" class="chip">
+              {{ cmd.Name }}
+              <button type="button" class="remove" @click="removeCommander(idx)" aria-label="Remove">×</button>
+            </span>
+            <button type="button" class="link" @click="clearAllCommanders">Clear all</button>
+          </div>
+          <p v-else class="hint">No commander selected</p>
         </label>
         <footer class="actions">
           <button class="secondary" type="button" @click="isCommanderModalOpen = false">Done</button>
@@ -124,7 +134,7 @@ function submitInvite() {
 const isCommanderModalOpen = ref(false);
 const commanderQuery = ref('');
 const commanderResults = ref<{ ID: string; Name: string }[]>([]);
-const selectedCommander = ref<{ ID: string; Name: string } | null>(null);
+const selectedCommanders = ref<{ ID: string; Name: string }[]>([]);
 const showCommanderList = ref(false);
 const isSearching = ref(false);
 const activeIndex = ref(-1);
@@ -192,13 +202,20 @@ function onCommanderBlur() {
 }
 
 function selectCommander(card: { ID: string; Name: string }) {
-  selectedCommander.value = card;
-  commanderQuery.value = card.Name;
+  const exists = selectedCommanders.value.some(c => c.ID === card.ID);
+  if (!exists && selectedCommanders.value.length < 2) {
+    selectedCommanders.value.push(card);
+  }
+  commanderQuery.value = '';
   showCommanderList.value = false;
 }
 
-function clearCommander() {
-  selectedCommander.value = null;
+function removeCommander(index: number) {
+  selectedCommanders.value.splice(index, 1);
+}
+
+function clearAllCommanders() {
+  selectedCommanders.value = [];
 }
 
 // Decklist
@@ -226,7 +243,7 @@ async function handleJoin() {
       User: auth.profile.Username,
       GameID: gameID.value,
       Life: 40,
-  Commander: selectedCommander.value ? [{ ID: selectedCommander.value.ID, Name: selectedCommander.value.Name }] : [],
+  Commander: selectedCommanders.value.map(c => ({ ID: c.ID, Name: c.Name })),
       Library: [],
       Graveyard: [],
       Exiled: [],
@@ -320,4 +337,23 @@ input, textarea {
 .typeahead li { padding: 0.4rem 0.6rem; cursor: pointer; }
 .typeahead li:hover { background: rgba(255,255,255,0.06); }
 .typeahead li.active { background: rgba(255,255,255,0.12); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.chip {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 0.9rem;
+}
+.chip .remove {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
 </style>
