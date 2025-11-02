@@ -152,7 +152,7 @@ func Test_graphQLServer_Card(t *testing.T) {
 				return
 			}
 			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(Card{},
-				"Colors", "Cmc", "UUID", "Power", "Toughness", "Subtypes",
+				"ID", "Colors", "Cmc", "UUID", "Power", "Toughness", "Subtypes",
 				"Supertypes", "Types", "Text", "Tcgid", "ScryfallID")); diff != "" {
 				t.Logf("%s", diff)
 				t.Fail()

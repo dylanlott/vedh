@@ -20,16 +20,46 @@
             <option value="EDH">Commander</option>
           </select>
         </label>
-        <label>
+        <label @keydown.stop>
           <span>Commander</span>
           <input
             v-model="commanderQuery"
             @input="onCommanderInput"
+            @keydown.down.prevent="onCommanderKey('down')"
+            @keydown.up.prevent="onCommanderKey('up')"
+            @keydown.enter.prevent="onCommanderKey('enter')"
+            @keydown.esc.prevent="onCommanderKey('escape')"
+            @blur="onCommanderBlur"
             placeholder="Search for a commander (e.g., Atraxa)"
             autocomplete="off"
+            role="combobox"
+            :aria-expanded="showCommanderList ? 'true' : 'false'"
+            aria-autocomplete="list"
+            aria-controls="commander-typeahead"
+            :aria-activedescendant="activeIndex >= 0 ? `commander-opt-${activeIndex}` : undefined"
           />
-          <ul v-if="showCommanderList" class="typeahead">
-            <li v-for="c in commanderResults" :key="c.ID" @click="selectCommander(c)">{{ c.Name }}</li>
+          <ul
+            v-if="showCommanderList"
+            id="commander-typeahead"
+            class="typeahead"
+            role="listbox"
+          >
+            <li v-if="isSearching" class="hint" role="option" aria-disabled="true">Searching…</li>
+            <template v-else>
+              <li
+                v-for="(c, idx) in limitedCommanderResults"
+                :key="c.ID"
+                :id="`commander-opt-${idx}`"
+                role="option"
+                :aria-selected="idx === activeIndex ? 'true' : 'false'"
+                :class="{ active: idx === activeIndex }"
+                @mousedown.prevent="selectCommander(c)"
+                @mousemove="activeIndex = idx"
+              >
+                {{ c.Name }}
+              </li>
+              <li v-if="!limitedCommanderResults.length" class="hint" role="option" aria-disabled="true">No results</li>
+            </template>
           </ul>
           <p v-if="selectedCommander" class="hint">
             Selected: {{ selectedCommander.Name }}
@@ -75,23 +105,70 @@ const commanderQuery = ref('');
 const commanderResults = ref<{ ID: string; Name: string }[]>([]);
 const selectedCommander = ref<{ ID: string; Name: string } | null>(null);
 const showCommanderList = ref(false);
+const isSearching = ref(false);
+const activeIndex = ref(-1);
+const resultsLimit = 8;
+let commanderDebounce: number | undefined;
 
-async function onCommanderInput() {
-  showCommanderList.value = commanderQuery.value.length >= 2;
-  if (!showCommanderList.value) {
+const limitedCommanderResults = computed(() => commanderResults.value.slice(0, resultsLimit));
+
+async function runCommanderSearch(query: string) {
+  if (query.length < 2) {
     commanderResults.value = [];
+    isSearching.value = false;
     return;
   }
+  isSearching.value = true;
   try {
     const { data } = await apolloClient.query<{ search: { ID: string; Name: string }[] }>({
       query: SEARCH_CARDS_QUERY,
-      variables: { name: `%${commanderQuery.value}%` },
+      variables: { name: `%${query}%` },
       fetchPolicy: 'no-cache',
     });
     commanderResults.value = data?.search ?? [];
   } catch (e) {
     commanderResults.value = [];
+  } finally {
+    isSearching.value = false;
   }
+}
+
+function onCommanderInput() {
+  showCommanderList.value = commanderQuery.value.length >= 2;
+  activeIndex.value = -1;
+  if (commanderDebounce) window.clearTimeout(commanderDebounce);
+  commanderDebounce = window.setTimeout(() => {
+    void runCommanderSearch(commanderQuery.value.trim());
+  }, 150);
+}
+
+function onCommanderKey(key: 'down' | 'up' | 'enter' | 'escape') {
+  if (!showCommanderList.value) {
+    if (key === 'down') {
+      showCommanderList.value = commanderQuery.value.length >= 2;
+      if (showCommanderList.value && !limitedCommanderResults.value.length) void runCommanderSearch(commanderQuery.value.trim());
+    }
+    return;
+  }
+  const max = limitedCommanderResults.value.length - 1;
+  if (key === 'down') {
+    activeIndex.value = activeIndex.value < max ? activeIndex.value + 1 : 0;
+  } else if (key === 'up') {
+    activeIndex.value = activeIndex.value > 0 ? activeIndex.value - 1 : max;
+  } else if (key === 'enter') {
+    if (activeIndex.value >= 0 && activeIndex.value <= max) {
+      selectCommander(limitedCommanderResults.value[activeIndex.value]);
+    }
+  } else if (key === 'escape') {
+    showCommanderList.value = false;
+  }
+}
+
+function onCommanderBlur() {
+  // Delay to allow click selection to register before closing.
+  setTimeout(() => {
+    showCommanderList.value = false;
+  }, 120);
 }
 
 function selectCommander(card: { ID: string; Name: string }) {
@@ -245,6 +322,9 @@ button.link {
 }
 .typeahead li:hover {
   background: rgba(255,255,255,0.06);
+}
+.typeahead li.active {
+  background: rgba(255,255,255,0.12);
 }
 .hint {
   opacity: 0.8;
