@@ -20,6 +20,9 @@ type Query {
 
 type Subscription {
   gameUpdated(gameID: String!, userID: String!): Game!
+  # Stream per-user boardstate updates. Clients should provide a unique obsID
+  # (e.g., userID+tabId) so reconnects replace old observers cleanly.
+  boardstateUpdated(obsID: String!, userID: String!): BoardState!
 }
 
 type Card {

@@ -66,11 +66,18 @@ func (s *graphQLServer) UpdateBoardState(
 		}
 	}
 
-	go s.publishBoardstate(bs)
-
+	// Persist the updated game first to ensure all consumers eventually see
+	// the same state in case they refetch after subscription delivery.
 	if err := s.upsertGame(game); err != nil {
 		return nil, fmt.Errorf("failed to update player %s boardstate %w", bs.User, err)
 	}
+
+	// Notify any boardstate observers for this specific user
+	go s.publishBoardstate(bs)
+
+	// Also publish the full game so clients subscribed at the game level
+	// receive the updated snapshot.
+	go s.publishGame(game.ID, game)
 
 	return bs, nil
 }
@@ -123,9 +130,14 @@ func boardStateFromInput(bs InputBoardState) (*BoardState, error) {
 func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 	log.Printf("boardstate published: %v", bs)
 	s.mutex.Lock()
-	fbs, ok := s.boards[bs.User]
+	// Prefer UserID when present; fall back to Username for legacy callers/tests
+	fbs, ok := s.boards[bs.UserID]
+	if !ok || bs.UserID == "" {
+		fbs, ok = s.boards[bs.User]
+	}
 	if !ok {
-		log.Printf("pubishBoardState error: could not find boardstate: %s", bs.User)
+		log.Printf("pubishBoardState error: could not find boardstate observers for userID=%q username=%q", bs.UserID, bs.User)
+		s.mutex.Unlock()
 		return
 	}
 	obs := fbs.Observers
@@ -133,7 +145,11 @@ func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 
 	fbs.Mutex.Lock()
 	for _, v := range obs {
-		v.Channel <- bs
+		select {
+		case v.Channel <- bs:
+		default:
+			log.Printf("publishBoardstate: drop update to observer %s for user %s (channel full)", v.UserID, bs.User)
+		}
 	}
 	fbs.Mutex.Unlock()
 }
@@ -156,7 +172,7 @@ func (s *graphQLServer) registerObserver(ctx context.Context, obsID string, user
 		// create and assign observer with obsID to that BoardStates's observers
 		obs := &BoardObserver{
 			UserID:  obsID,
-			Channel: make(chan *BoardState),
+			Channel: make(chan *BoardState, 10),
 		}
 
 		// map observers by ID to the full board state
@@ -181,7 +197,7 @@ func (s *graphQLServer) registerObserver(ctx context.Context, obsID string, user
 	// and assign it to the fullboardstate
 	obs := &BoardObserver{
 		UserID:  obsID,
-		Channel: make(chan *BoardState),
+		Channel: make(chan *BoardState, 10),
 	}
 	if fbs.Observers == nil {
 		log.Printf("observers was empty, making a new boardstate observers map")

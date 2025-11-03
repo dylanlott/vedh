@@ -116,13 +116,12 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Card      func(childComplexity int, name string, id *string) int
-		Cards     func(childComplexity int, list []string) int
-		Games     func(childComplexity int, offset int, limit int) int
-		GetGame   func(childComplexity int, gameID string) int
-		Search    func(childComplexity int, name *string, colors []*string, colorIdentity []*string, keywords []*string) int
-		SearchAll func(childComplexity int, name *string, colors []*string, colorIdentity []*string, keywords []*string) int
-		Users     func(childComplexity int, userID *string) int
+		Card    func(childComplexity int, name string, id *string) int
+		Cards   func(childComplexity int, list []string) int
+		Games   func(childComplexity int, offset int, limit int) int
+		GetGame func(childComplexity int, gameID string) int
+		Search  func(childComplexity int, name *string, colors []*string, colorIdentity []*string, keywords []*string) int
+		Users   func(childComplexity int, userID *string) int
 	}
 
 	Rule struct {
@@ -131,7 +130,8 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		GameUpdated func(childComplexity int, gameID string, userID string) int
+		BoardstateUpdated func(childComplexity int, obsID string, userID string) int
+		GameUpdated       func(childComplexity int, gameID string, userID string) int
 	}
 
 	Turn struct {
@@ -164,10 +164,10 @@ type QueryResolver interface {
 	Card(ctx context.Context, name string, id *string) (*Card, error)
 	Cards(ctx context.Context, list []string) ([]*Card, error)
 	Search(ctx context.Context, name *string, colors []*string, colorIdentity []*string, keywords []*string) ([]*Card, error)
-	SearchAll(ctx context.Context, name *string, colors []*string, colorIdentity []*string, keywords []*string) ([]*Card, error)
 }
 type SubscriptionResolver interface {
 	GameUpdated(ctx context.Context, gameID string, userID string) (<-chan *Game, error)
+	BoardstateUpdated(ctx context.Context, obsID string, userID string) (<-chan *BoardState, error)
 }
 
 type executableSchema struct {
@@ -591,17 +591,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Search(childComplexity, args["name"].(*string), args["colors"].([]*string), args["colorIdentity"].([]*string), args["keywords"].([]*string)), true
-	case "Query.searchAll":
-		if e.complexity.Query.SearchAll == nil {
-			break
-		}
-
-		args, err := ec.field_Query_searchAll_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.SearchAll(childComplexity, args["name"].(*string), args["colors"].([]*string), args["colorIdentity"].([]*string), args["keywords"].([]*string)), true
 	case "Query.users":
 		if e.complexity.Query.Users == nil {
 			break
@@ -627,6 +616,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Rule.Value(childComplexity), true
 
+	case "Subscription.boardstateUpdated":
+		if e.complexity.Subscription.BoardstateUpdated == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_boardstateUpdated_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.BoardstateUpdated(childComplexity, args["obsID"].(string), args["userID"].(string)), true
 	case "Subscription.gameUpdated":
 		if e.complexity.Subscription.GameUpdated == nil {
 			break
@@ -983,32 +983,6 @@ func (ec *executionContext) field_Query_getGame_args(ctx context.Context, rawArg
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_searchAll_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalOString2ᚖstring)
-	if err != nil {
-		return nil, err
-	}
-	args["name"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "colors", ec.unmarshalOString2ᚕᚖstring)
-	if err != nil {
-		return nil, err
-	}
-	args["colors"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "colorIdentity", ec.unmarshalOString2ᚕᚖstring)
-	if err != nil {
-		return nil, err
-	}
-	args["colorIdentity"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "keywords", ec.unmarshalOString2ᚕᚖstring)
-	if err != nil {
-		return nil, err
-	}
-	args["keywords"] = arg3
-	return args, nil
-}
-
 func (ec *executionContext) field_Query_search_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1043,6 +1017,22 @@ func (ec *executionContext) field_Query_users_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["userID"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_boardstateUpdated_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "obsID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["obsID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "userID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["userID"] = arg1
 	return args, nil
 }
 
@@ -3724,99 +3714,6 @@ func (ec *executionContext) fieldContext_Query_search(ctx context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_searchAll(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_searchAll,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().SearchAll(ctx, fc.Args["name"].(*string), fc.Args["colors"].([]*string), fc.Args["colorIdentity"].([]*string), fc.Args["keywords"].([]*string))
-		},
-		nil,
-		ec.marshalOCard2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐCard,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_searchAll(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "FaceName":
-				return ec.fieldContext_Card_FaceName(ctx, field)
-			case "Name":
-				return ec.fieldContext_Card_Name(ctx, field)
-			case "ID":
-				return ec.fieldContext_Card_ID(ctx, field)
-			case "Quantity":
-				return ec.fieldContext_Card_Quantity(ctx, field)
-			case "Tapped":
-				return ec.fieldContext_Card_Tapped(ctx, field)
-			case "Flipped":
-				return ec.fieldContext_Card_Flipped(ctx, field)
-			case "Counters":
-				return ec.fieldContext_Card_Counters(ctx, field)
-			case "Colors":
-				return ec.fieldContext_Card_Colors(ctx, field)
-			case "ColorIdentity":
-				return ec.fieldContext_Card_ColorIdentity(ctx, field)
-			case "FaceManaValue":
-				return ec.fieldContext_Card_FaceManaValue(ctx, field)
-			case "FaceConvertedManaCost":
-				return ec.fieldContext_Card_FaceConvertedManaCost(ctx, field)
-			case "CMC":
-				return ec.fieldContext_Card_CMC(ctx, field)
-			case "ManaCost":
-				return ec.fieldContext_Card_ManaCost(ctx, field)
-			case "UUID":
-				return ec.fieldContext_Card_UUID(ctx, field)
-			case "Power":
-				return ec.fieldContext_Card_Power(ctx, field)
-			case "Toughness":
-				return ec.fieldContext_Card_Toughness(ctx, field)
-			case "Types":
-				return ec.fieldContext_Card_Types(ctx, field)
-			case "Subtypes":
-				return ec.fieldContext_Card_Subtypes(ctx, field)
-			case "Supertypes":
-				return ec.fieldContext_Card_Supertypes(ctx, field)
-			case "Text":
-				return ec.fieldContext_Card_Text(ctx, field)
-			case "TCGID":
-				return ec.fieldContext_Card_TCGID(ctx, field)
-			case "ScryfallID":
-				return ec.fieldContext_Card_ScryfallID(ctx, field)
-			case "ScreenX":
-				return ec.fieldContext_Card_ScreenX(ctx, field)
-			case "ScreenY":
-				return ec.fieldContext_Card_ScreenY(ctx, field)
-			case "CurrentZone":
-				return ec.fieldContext_Card_CurrentZone(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_searchAll_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4032,6 +3929,75 @@ func (ec *executionContext) fieldContext_Subscription_gameUpdated(ctx context.Co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Subscription_gameUpdated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_boardstateUpdated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_boardstateUpdated,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Subscription().BoardstateUpdated(ctx, fc.Args["obsID"].(string), fc.Args["userID"].(string))
+		},
+		nil,
+		ec.marshalNBoardState2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐBoardState,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_boardstateUpdated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "UserID":
+				return ec.fieldContext_BoardState_UserID(ctx, field)
+			case "User":
+				return ec.fieldContext_BoardState_User(ctx, field)
+			case "Life":
+				return ec.fieldContext_BoardState_Life(ctx, field)
+			case "GameID":
+				return ec.fieldContext_BoardState_GameID(ctx, field)
+			case "Commander":
+				return ec.fieldContext_BoardState_Commander(ctx, field)
+			case "Library":
+				return ec.fieldContext_BoardState_Library(ctx, field)
+			case "Graveyard":
+				return ec.fieldContext_BoardState_Graveyard(ctx, field)
+			case "Exiled":
+				return ec.fieldContext_BoardState_Exiled(ctx, field)
+			case "Battlefield":
+				return ec.fieldContext_BoardState_Battlefield(ctx, field)
+			case "Hand":
+				return ec.fieldContext_BoardState_Hand(ctx, field)
+			case "Revealed":
+				return ec.fieldContext_BoardState_Revealed(ctx, field)
+			case "Controlled":
+				return ec.fieldContext_BoardState_Controlled(ctx, field)
+			case "Counters":
+				return ec.fieldContext_BoardState_Counters(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BoardState", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_boardstateUpdated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7014,25 +6980,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "searchAll":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_searchAll(ctx, field)
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -7123,6 +7070,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	switch fields[0].Name {
 	case "gameUpdated":
 		return ec._Subscription_gameUpdated(ctx, fields[0])
+	case "boardstateUpdated":
+		return ec._Subscription_boardstateUpdated(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}

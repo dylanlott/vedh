@@ -528,6 +528,7 @@ import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
 import { apolloClient } from '../services/apollo';
 import { UPDATE_BOARDSTATE_MUTATION } from '../graphql/mutations';
+// Subscriptions are handled centrally in the games store.
 import { fetchScryfallImageByName } from '../services/scryfall';
 // Dev logging helper: use console.log so messages appear without enabling Verbose level
 function dbg(...args: any[]) { console.log(...args); }
@@ -607,6 +608,28 @@ onMounted(async () => {
   dbg('[display] mounted');
   await games.loadGame(gameID, auth.profile?.ID);
   prefetchVisibleImages();
+});
+
+// Direct local subscription: sometimes the store-level subscription may not
+// surface immediately to this view (or may be replaced elsewhere). Create a
+// local subscription here to ensure we always receive game updates and apply
+// them to the `games` store so opponent boardstates update in the UI.
+const localGameSubscription: { unsubscribe?: () => void } = {};
+// Local subscription removed to avoid duplicating the store subscription and
+// potentially replacing the same userID observer on the server. The store
+// manages a single subscription per game/user.
+
+// Ensure we (re)subscribe once auth/userID is known and route is set.
+// This covers cases where the auth profile is populated after the view mounts
+// so the initial subscription might have been attempted without a userID.
+watch([
+  () => auth.profile?.ID,
+  () => route.params.id,
+], ([userID, gameID]) => {
+  if (typeof gameID === 'string' && gameID && typeof userID === 'string' && userID) {
+    dbg('[display] ensure subscription', { gameID, userID });
+    games.subscribeToGame(gameID, userID);
+  }
 });
 
 onBeforeUnmount(() => {
