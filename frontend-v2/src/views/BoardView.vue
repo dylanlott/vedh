@@ -15,23 +15,69 @@
             <h2>{{ player.Username }}</h2>
             <span class="life">{{ player.Boardstate?.Life ?? '—' }} life</span>
           </header>
-          <div class="zone" :data-zone="'Commander'">
-            <h3>Commander</h3>
-            <ul class="cards tiles">
-              <li v-for="card in player.Boardstate?.Commander ?? []" :key="card.ID" class="card-tile">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
-            </ul>
+          <div class="zone" :data-zone="'Commander'" :class="{ 'drag-over': isDragOver(player.Username, 'Commander') }" @dragenter.prevent="onDragEnter(player.Username, 'Commander')" @dragleave.prevent="onDragLeave(player.Username, 'Commander')">
+              <h3>
+                Commander
+                <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Commander')">
+                  {{ isStacked(player.Username, 'Commander') ? 'Tiles' : 'Stack' }}
+                </button>
+              </h3>
+              <template v-if="!isStacked(player.Username, 'Commander')">
+                <ul class="cards tiles">
+                  <li v-for="card in player.Boardstate?.Commander ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                    <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                    <span class="label">{{ card.Name }}</span>
+                  </li>
+                </ul>
+              </template>
+              <template v-else>
+                <ul class="cards stacks">
+                  <li v-for="g in groupByName(player.Boardstate?.Commander ?? [])" :key="g.name" class="stack-group">
+                    <div class="stack-condensed">
+                      <div class="stack-thumb">
+                        <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                      </div>
+                      <div class="stack-info">
+                        <div class="stack-name">{{ g.name }}</div>
+                        <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                      </div>
+                      <div class="count">{{ g.count }}</div>
+                    </div>
+                  </li>
+                </ul>
+              </template>
           </div>
-          <div class="zone" :data-zone="'Battlefield'">
-            <h3>Battlefield</h3>
-            <ul class="cards tiles">
-              <li v-for="card in player.Boardstate?.Battlefield ?? []" :key="card.ID" class="card-tile">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
-            </ul>
+          <div class="zone" :data-zone="'Battlefield'" :class="{ 'drag-over': isDragOver(player.Username, 'Battlefield') }" @dragenter.prevent="onDragEnter(player.Username, 'Battlefield')" @dragleave.prevent="onDragLeave(player.Username, 'Battlefield')">
+              <h3>
+                Battlefield
+                <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Battlefield')">
+                  {{ isStacked(player.Username, 'Battlefield') ? 'Tiles' : 'Stack' }}
+                </button>
+              </h3>
+              <template v-if="!isStacked(player.Username, 'Battlefield')">
+                <ul class="cards tiles">
+                  <li v-for="card in player.Boardstate?.Battlefield ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                    <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                    <span class="label">{{ card.Name }}</span>
+                  </li>
+                </ul>
+              </template>
+              <template v-else>
+                <ul class="cards stacks">
+                  <li v-for="g in groupByName(player.Boardstate?.Battlefield ?? [])" :key="g.name" class="stack-group">
+                    <div class="stack-condensed">
+                      <div class="stack-thumb">
+                        <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                      </div>
+                      <div class="stack-info">
+                        <div class="stack-name">{{ g.name }}</div>
+                        <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                      </div>
+                      <div class="count">{{ g.count }}</div>
+                    </div>
+                  </li>
+                </ul>
+              </template>
           </div>
           <div class="zone" :data-zone="'Hand'">
             <h3>Hand ({{ player.Boardstate?.Hand?.length ?? 0 }})</h3>
@@ -39,41 +85,133 @@
               <li class="card muted">Hidden</li>
             </ul>
           </div>
-          <div class="zone" :data-zone="'Graveyard'">
-            <h3>Graveyard ({{ player.Boardstate?.Graveyard?.length ?? 0 }})</h3>
-            <ul class="cards tiles">
-              <li v-for="card in player.Boardstate?.Graveyard ?? []" :key="card.ID" class="card-tile">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
-            </ul>
+          <div class="zone" :data-zone="'Graveyard'" :class="{ 'drag-over': isDragOver(player.Username, 'Graveyard') }" @dragenter.prevent="onDragEnter(player.Username, 'Graveyard')" @dragleave.prevent="onDragLeave(player.Username, 'Graveyard')">
+            <h3>
+              Graveyard ({{ player.Boardstate?.Graveyard?.length ?? 0 }})
+              <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Graveyard')">
+                {{ isStacked(player.Username, 'Graveyard') ? 'Tiles' : 'Stack' }}
+              </button>
+            </h3>
+            <template v-if="!isStacked(player.Username, 'Graveyard')">
+              <ul class="cards tiles">
+                <li v-for="card in player.Boardstate?.Graveyard ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                  <span class="label">{{ card.Name }}</span>
+                </li>
+              </ul>
+            </template>
+            <template v-else>
+              <ul class="cards stacks">
+                <li v-for="g in groupByName(player.Boardstate?.Graveyard ?? [])" :key="g.name" class="stack-group">
+                  <div class="stack-condensed">
+                    <div class="stack-thumb">
+                      <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                    </div>
+                    <div class="stack-info">
+                      <div class="stack-name">{{ g.name }}</div>
+                      <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                    </div>
+                    <div class="count">{{ g.count }}</div>
+                  </div>
+                </li>
+              </ul>
+            </template>
           </div>
-          <div class="zone" :data-zone="'Exiled'">
-            <h3>Exiled ({{ player.Boardstate?.Exiled?.length ?? 0 }})</h3>
-            <ul class="cards tiles">
-              <li v-for="card in player.Boardstate?.Exiled ?? []" :key="card.ID" class="card-tile">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
-            </ul>
+          <div class="zone" :data-zone="'Exiled'" :class="{ 'drag-over': isDragOver(player.Username, 'Exiled') }" @dragenter.prevent="onDragEnter(player.Username, 'Exiled')" @dragleave.prevent="onDragLeave(player.Username, 'Exiled')">
+            <h3>
+              Exiled ({{ player.Boardstate?.Exiled?.length ?? 0 }})
+              <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Exiled')">
+                {{ isStacked(player.Username, 'Exiled') ? 'Tiles' : 'Stack' }}
+              </button>
+            </h3>
+            <template v-if="!isStacked(player.Username, 'Exiled')">
+              <ul class="cards tiles">
+                <li v-for="card in player.Boardstate?.Exiled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                  <span class="label">{{ card.Name }}</span>
+                </li>
+              </ul>
+            </template>
+            <template v-else>
+              <ul class="cards stacks">
+                <li v-for="g in groupByName(player.Boardstate?.Exiled ?? [])" :key="g.name" class="stack-group">
+                  <div class="stack-condensed">
+                    <div class="stack-thumb">
+                      <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                    </div>
+                    <div class="stack-info">
+                      <div class="stack-name">{{ g.name }}</div>
+                      <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                    </div>
+                    <div class="count">{{ g.count }}</div>
+                  </div>
+                </li>
+              </ul>
+            </template>
           </div>
-          <div class="zone" :data-zone="'Revealed'">
-            <h3>Revealed ({{ player.Boardstate?.Revealed?.length ?? 0 }})</h3>
-            <ul class="cards tiles">
-              <li v-for="card in player.Boardstate?.Revealed ?? []" :key="card.ID" class="card-tile">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
-            </ul>
+          <div class="zone" :data-zone="'Revealed'" :class="{ 'drag-over': isDragOver(player.Username, 'Revealed') }" @dragenter.prevent="onDragEnter(player.Username, 'Revealed')" @dragleave.prevent="onDragLeave(player.Username, 'Revealed')">
+            <h3>
+              Revealed ({{ player.Boardstate?.Revealed?.length ?? 0 }})
+              <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Revealed')">
+                {{ isStacked(player.Username, 'Revealed') ? 'Tiles' : 'Stack' }}
+              </button>
+            </h3>
+            <template v-if="!isStacked(player.Username, 'Revealed')">
+              <ul class="cards tiles">
+                <li v-for="card in player.Boardstate?.Revealed ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                  <span class="label">{{ card.Name }}</span>
+                </li>
+              </ul>
+            </template>
+            <template v-else>
+              <ul class="cards stacks">
+                <li v-for="g in groupByName(player.Boardstate?.Revealed ?? [])" :key="g.name" class="stack-group">
+                  <div class="stack-condensed">
+                    <div class="stack-thumb">
+                      <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                    </div>
+                    <div class="stack-info">
+                      <div class="stack-name">{{ g.name }}</div>
+                      <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                    </div>
+                    <div class="count">{{ g.count }}</div>
+                  </div>
+                </li>
+              </ul>
+            </template>
           </div>
-          <div class="zone" :data-zone="'Controlled'">
-            <h3>Controlled ({{ player.Boardstate?.Controlled?.length ?? 0 }})</h3>
-            <ul class="cards tiles">
-              <li v-for="card in player.Boardstate?.Controlled ?? []" :key="card.ID" class="card-tile">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
-            </ul>
+          <div class="zone" :data-zone="'Controlled'" :class="{ 'drag-over': isDragOver(player.Username, 'Controlled') }" @dragenter.prevent="onDragEnter(player.Username, 'Controlled')" @dragleave.prevent="onDragLeave(player.Username, 'Controlled')">
+            <h3>
+              Controlled ({{ player.Boardstate?.Controlled?.length ?? 0 }})
+              <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Controlled')">
+                {{ isStacked(player.Username, 'Controlled') ? 'Tiles' : 'Stack' }}
+              </button>
+            </h3>
+            <template v-if="!isStacked(player.Username, 'Controlled')">
+              <ul class="cards tiles">
+                <li v-for="card in player.Boardstate?.Controlled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                  <span class="label">{{ card.Name }}</span>
+                </li>
+              </ul>
+            </template>
+            <template v-else>
+              <ul class="cards stacks">
+                <li v-for="g in groupByName(player.Boardstate?.Controlled ?? [])" :key="g.name" class="stack-group">
+                  <div class="stack-condensed">
+                    <div class="stack-thumb">
+                      <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                    </div>
+                    <div class="stack-info">
+                      <div class="stack-name">{{ g.name }}</div>
+                      <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                    </div>
+                    <div class="count">{{ g.count }}</div>
+                  </div>
+                </li>
+              </ul>
+            </template>
           </div>
           <div class="zone" :data-zone="'Library'">
             <h3>Library ({{ player.Boardstate?.Library?.length ?? 0 }})</h3>
@@ -91,7 +229,7 @@
           <h2>Stack</h2>
         </header>
         <ul class="cards tiles">
-          <li v-for="(card, i) in game.Stack" :key="`${card.ID}-${i}`" class="card-tile" draggable="false">
+          <li v-for="(card, i) in game.Stack" :key="`${card.ID}-${i}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="false">
             <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
             <span class="label">{{ card.Name }}</span>
           </li>
@@ -146,70 +284,208 @@
             </div>
           </nav>
         </header>
-        <div class="zone" :data-zone="'Commander'" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Commander')">
-          <h3>Commander</h3>
-          <ul class="cards tiles">
-            <li v-for="card in selfPlayer.Boardstate?.Commander ?? []" :key="card.ID" class="card-tile" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Commander')" @click="quickMove(card, selfPlayer.Username, 'Commander')">
-              <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-              <span class="label">{{ card.Name }}</span>
-            </li>
-          </ul>
+  <div class="zone" :data-zone="'Commander'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Commander') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Commander')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Commander')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Commander')">
+          <h3>
+            Commander
+            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Commander')">
+              {{ isStacked(selfPlayer.Username, 'Commander') ? 'Tiles' : 'Stack' }}
+            </button>
+          </h3>
+          <template v-if="!isStacked(selfPlayer.Username, 'Commander')">
+            <ul class="cards tiles">
+              <li v-for="card in selfPlayer.Boardstate?.Commander ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Commander')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Commander')">
+                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                <span class="label">{{ card.Name }}</span>
+              </li>
+            </ul>
+          </template>
+          <template v-else>
+            <ul class="cards stacks">
+              <li v-for="g in groupByName(selfPlayer.Boardstate?.Commander ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Commander', g)" @dragend="onDragEnd">
+                <div class="stack-condensed">
+                  <div class="stack-thumb">
+                      <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                  </div>
+                  <div class="stack-info">
+                    <div class="stack-name">{{ g.name }}</div>
+                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                  </div>
+                  <div class="count">{{ g.count }}</div>
+                </div>
+              </li>
+            </ul>
+          </template>
         </div>
-        <div class="zone" :data-zone="'Battlefield'" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Battlefield')">
-          <h3>Battlefield</h3>
-          <ul class="cards tiles">
-            <li v-for="card in selfPlayer.Boardstate?.Battlefield ?? []" :key="card.ID" class="card-tile" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Battlefield')" @click="quickMove(card, selfPlayer.Username, 'Battlefield')">
-              <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-              <span class="label">{{ card.Name }}</span>
-            </li>
-          </ul>
+  <div class="zone" :data-zone="'Battlefield'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Battlefield') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Battlefield')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Battlefield')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Battlefield')">
+          <h3>
+            Battlefield
+            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Battlefield')">
+              {{ isStacked(selfPlayer.Username, 'Battlefield') ? 'Tiles' : 'Stack' }}
+            </button>
+          </h3>
+          <template v-if="!isStacked(selfPlayer.Username, 'Battlefield')">
+            <ul class="cards tiles">
+              <li v-for="card in selfPlayer.Boardstate?.Battlefield ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Battlefield')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Battlefield')">
+                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                <span class="label">{{ card.Name }}</span>
+              </li>
+            </ul>
+          </template>
+          <template v-else>
+            <ul class="cards stacks">
+              <li v-for="g in groupByName(selfPlayer.Boardstate?.Battlefield ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Battlefield', g)" @dragend="onDragEnd">
+                <div class="stack-condensed">
+                  <div class="stack-thumb">
+                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                  </div>
+                  <div class="stack-info">
+                    <div class="stack-name">{{ g.name }}</div>
+                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                  </div>
+                  <div class="count">{{ g.count }}</div>
+                </div>
+              </li>
+            </ul>
+          </template>
         </div>
-        <div class="zone" :data-zone="'Hand'" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Hand')">
+  <div class="zone" :data-zone="'Hand'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Hand') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Hand')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Hand')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Hand')">
           <h3>Hand ({{ selfPlayer.Boardstate?.Hand?.length ?? 0 }})</h3>
           <ul class="cards tiles">
-            <li v-for="card in selfPlayer.Boardstate?.Hand ?? []" :key="card.ID" class="card-tile" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Hand')" @click="quickMove(card, selfPlayer.Username, 'Hand')">
+            <li v-for="card in selfPlayer.Boardstate?.Hand ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Hand')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Hand')">
               <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
               <span class="label">{{ card.Name }}</span>
             </li>
           </ul>
         </div>
-        <div class="zone" :data-zone="'Graveyard'" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Graveyard')">
-          <h3>Graveyard ({{ selfPlayer.Boardstate?.Graveyard?.length ?? 0 }})</h3>
-          <ul class="cards tiles">
-            <li v-for="card in selfPlayer.Boardstate?.Graveyard ?? []" :key="card.ID" class="card-tile" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Graveyard')" @click="quickMove(card, selfPlayer.Username, 'Graveyard')">
-              <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-              <span class="label">{{ card.Name }}</span>
-            </li>
-          </ul>
+  <div class="zone" :data-zone="'Graveyard'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Graveyard') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Graveyard')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Graveyard')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Graveyard')">
+          <h3>
+            Graveyard ({{ selfPlayer.Boardstate?.Graveyard?.length ?? 0 }})
+            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Graveyard')">
+              {{ isStacked(selfPlayer.Username, 'Graveyard') ? 'Tiles' : 'Stack' }}
+            </button>
+          </h3>
+          <template v-if="!isStacked(selfPlayer.Username, 'Graveyard')">
+            <ul class="cards tiles">
+              <li v-for="card in selfPlayer.Boardstate?.Graveyard ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Graveyard')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Graveyard')">
+                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                <span class="label">{{ card.Name }}</span>
+              </li>
+            </ul>
+          </template>
+          <template v-else>
+            <ul class="cards stacks">
+              <li v-for="g in groupByName(selfPlayer.Boardstate?.Graveyard ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Graveyard', g)" @dragend="onDragEnd">
+                <div class="stack-condensed">
+                  <div class="stack-thumb">
+                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                  </div>
+                  <div class="stack-info">
+                    <div class="stack-name">{{ g.name }}</div>
+                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                  </div>
+                  <div class="count">{{ g.count }}</div>
+                </div>
+              </li>
+            </ul>
+          </template>
         </div>
-        <div class="zone" :data-zone="'Exiled'" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Exiled')">
-          <h3>Exiled ({{ selfPlayer.Boardstate?.Exiled?.length ?? 0 }})</h3>
-          <ul class="cards tiles">
-            <li v-for="card in selfPlayer.Boardstate?.Exiled ?? []" :key="card.ID" class="card-tile" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Exiled')" @click="quickMove(card, selfPlayer.Username, 'Exiled')">
-              <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-              <span class="label">{{ card.Name }}</span>
-            </li>
-          </ul>
+  <div class="zone" :data-zone="'Exiled'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Exiled') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Exiled')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Exiled')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Exiled')">
+          <h3>
+            Exiled ({{ selfPlayer.Boardstate?.Exiled?.length ?? 0 }})
+            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Exiled')">
+              {{ isStacked(selfPlayer.Username, 'Exiled') ? 'Tiles' : 'Stack' }}
+            </button>
+          </h3>
+          <template v-if="!isStacked(selfPlayer.Username, 'Exiled')">
+            <ul class="cards tiles">
+              <li v-for="card in selfPlayer.Boardstate?.Exiled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Exiled')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Exiled')">
+                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                <span class="label">{{ card.Name }}</span>
+              </li>
+            </ul>
+          </template>
+          <template v-else>
+            <ul class="cards stacks">
+              <li v-for="g in groupByName(selfPlayer.Boardstate?.Exiled ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Exiled', g)" @dragend="onDragEnd">
+                <div class="stack-condensed">
+                  <div class="stack-thumb">
+                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                  </div>
+                  <div class="stack-info">
+                    <div class="stack-name">{{ g.name }}</div>
+                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                  </div>
+                  <div class="count">{{ g.count }}</div>
+                </div>
+              </li>
+            </ul>
+          </template>
         </div>
-        <div class="zone" :data-zone="'Revealed'" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Revealed')">
-          <h3>Revealed ({{ selfPlayer.Boardstate?.Revealed?.length ?? 0 }})</h3>
-          <ul class="cards tiles">
-            <li v-for="card in selfPlayer.Boardstate?.Revealed ?? []" :key="card.ID" class="card-tile" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Revealed')" @click="quickMove(card, selfPlayer.Username, 'Revealed')">
-              <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-              <span class="label">{{ card.Name }}</span>
-            </li>
-          </ul>
+  <div class="zone" :data-zone="'Revealed'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Revealed') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Revealed')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Revealed')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Revealed')">
+          <h3>
+            Revealed ({{ selfPlayer.Boardstate?.Revealed?.length ?? 0 }})
+            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Revealed')">
+              {{ isStacked(selfPlayer.Username, 'Revealed') ? 'Tiles' : 'Stack' }}
+            </button>
+          </h3>
+          <template v-if="!isStacked(selfPlayer.Username, 'Revealed')">
+            <ul class="cards tiles">
+              <li v-for="card in selfPlayer.Boardstate?.Revealed ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Revealed')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Revealed')">
+                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                <span class="label">{{ card.Name }}</span>
+              </li>
+            </ul>
+          </template>
+          <template v-else>
+            <ul class="cards stacks">
+              <li v-for="g in groupByName(selfPlayer.Boardstate?.Revealed ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Revealed', g)" @dragend="onDragEnd">
+                <div class="stack-condensed">
+                  <div class="stack-thumb">
+                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                  </div>
+                  <div class="stack-info">
+                    <div class="stack-name">{{ g.name }}</div>
+                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                  </div>
+                  <div class="count">{{ g.count }}</div>
+                </div>
+              </li>
+            </ul>
+          </template>
         </div>
-        <div class="zone" :data-zone="'Controlled'" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Controlled')">
-          <h3>Controlled ({{ selfPlayer.Boardstate?.Controlled?.length ?? 0 }})</h3>
-          <ul class="cards tiles">
-            <li v-for="card in selfPlayer.Boardstate?.Controlled ?? []" :key="card.ID" class="card-tile" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Controlled')" @click="quickMove(card, selfPlayer.Username, 'Controlled')">
-              <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-              <span class="label">{{ card.Name }}</span>
-            </li>
-          </ul>
+  <div class="zone" :data-zone="'Controlled'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Controlled') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Controlled')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Controlled')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Controlled')">
+          <h3>
+            Controlled ({{ selfPlayer.Boardstate?.Controlled?.length ?? 0 }})
+            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Controlled')">
+              {{ isStacked(selfPlayer.Username, 'Controlled') ? 'Tiles' : 'Stack' }}
+            </button>
+          </h3>
+          <template v-if="!isStacked(selfPlayer.Username, 'Controlled')">
+            <ul class="cards tiles">
+              <li v-for="card in selfPlayer.Boardstate?.Controlled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Controlled')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Controlled')">
+                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                <span class="label">{{ card.Name }}</span>
+              </li>
+            </ul>
+          </template>
+          <template v-else>
+            <ul class="cards stacks">
+              <li v-for="g in groupByName(selfPlayer.Boardstate?.Controlled ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Controlled', g)" @dragend="onDragEnd">
+                <div class="stack-condensed">
+                  <div class="stack-thumb">
+                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
+                  </div>
+                  <div class="stack-info">
+                    <div class="stack-name">{{ g.name }}</div>
+                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
+                  </div>
+                  <div class="count">{{ g.count }}</div>
+                </div>
+              </li>
+            </ul>
+          </template>
         </div>
-        <div class="zone" :data-zone="'Library'" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Library')">
+  <div class="zone" :data-zone="'Library'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Library') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Library')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Library')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Library')">
           <h3>
             Library ({{ selfPlayer.Boardstate?.Library?.length ?? 0 }})
             <small v-if="(selfPlayer.Boardstate?.Library?.length ?? 0) > 0" class="muted">
@@ -347,9 +623,30 @@ function isSelf(username: string) {
 
 // Basic drag-and-drop state
 const dragged = ref<{ card: { ID: string; Name: string }; fromUser: string; fromZone: Zone } | null>(null);
+// id of the currently dragged card (for CSS/animations)
+const currentDraggedId = ref<string | null>(null);
+// drag-over tracking per zone (keyed by "username::zone")
+const dragOver = ref<Record<string, boolean>>({});
+function dragKey(user: string, zone: string) { return `${user}::${zone}`; }
+function onDragEnter(user: string, zone: string) {
+  if (!dragged.value) return;
+  dragOver.value[dragKey(user, zone)] = true;
+}
+function onDragLeave(user: string, zone: string) {
+  dragOver.value[dragKey(user, zone)] = false;
+}
+function isDragOver(user: string, zone: string) { return !!dragOver.value[dragKey(user, zone)]; }
+function clearDragOverAll() { dragOver.value = {}; }
 
 function onDragStart(card: { ID: string; Name: string }, fromUser: string, fromZone: string) {
   dragged.value = { card, fromUser, fromZone: fromZone as Zone };
+  currentDraggedId.value = card.ID;
+}
+
+function onDragEnd() {
+  dragged.value = null;
+  currentDraggedId.value = null;
+  clearDragOverAll();
 }
 
 function onDrop(toUser: string, toZone: string) {
@@ -363,7 +660,11 @@ function onDrop(toUser: string, toZone: string) {
       fromZone: dragged.value.fromZone,
       toZone: toZone as Zone,
     });
+    // clear drag state and animations
     dragged.value = null;
+    currentDraggedId.value = null;
+    dragOver.value[dragKey(toUser, toZone)] = false;
+    clearDragOverAll();
   })();
 }
 
@@ -664,7 +965,62 @@ function addToast(text: string, duration = 2500) {
   }, duration);
 }
 
-// No stacks/grouping or menu behavior in tile-only mode
+// Per-player per-zone "stacked" mode: shows grouped names (counts) instead of full tiles
+const stackedZones = ref<Record<string, Record<string, boolean>>>({});
+function toggleStack(user: string, zone: string) {
+  if (!stackedZones.value[user]) stackedZones.value[user] = {};
+  stackedZones.value[user][zone] = !stackedZones.value[user][zone];
+}
+function isStacked(user: string, zone: string) {
+  return !!(stackedZones.value[user] && stackedZones.value[user][zone]);
+}
+
+function groupByName(list: { ID?: string; Name: string }[] | undefined) {
+  const out: Array<{ name: string; count: number; sample: any[] }> = [];
+  if (!list || list.length === 0) return out;
+  const map: Record<string, { count: number; sample: { ID?: string; Name: string }[] }> = {};
+  for (const c of list) {
+    if (!map[c.Name]) map[c.Name] = { count: 0, sample: [] };
+    map[c.Name].count++;
+    if (map[c.Name].sample.length < 4) map[c.Name].sample.push(c);
+  }
+  for (const name of Object.keys(map)) {
+    out.push({ name, count: map[name].count, sample: map[name].sample });
+  }
+  // sort alphabetically to keep stable order
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
+// Persist stacked view preferences in localStorage (per user+zone)
+const STACKED_ZONES_KEY = 'vedh:stackedZones:v1';
+onMounted(() => {
+  try {
+    const raw = localStorage.getItem(STACKED_ZONES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        stackedZones.value = parsed;
+      }
+    }
+  } catch {}
+});
+watch(stackedZones, (val) => {
+  try {
+    localStorage.setItem(STACKED_ZONES_KEY, JSON.stringify(val));
+  } catch {}
+}, { deep: true });
+
+// Drag from a stack group: pick one concrete card from the player's zone with this name
+function onStackDragStart(user: string, zone: Zone, group: { name: string; sample: any[] }) {
+  const g = game.value;
+  if (!g) return;
+  const player = g.Players.find(p => p.Username === user);
+  const list: any[] = (player?.Boardstate as any)?.[zone] ?? [];
+  const found = list.find(c => c?.Name === group.name);
+  if (!found) return;
+  onDragStart({ ID: found.ID, Name: found.Name }, user, zone);
+}
 </script>
 
 <style scoped lang="scss">
@@ -759,6 +1115,35 @@ function addToast(text: string, duration = 2500) {
 
 .zone {
   margin-top: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: rgba(0,0,0,0.02);
+  padding: 0.5rem;
+  border-radius: 8px;
+  position: relative;
+  transition: box-shadow 140ms ease, border-color 120ms ease;
+}
+
+/* drop indicator and stronger drag-over visuals */
+.zone::before {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 8px;
+  height: 4px;
+  border-radius: 4px;
+  background: transparent;
+  opacity: 0;
+  transition: background 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+.zone.drag-over::before {
+  background: linear-gradient(90deg, rgba(133,215,255,0.95), rgba(80,180,255,0.85));
+  opacity: 1;
+  transform: scaleX(1);
+}
+.zone.drag-over {
+  border-color: rgba(80,180,255,0.9);
+  box-shadow: 0 12px 36px rgba(6,20,30,0.6);
 }
 
 .zone h3 {
@@ -814,6 +1199,23 @@ function addToast(text: string, duration = 2500) {
 }
 .card-tile .label { font-size: 0.8rem; opacity: 0.9; }
 
+/* Pulsing glow when dragging or on hover */
+@keyframes pulse-glow {
+  0% { box-shadow: 0 6px 18px rgba(133,215,255,0.0); }
+  50% { box-shadow: 0 10px 30px rgba(133,215,255,0.25); }
+  100% { box-shadow: 0 6px 18px rgba(133,215,255,0.0); }
+}
+.card-tile { position: relative; transition: transform 140ms ease, box-shadow 160ms ease; }
+.card-tile.dragging {
+  transform: translateY(-6px) scale(1.02);
+  animation: pulse-glow 1.2s ease-in-out infinite;
+  z-index: 200;
+}
+.card-tile:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.55);
+}
+
 /* Stacks view */
 .cards.stacks {
   display: grid;
@@ -828,25 +1230,42 @@ function addToast(text: string, duration = 2500) {
   padding: 0.5rem;
   cursor: grab;
 }
-.stack-images { position: relative; height: 140px; }
-.stack-images img {
+.stack-condensed {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.stack-thumb {
+  position: relative;
+  width: 56px;
+  height: 80px;
+  flex: 0 0 56px;
+  --gap: 8px; /* collapsed gap between cards */
+  --hover-gap: 16px; /* expanded gap on hover */
+}
+.stack-thumb img {
   position: absolute;
-  top: 0; left: 0;
-  width: 110px; height: 140px;
+  left: 0;
+  width: 56px;
+  height: 80px;
   object-fit: cover;
   border-radius: 6px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  transition: top 160ms ease, transform 140ms ease;
+  top: calc(var(--i) * var(--gap));
 }
+.stack-group:hover .stack-thumb { --gap: var(--hover-gap); }
+.stack-info { flex: 1 1 auto; min-width: 0; }
+.stack-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stack-meta { font-size: 0.75rem; opacity: 0.7; margin-top: 0.15rem; }
 .stack-group .count {
-  position: absolute;
-  top: 6px; right: 6px;
   background: rgba(0,0,0,0.6);
   color: #fff;
-  padding: 0.1rem 0.4rem;
+  padding: 0.12rem 0.5rem;
   border-radius: 999px;
   font-size: 0.75rem;
+  margin-left: 0.5rem;
 }
-.stack-group .label { display: block; margin-top: 0.35rem; font-size: 0.85rem; opacity: 0.9; }
 
 /* Battlefield type groups */
 .bf-group { margin-bottom: 0.75rem; }
