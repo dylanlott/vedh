@@ -28,6 +28,7 @@ interface GameSummary {
 interface BoardStateZoneCard {
   ID: string;
   Name: string;
+  Types?: string; // optional, used for battlefield grouping
 }
 
 interface PlayerBoardState extends PlayerSummary {

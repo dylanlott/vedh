@@ -33,6 +33,7 @@ export const GET_GAME_QUERY = gql`
           Battlefield {
             ID
             Name
+            Types
           }
           Hand {
             ID
@@ -83,6 +84,7 @@ export const GAME_UPDATED_SUBSCRIPTION = gql`
           Battlefield {
             ID
             Name
+            Types
           }
           Hand {
             ID
