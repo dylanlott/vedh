@@ -107,7 +107,15 @@ export const useGamesStore = defineStore('games', () => {
     }).subscribe({
       next: ({ data }: { data?: { gameUpdated?: GameDetail } }) => {
         if (data?.gameUpdated) {
-          activeGame.value = data.gameUpdated as GameDetail;
+          // Clone the payload to avoid assigning frozen Apollo objects into
+          // our reactive store. Cloning ensures Vue's reactivity picks up
+          // nested changes in templates.
+          try {
+            activeGame.value = JSON.parse(JSON.stringify(data.gameUpdated)) as GameDetail;
+          } catch (e) {
+            // Fallback to direct assignment if cloning fails
+            activeGame.value = data.gameUpdated as GameDetail;
+          }
         }
       },
       error: (error: unknown) => {

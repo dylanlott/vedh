@@ -92,7 +92,7 @@ func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID s
 		// add observer to the FullGame
 		obs := &GameObserver{
 			UserID:  userID,
-			Channel: make(chan *Game),
+			Channel: make(chan *Game, 10), // buffered to avoid head-of-line blocking
 		}
 
 		// clean up the observers channel when we're done with it
@@ -118,7 +118,7 @@ func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID s
 	// game exists, so just push user into observers and return their channel
 	obs := &GameObserver{
 		UserID:  userID,
-		Channel: make(chan *Game),
+		Channel: make(chan *Game, 10), // buffered to avoid head-of-line blocking
 	}
 	g.Mutex.Lock()
 	g.Observers[userID] = obs
@@ -461,8 +461,23 @@ func (s *graphQLServer) publishGame(gameID string, g *Game) {
 	fullgame, ok := s.games[gameID]
 	if ok {
 		// alert observers
+		// Log current observers for debugging subscription delivery issues
+		if len(fullgame.Observers) == 0 {
+			log.Printf("publishGame: no observers for game %s", gameID)
+		} else {
+			var ids []string
+			for k := range fullgame.Observers {
+				ids = append(ids, k)
+			}
+			log.Printf("publishGame: sending update for game %s to observers: %v", gameID, ids)
+		}
 		for _, v := range fullgame.Observers {
-			v.Channel <- g
+			select {
+			case v.Channel <- g:
+			default:
+				// drop if subscriber isn't reading to avoid blocking others
+				log.Printf("publishGame: drop update to observer %s for game %s (channel full)", v.UserID, gameID)
+			}
 		}
 	} else {
 		// create one if we haven't seen this game before.
