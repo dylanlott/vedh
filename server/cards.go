@@ -266,11 +266,9 @@ func (s *graphQLServer) Search(
 	// Build a safe LIKE pattern. If caller didn't include wildcards, add them,
 	// and search both Name and FaceName case-insensitively.
 	pattern := ""
-	if name != nil {
-		pattern = *name
-		if !strings.ContainsAny(pattern, "%_") {
-			pattern = "%" + pattern + "%"
-		}
+	pattern = *name
+	if !strings.ContainsAny(pattern, "%_") {
+		pattern = "%" + pattern + "%"
 	}
 
 	// query the db for it (case-insensitive). Align to allcards schema
