@@ -5,23 +5,76 @@
         <h1>Your games</h1>
         <p>Browse existing games or spin up a new table.</p>
       </div>
-      <button class="primary" @click="showCreateModal = true">Create game</button>
+      <div class="header-actions">
+        <div class="search">
+          <input
+            v-model="searchQuery"
+            type="search"
+            inputmode="search"
+            placeholder="Search games…"
+            aria-label="Search games by name or ID"
+          />
+          <button v-if="searchQuery" class="clear" @click="searchQuery = ''" aria-label="Clear search">×</button>
+        </div>
+        <button class="primary" @click="showCreateModal = true">Create game</button>
+      </div>
     </header>
 
-    <div v-if="loading" class="skeleton-grid">
-      <div v-for="n in 4" :key="n" class="skeleton-card" />
+    <!-- Loading skeleton -->
+    <div v-if="loading" class="skeleton-table">
+      <div class="skeleton-row" v-for="n in 4" :key="n">
+        <div class="sk sk-title" />
+        <div class="sk sk-players" />
+        <div class="sk sk-turn" />
+        <div class="sk sk-created" />
+        <div class="sk sk-actions" />
+      </div>
     </div>
 
-  <div v-else class="games-grid">
-  <article v-for="game in games" :key="game.ID" @click="openGame(game.ID)">
-        <h3>{{ formatGameTitle(game) }}</h3>
-        <ul>
-          <li v-for="player in game.Players" :key="player.ID || player.Username">{{ player.Username }}</li>
-        </ul>
-        <footer>
-          <span>{{ formatTurn(game.Turn) }}</span>
-        </footer>
-      </article>
+    <!-- Detail list -->
+    <div v-else class="table-container">
+      <div v-if="!filteredGames.length" class="empty" role="status">
+        <p v-if="searchQuery">No games match “{{ searchQuery }}”.</p>
+        <p v-else>No games to show yet.</p>
+      </div>
+      <table class="games-table">
+        <thead>
+          <tr>
+            <th scope="col">Game</th>
+            <th scope="col">Players</th>
+            <th scope="col">Turn</th>
+            <th scope="col">Created</th>
+            <th scope="col" class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="game in filteredGames" :key="game.ID" @click="openGame(game.ID)" class="clickable">
+            <td data-label="Game">
+              <div class="cell-title">{{ formatGameTitle(game) }}</div>
+              <div class="cell-sub">ID: {{ game.ID }}</div>
+            </td>
+            <td data-label="Players">
+              <div class="cell-players">
+                <span v-if="game.Players?.length === 0">—</span>
+                <template v-else>
+                  <span v-for="(player, i) in game.Players" :key="player.ID || player.Username">
+                    {{ player.Username }}<span v-if="i < game.Players.length - 1">, </span>
+                  </span>
+                </template>
+              </div>
+            </td>
+            <td data-label="Turn">
+              <div class="cell-turn">{{ formatTurn(game.Turn) }}</div>
+            </td>
+            <td data-label="Created">
+              <div class="cell-created">{{ formatDate(game.CreatedAt) }}</div>
+            </td>
+            <td class="actions" @click.stop>
+              <button class="link" @click="openGame(game.ID)">Open</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <FormCreateGame v-if="showCreateModal" @close="showCreateModal = false" @created="handleGameCreated" />
@@ -40,6 +93,17 @@ const router = useRouter();
 const loading = computed(() => gamesStore.loading);
 const games = computed(() => gamesStore.games);
 const showCreateModal = ref(false);
+const searchQuery = ref('');
+
+const filteredGames = computed(() => {
+  const list = games.value ?? [];
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return list;
+  return list.filter((g) => {
+    const title = formatGameTitle(g).toLowerCase();
+    return title.includes(q) || g.ID.toLowerCase().includes(q);
+  });
+});
 
 onMounted(() => {
   gamesStore.fetchGames();
@@ -63,6 +127,19 @@ function formatTurn(turn?: { Player?: string; Phase?: string; Number?: number })
   if (!turn) return '—';
   return `${turn.Player ?? 'Unknown'} • ${turn.Phase ?? 'Phase'} • Turn ${turn.Number ?? '-'}`;
 }
+
+function formatDate(iso?: string) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 </script>
 
 <style scoped lang="scss">
@@ -79,24 +156,92 @@ function formatTurn(turn?: { Player?: string; Phase?: string; Number?: number })
   gap: 1rem;
 }
 
-.games-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.25rem;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-article {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 1.5rem;
+.search {
+  position: relative;
+}
+
+.search input[type='search'] {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 0.55rem 2rem 0.55rem 0.9rem;
+  border-radius: 10px;
+  outline: none;
+}
+
+.search .clear {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
-article:hover {
-  transform: translateY(-4px);
-  border-color: rgba(133, 215, 255, 0.6);
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.empty {
+  padding: 1rem;
+  opacity: 0.8;
+}
+
+.games-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.games-table thead th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.games-table tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  vertical-align: middle;
+}
+
+.games-table tbody tr.clickable {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.games-table tbody tr.clickable:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cell-title {
+  font-weight: 600;
+}
+
+.cell-sub {
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+.actions-col,
+.actions {
+  white-space: nowrap;
+  width: 1%;
 }
 
 button.primary {
@@ -108,22 +253,56 @@ button.primary {
   cursor: pointer;
 }
 
-.skeleton-grid {
+.skeleton-table {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.25rem;
+  gap: 0.5rem;
 }
 
-.skeleton-card {
-  height: 140px;
-  border-radius: 16px;
+.skeleton-row {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1.5fr 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.sk {
+  height: 18px;
+  border-radius: 6px;
   background: linear-gradient(110deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.06) 63%);
   background-size: 400% 100%;
   animation: shimmer 1.6s ease infinite;
 }
 
+.sk-title { width: 60%; }
+.sk-players { width: 80%; }
+.sk-turn { width: 70%; }
+.sk-created { width: 50%; }
+.sk-actions { width: 64px; }
+
 @keyframes shimmer {
   0% { background-position: 0% 0%; }
   100% { background-position: -135% 0%; }
+}
+
+/* Responsive: stack cells on narrow screens */
+@media (max-width: 720px) {
+  .games-table thead { display: none; }
+  .games-table, .games-table tbody, .games-table tr, .games-table td { display: block; width: 100%; }
+  .games-table tbody tr { border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; margin-bottom: 0.75rem; overflow: hidden; }
+  .games-table tbody td { display: grid; grid-template-columns: 9ch 1fr; gap: 0.5rem; }
+  .games-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: rgba(255,255,255,0.8);
+  }
+  .actions { display: flex; justify-content: flex-end; }
+}
+
+button.link {
+  background: transparent;
+  border: none;
+  color: #85d7ff;
+  font-weight: 600;
+  cursor: pointer;
 }
 </style>
