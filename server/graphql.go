@@ -3,15 +3,17 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/99designs/gqlgen/handler"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
@@ -33,6 +35,8 @@ type Conf struct {
 type graphQLServer struct {
 	mutex sync.RWMutex
 
+	logger *slog.Logger
+
 	// Persistence layers
 	db *sql.DB
 
@@ -49,13 +53,76 @@ type graphQLServer struct {
 func NewGraphQLServer(
 	db *sql.DB,
 	cfg Conf,
+	logger *slog.Logger,
 ) (*graphQLServer, error) {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &graphQLServer{
 		mutex:  sync.RWMutex{},
+		logger: logger,
 		db:     db,
 		games:  map[string]*FullGame{},
 		boards: map[string]*FullBoardstate{},
 	}, nil
+}
+
+type requestIDContextKey struct{}
+
+func (s *graphQLServer) loggerFor(ctx context.Context) *slog.Logger {
+	if s.logger == nil {
+		return slog.Default()
+	}
+	if ctx == nil {
+		return s.logger
+	}
+	if rid, ok := ctx.Value(requestIDContextKey{}).(string); ok && rid != "" {
+		return s.logger.With("request_id", rid)
+	}
+	return s.logger
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func (s *graphQLServer) withRequestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := r.Header.Get("X-Request-Id")
+		if requestID == "" {
+			requestID = uuid.NewString()
+		}
+		w.Header().Set("X-Request-Id", requestID)
+		ctx := context.WithValue(r.Context(), requestIDContextKey{}, requestID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (s *graphQLServer) withRequestLogging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+
+		dur := time.Since(start)
+		logger := s.loggerFor(r.Context()).With(
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", rec.status,
+			"duration_ms", dur.Milliseconds(),
+		)
+		if rec.status >= 500 {
+			logger.Error("http request")
+			return
+		}
+		logger.Info("http request")
+	})
 }
 
 // Serve is a blocking function that runs the server until anything returns an error.
@@ -75,9 +142,11 @@ func (s *graphQLServer) Serve(route string, port int) error {
 		),
 	)
 	h := cors.AllowAll().Handler(s.auth(mux))
+	h = s.withRequestLogging(h)
+	h = s.withRequestID(h)
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
 	mux.Handle("/prometheus", promhttp.Handler())
-	log.Printf("serving graphiql at localhost:%d/playground", port)
+	s.logger.Info("serving graphiql", "url", fmt.Sprintf("http://localhost:%d/playground", port))
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), h)
 }
 
