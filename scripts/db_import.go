@@ -14,11 +14,12 @@ import (
 	"encoding/gob"
 	"flag"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/openmtg/edh-go/persistence"
 
@@ -87,29 +88,37 @@ func main() {
 
 	flag.Parse()
 
+	level := slog.LevelInfo
+	if *verbose {
+		level = slog.LevelDebug
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	slog.SetDefault(logger)
+
 	parsed, err := url.Parse(*dburl)
 	if err != nil {
-		log.Fatalf("🚨 failed to parse url: %s", err)
+		logger.Error("failed to parse url", "err", err)
+		os.Exit(1)
 	}
 
-	if *verbose {
-		log.Printf("🚀 import targeting %s", parsed.Host)
-	}
+	logger.Debug("import targeting", "host", parsed.Host)
 
 	conn, err := persistence.NewDB(*dburl)
 	if err != nil {
-		log.Fatalf("🚨 failed to connecto to postgres for import: %s", err)
+		logger.Error("failed to connect to postgres for import", "err", err)
+		os.Exit(1)
 	}
 
 	if *refresh {
-		log.Printf("🔌 refreshing card sources before import")
-		updateAndUnzip()
+		logger.Info("refreshing card sources before import")
+		updateAndUnzip(logger)
 	}
 
 	// open up the file for reading
 	f, err := os.Open("./cards.csv")
 	if err != nil {
-		log.Fatalf("🚨 failed to open file: %s", err)
+		logger.Error("failed to open file", "err", err)
+		os.Exit(1)
 	}
 	defer f.Close()
 
@@ -117,10 +126,11 @@ func main() {
 	cards := []*CSVCard{}
 	err = gocsv.Unmarshal(f, &cards)
 	if err != nil {
-		log.Fatalf("failed to unmarshal csv: %s", err)
+		logger.Error("failed to unmarshal csv", "err", err)
+		os.Exit(1)
 	}
 
-	log.Printf("📊 attempting to import %d cards into target database", len(cards))
+	logger.Info("attempting to import cards", "count", len(cards), "db_host", strings.TrimSpace(parsed.Host))
 
 	report := ImportReport{
 		success: 0,
@@ -139,15 +149,15 @@ func main() {
 			c.Text, c.Toughness, c.Type, c.Types, c.UUID,
 		)
 		if err != nil {
-			log.Printf("🚨 failed to insert card [%s]: %s", c.Name, err)
+			logger.Warn("failed to insert card", "name", c.Name, "err", err)
 			report.errors++
 			continue
 		} else {
-			log.Printf("↘️ importing %v", c.Name)
+			logger.Debug("imported", "name", c.Name)
 			report.success++
 		}
 	}
-	log.Printf("📊 import report: %+v", report)
+	logger.Info("import report", "success", report.success, "errors", report.errors)
 }
 
 var insertSQL string = `INSERT INTO cards (
@@ -205,7 +215,7 @@ func UnzipFile(path string) error {
 	// Create a reader out of the zip archive
 	zipReader, err := zip.OpenReader(path)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer zipReader.Close()
 
@@ -215,7 +225,7 @@ func UnzipFile(path string) error {
 		// like a normal file
 		zippedFile, err := file.Open()
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		defer zippedFile.Close()
 
@@ -235,11 +245,13 @@ func UnzipFile(path string) error {
 			// Create directories to recreate directory
 			// structure inside the zip archive. Also
 			// preserves permissions
-			log.Println("Creating directory:", extractedFilePath)
-			os.MkdirAll(extractedFilePath, file.Mode())
+			slog.Default().Debug("creating directory", "path", extractedFilePath)
+			if err := os.MkdirAll(extractedFilePath, file.Mode()); err != nil {
+				return err
+			}
 		} else {
 			// Extract regular file since not a directory
-			log.Println("Extracting file:", file.Name)
+			slog.Default().Debug("extracting file", "name", file.Name)
 
 			// Open an output file for writing
 			outputFile, err := os.OpenFile(
@@ -248,7 +260,7 @@ func UnzipFile(path string) error {
 				file.Mode(),
 			)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			defer outputFile.Close()
 
@@ -256,7 +268,7 @@ func UnzipFile(path string) error {
 			// contents to the output file
 			_, err = io.Copy(outputFile, zippedFile)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 		}
 	}
@@ -286,20 +298,25 @@ func DownloadFile(filepath string, url string) error {
 	return err
 }
 
-func updateAndUnzip() {
-	log.Printf("✨ refreshing allprintings file")
+func updateAndUnzip(logger *slog.Logger) {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	logger.Info("refreshing allprintings file")
 	// Let's take a stab at CSV rendering
 	// Download the CSV AllPrintings zip file
 	err := DownloadFile("./allprintings.csv.zip", "https://mtgjson.com/api/v5/AllPrintingsCSVFiles.zip")
 	if err != nil {
-		log.Fatalf("🚨 failed to download file: %s", err)
+		logger.Error("failed to download file", "err", err)
+		os.Exit(1)
 	}
 
 	// // Commented out until cleanup is written.
 	// // Unzip the CSV file and get the path
 	err = UnzipFile("./allprintings.csv.zip")
 	if err != nil {
-		log.Fatalf("🚨 failed to unzip file: %s", err)
+		logger.Error("failed to unzip file", "err", err)
+		os.Exit(1)
 	}
-	log.Printf("👌 unzipped allprintings.csv file successfully")
+	logger.Info("unzipped allprintings.csv file successfully")
 }

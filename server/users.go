@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/dgrijalva/jwt-go"
@@ -67,7 +66,7 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	var hash string
 	for rows.Next() {
 		if err := rows.Scan(&user.ID, &user.Username, &hash); err != nil {
-			log.Printf("failed to scan in user at login: %s", err)
+			s.loggerFor(ctx).Error("failed to scan user at login", "err", err, "username", username)
 			return nil, errs.Wrap(err)
 		}
 	}
