@@ -2,7 +2,7 @@ package games
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -184,7 +184,7 @@ func (m *MemStore) NewFullGame(id string, players []Player) (*FullGame, error) {
 	defer m.Mutex.Unlock()
 
 	m.games[g.ID()] = g
-	log.Printf("created game %s", id)
+	slog.Default().Info("created game", "game_id", id)
 
 	return g, nil
 }
@@ -287,7 +287,7 @@ func (f *FullGame) Subscribe() (chan Game, error) {
 	}
 	f.subs = append(f.subs, s)
 
-	log.Printf("subscribed %s", s.id)
+	slog.Default().Info("subscribed", "subscriber_id", s.id, "game_id", f.ID())
 
 	return s.ch, nil
 }
@@ -296,7 +296,7 @@ func (f *FullGame) Subscribe() (chan Game, error) {
 func (f *FullGame) Publish(game Game) error {
 	for _, v := range f.subs {
 		v.ch <- game
-		log.Printf("published game event %v", game)
+		slog.Default().Debug("published game event", "game_id", f.ID())
 	}
 	return nil
 }

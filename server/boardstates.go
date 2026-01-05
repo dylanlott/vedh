@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"sync"
 )
 
@@ -128,7 +127,7 @@ func boardStateFromInput(bs InputBoardState) (*BoardState, error) {
 // * it acquires a lock on the *FullBoardState and this must be respected
 // or else we'll run into race conditions as well.
 func (s *graphQLServer) publishBoardstate(bs *BoardState) {
-	log.Printf("boardstate published: %v", bs)
+	s.loggerFor(context.Background()).Debug("boardstate published", "user", bs.User, "user_id", bs.UserID, "game_id", bs.GameID)
 	s.mutex.Lock()
 	// Prefer UserID when present; fall back to Username for legacy callers/tests
 	fbs, ok := s.boards[bs.UserID]
@@ -136,7 +135,7 @@ func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 		fbs, ok = s.boards[bs.User]
 	}
 	if !ok {
-		log.Printf("pubishBoardState error: could not find boardstate observers for userID=%q username=%q", bs.UserID, bs.User)
+		s.loggerFor(context.Background()).Warn("publishBoardstate: observers not found", "user_id", bs.UserID, "user", bs.User)
 		s.mutex.Unlock()
 		return
 	}
@@ -148,7 +147,7 @@ func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 		select {
 		case v.Channel <- bs:
 		default:
-			log.Printf("publishBoardstate: drop update to observer %s for user %s (channel full)", v.UserID, bs.User)
+			s.loggerFor(context.Background()).Warn("publishBoardstate: drop update (channel full)", "observer_id", v.UserID, "user", bs.User, "user_id", bs.UserID)
 		}
 	}
 	fbs.Mutex.Unlock()
@@ -160,6 +159,8 @@ func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 func (s *graphQLServer) registerObserver(ctx context.Context, obsID string, userID string) (chan *BoardState, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	logger := s.loggerFor(ctx).With("observer_id", obsID, "user_id", userID)
 
 	// locate if a boardstate exists for that userID already
 	fbs, ok := s.boards[userID]
@@ -185,12 +186,12 @@ func (s *graphQLServer) registerObserver(ctx context.Context, obsID string, user
 		go func() {
 			<-ctx.Done()
 			full.Mutex.Lock()
-			log.Printf("cleaning up observer [%s] of boardstate [%s]", obsID, userID)
+			logger.Info("cleaning up boardstate observer")
 			delete(full.Observers, obsID)
 			full.Mutex.Unlock()
 		}()
 
-		log.Printf("registered observer [%s] to user [%s] boardstate", obsID, userID)
+		logger.Info("registered boardstate observer")
 		return obs.Channel, nil
 	}
 	// if the fullboardstate exists, then create a new observer
@@ -200,11 +201,10 @@ func (s *graphQLServer) registerObserver(ctx context.Context, obsID string, user
 		Channel: make(chan *BoardState, 10),
 	}
 	if fbs.Observers == nil {
-		log.Printf("observers was empty, making a new boardstate observers map")
+		logger.Debug("boardstate observers map was empty; initializing")
 		fbs.Observers = make(map[string]*BoardObserver)
 	}
 	fbs.Observers[obsID] = obs
-	log.Printf("registered observer [%s] to user [%s] boardstate", obsID, userID)
-	log.Printf("list of observers: %+v", fbs.Observers)
+	logger.Info("registered boardstate observer")
 	return obs.Channel, nil
 }

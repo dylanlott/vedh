@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -80,7 +79,7 @@ func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID s
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	log.Printf("registering game observer %s to %s", userID, gameID)
+	s.loggerFor(ctx).Info("registering game observer", "user_id", userID, "game_id", gameID)
 
 	g, ok := s.games[gameID]
 	if !ok {
@@ -99,7 +98,7 @@ func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID s
 		go func() {
 			<-ctx.Done()
 			game.Mutex.Lock()
-			log.Printf("cleaning up observer %s game %s", game.GameID, userID)
+			s.loggerFor(ctx).Info("cleaning up game observer", "user_id", userID, "game_id", game.GameID)
 			delete(game.Observers, userID)
 			game.Mutex.Unlock()
 		}()
@@ -213,7 +212,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	library, err := s.createLibraryFromDecklist(ctx, *input.Decklist)
 	if err != nil {
 		// Fail gracefully and still populate basic cards
-		log.Printf("error creating library from decklist: %+v", err)
+		s.loggerFor(ctx).Warn("error creating library from decklist", "err", err, "game_id", input.ID, "user_id", input.BoardState.UserID)
 		user.Boardstate.Library = getBareCard(input.BoardState.Library)
 	} else {
 		// Happy path
@@ -225,7 +224,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		for _, card := range input.BoardState.Commander {
 			commander, err := s.Card(ctx, card.Name, nil)
 			if err != nil {
-				log.Printf("error getting commander for deck: %+v", err)
+				s.loggerFor(ctx).Warn("error getting commander for deck", "err", err, "card_name", card.Name, "game_id", input.ID, "user_id", input.BoardState.UserID)
 				continue
 			}
 			user.Boardstate.Commander = append(user.Boardstate.Commander, commander)
@@ -235,7 +234,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	// shuffle their library for the start of the game
 	shuff, err := Shuffle(user.Boardstate.Library)
 	if err != nil {
-		log.Printf("error shuffling library: %s", err)
+		s.loggerFor(ctx).Error("error shuffling library", "err", err, "game_id", input.ID, "user_id", input.BoardState.UserID)
 		return nil, err
 	}
 	user.Boardstate.Library = shuff
@@ -318,7 +317,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		library, err := s.createLibraryFromDecklist(ctx, decklist)
 		if err != nil {
 			// Fail gracefully and still populate basic cards
-			log.Printf("error creating library from decklist: %+v", err)
+			s.loggerFor(ctx).Warn("error creating library from decklist", "err", err, "game_id", g.ID, "user_id", player.UserID)
 			user.Boardstate.Library = getBareCard(player.Library)
 		} else {
 			// Happy path
@@ -329,7 +328,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		if len(player.Commander) > 0 {
 			commander, err := s.Card(ctx, player.Commander[0].Name, nil)
 			if err != nil {
-				log.Printf("error getting commander for deck: %+v", err)
+				s.loggerFor(ctx).Warn("error getting commander for deck", "err", err, "card_name", player.Commander[0].Name, "game_id", g.ID, "user_id", player.UserID)
 				// fail gracefully and use their card name so they can still play a game
 				inputCard := getBareCard(player.Commander)
 				user.Boardstate.Commander = []*Card{inputCard[0]}
@@ -416,7 +415,7 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 			break
 		}
 		if err != nil {
-			log.Printf("error reading csv record for card name: %+v", err)
+			s.loggerFor(ctx).Warn("error reading csv record", "err", err)
 			return nil, fmt.Errorf("failed to parse CSV: %s", err)
 		}
 
@@ -428,7 +427,7 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 
 		found, err := s.Card(ctx, name, nil)
 		if err != nil {
-			log.Printf("failed to find card: %+v\n", err)
+			s.loggerFor(ctx).Warn("failed to find card", "err", err, "card_name", name)
 			cards = addX(quantity, cards, &Card{Name: name})
 		} else {
 			cards = addX(quantity, cards, found)
@@ -459,25 +458,27 @@ func (s *graphQLServer) publishGame(gameID string, g *Game) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	logger := s.loggerFor(context.Background()).With("game_id", gameID)
+
 	fullgame, ok := s.games[gameID]
 	if ok {
 		// alert observers
 		// Log current observers for debugging subscription delivery issues
 		if len(fullgame.Observers) == 0 {
-			log.Printf("publishGame: no observers for game %s", gameID)
+			logger.Debug("publishGame: no observers")
 		} else {
 			var ids []string
 			for k := range fullgame.Observers {
 				ids = append(ids, k)
 			}
-			log.Printf("publishGame: sending update for game %s to observers: %v", gameID, ids)
+			logger.Debug("publishGame: sending update", "observer_ids", ids)
 		}
 		for _, v := range fullgame.Observers {
 			select {
 			case v.Channel <- g:
 			default:
 				// drop if subscriber isn't reading to avoid blocking others
-				log.Printf("publishGame: drop update to observer %s for game %s (channel full)", v.UserID, gameID)
+				logger.Warn("publishGame: drop update (channel full)", "observer_user_id", v.UserID)
 			}
 		}
 	} else {

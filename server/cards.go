@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -275,7 +274,7 @@ func (s *graphQLServer) Search(
 	rows, err := s.db.Query(`SELECT name, colors, manacost, types,
 	power, toughness, text, subtypes, supertypes, uuid FROM allcards WHERE name ILIKE $1 OR facename ILIKE $1`, pattern)
 	if err != nil {
-		log.Printf("error querying database: %s", err)
+		s.loggerFor(ctx).Error("search query failed", "err", err)
 		return nil, errs.New("failed to search db: %s", err)
 	}
 
@@ -298,7 +297,7 @@ func (s *graphQLServer) Search(
 		if err := rows.Scan(&name, &colors, &manacost, &types,
 			&power, &toughness, &text, &subtypes, &supertypes,
 			&uuid); err != nil {
-			log.Printf("ERROR: failed to scan card into struct: %s", err)
+			s.loggerFor(ctx).Warn("failed to scan card row", "err", err)
 			continue
 		}
 		// Use UUID when available as the external ID; fall back to name.
@@ -343,7 +342,7 @@ func (s *graphQLServer) SearchAll(
 
 	rows, err := s.db.Query(`SELECT name, uuid, text, manacost, power, toughness, types, subtypes, supertypes FROM allcards WHERE name LIKE $1`, name)
 	if err != nil {
-		log.Printf("error querying allcards table: %s", err)
+		s.loggerFor(ctx).Error("searchall query failed", "err", err)
 		return nil, errs.New("failed to search allcards db: %s", err)
 	}
 
@@ -362,7 +361,7 @@ func (s *graphQLServer) SearchAll(
 		)
 
 		if err := rows.Scan(&nameVal, &uuid, &text, &manacost, &power, &toughness, &types, &subtypes, &supertypes); err != nil {
-			log.Printf("ERROR: failed to scan allcards row into struct: %s", err)
+			s.loggerFor(ctx).Warn("failed to scan allcards row", "err", err)
 			continue
 		}
 

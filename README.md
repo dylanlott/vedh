@@ -1,3 +1,7 @@
+# vedh
+
+> A Magic: The Gathering boardstate tracker built with GraphQL, Vue, and Go.
+
 ```text
 ██╗   ██╗███████╗██████╗ ██╗  ██╗
 ██║   ██║██╔════╝██╔══██╗██║  ██║
@@ -5,10 +9,8 @@
 ╚██╗ ██╔╝██╔══╝  ██║  ██║██╔══██║
  ╚████╔╝ ███████╗██████╔╝██║  ██║
   ╚═══╝  ╚══════╝╚═════╝ ╚═╝  ╚═╝
-
 ```
 
-> A Magic: The Gathering boardstate tracker built with GraphQL, Vue, and Go.
 > Pronounced "vee-dee-aych"
 
 ## Development
@@ -26,8 +28,14 @@ You will need to configure `.edhgo.env` and `.pg.env` environment files at your 
 
 ```sh
 # .edhgo.env example
+# Database connection URI
 DATABASE_URL=""
+# Authentication secret
 JWT_SECRET=""
+
+# Optional: structured logging
+# Levels: debug, info, warn, error
+LOG_LEVEL="info"
 ```
 
 ```sh
@@ -51,9 +59,11 @@ VUE_APP_BASE_URL="http://127.0.0.1:8080/graphql"
 
 ### Persistence
 
-You can quickly start the persistence dependencies by running `$ make persistence`
+You can quickly start the persistence dependencies by running `make persistence`
 
-This will boot up Postgres and Redis development servers. Then run the server with our Makefile by running `make run`
+This will boot up Postgres database.
+
+Then run the server with our Makefile by running `make run`
 
 The server will attempt to run all migrations and then start up.  If it can't run migrations, it will rollback the database and noisily fail.
 
@@ -72,6 +82,13 @@ To run the Vue app:
 > yarn install
 > yarn start
 ```
+
+#### V2 Frontend
+
+The v2 frontend exists in frontend-v2/ and is in active development.
+
+`npm run dev` to run the dev server.
+`npm test` to run all the tests.
 
 #### Vue Tests
 
@@ -92,6 +109,22 @@ To run the API tests
 ```
 
 Once you have a Postgres instance running locally, you can run your tests. You may need to change the config values in `games_test.go` to start your tests or configure your environment to fit with the provided.
+
+## Observability
+
+### Logging
+
+The server emits structured JSON logs to stdout.
+
+- Control log verbosity with `LOG_LEVEL` (defaults to `info`).
+- Each HTTP request gets an `X-Request-Id`:
+  - If you send `X-Request-Id`, the server will reuse it.
+  - Otherwise, the server generates one and returns it in the response.
+  - Logs include `request_id`, `method`, `path`, `status`, and `duration_ms`.
+
+```sh
+LOG_LEVEL=debug make run
+```
 
 ## Stack
 

@@ -3,7 +3,7 @@ package persistence
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -24,7 +24,7 @@ var (
 func NewDB(dbURL string) (*sql.DB, error) {
 	pg, err := NewPostgres(defaultMigrationsDir, dbURL)
 	if err != nil {
-		log.Printf("failed to get postgres: %s", err)
+		slog.Default().Error("failed to get postgres", "err", err)
 		return nil, errs.Wrap(err)
 	}
 	if err := pg.Ping(); err != nil {
@@ -36,21 +36,21 @@ func NewDB(dbURL string) (*sql.DB, error) {
 // NewPostgres returns a migrated sql.DB with a Postgres database connection
 // migdir is the relative path to the migrations directory.
 func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
-	log.Printf("💾 opening PostgreSQL database connection")
+	slog.Default().Info("opening PostgreSQL database connection")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Printf("🚨 failed to get new postgres: %s", err)
+		slog.Default().Error("failed to open postgres connection", "err", err)
 		return nil, errs.Wrap(err)
 	}
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
-		log.Printf("🚨 failed to get postgres instance: %s", err)
+		slog.Default().Error("failed to create postgres migrate instance", "err", err)
 		return nil, err
 	}
 	formattedMigrationsDir := fmt.Sprintf("file://%s", migdir)
 	m, err := migrate.NewWithDatabaseInstance(formattedMigrationsDir, "postgres", driver)
 	if err != nil {
-		log.Printf("🚨 failed to get instance for migration: %s", err)
+		slog.Default().Error("failed to create migration instance", "err", err)
 		return nil, errs.Wrap(err)
 	}
 	err = m.Up()
@@ -61,18 +61,18 @@ func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
 				return nil, fmt.Errorf("failed to get migration version: %w", err)
 			}
 			if dirty {
-				log.Printf("🦑 database migration state is dirty - version %d", v)
+				slog.Default().Warn("database migration state is dirty", "version", v)
 			} else {
-				log.Printf("⇅ no migration changes detected - latest migration is %d", v)
+				slog.Default().Info("no migration changes detected", "latest_version", v)
 			}
 			return db, nil
 		}
 		// should we fail here? regardless, we should not be silent
-		log.Printf("🚨 failed to run migrations: %s", err)
-		log.Printf("🪽 attempting migration rollback")
+		slog.Default().Error("failed to run migrations", "err", err)
+		slog.Default().Warn("attempting migration rollback")
 		return nil, m.Down()
 	}
 
-	log.Printf("💿 database created")
+	slog.Default().Info("database created")
 	return db, err
 }
