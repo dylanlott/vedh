@@ -145,11 +145,12 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 	// for the first player and `deadbeef2` for the second, etc.
 	for i, p := range game.Players {
 		if p != nil && p.ID == "" {
-			if i == 0 {
+			switch i {
+			case 0:
 				p.ID = "deadbeef"
-			} else if i == 1 {
+			case 1:
 				p.ID = "deadbeef2"
-			} else {
+			default:
 				p.ID = fmt.Sprintf("deadbeef%d", i+1)
 			}
 		}
