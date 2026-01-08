@@ -1,7 +1,7 @@
-// +heroku goVersion go1.22
+// +heroku goVersion go1.24
 module github.com/openmtg/edh-go
 
-go 1.22
+go 1.24
 
 require (
 	github.com/99designs/gqlgen v0.17.81
