@@ -133,17 +133,35 @@ LOG_LEVEL=debug make run
 - Migrate [CLI](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate) for managing database migrations.
 - GraphQL as a realtime API layer
 
+## Deployment (Dokku)
+
+The current production deploys use Dokku on `dokku@192.241.142.53`.
+
+### vedh-api (server)
+
+```sh
+git add $CHANGES
+git commit -m "server changes"
+git push dokku main
+```
+
+### frontend-v2 (Vite/Vue)
+
+```sh
+git add $CHANGES
+git commit -m "frontend-v2 changes"
+git subtree push --prefix frontend-v2 dokku@192.241.142.53:frontend-v2 main
+```
+
 ## Documentation & Resources
 
 - [How to connect to a postgres instance inside of docker](https://stackoverflow.com/questions/37694987/connecting-to-postgresql-in-a-docker-container-from-outside)
 - [How to import an SQL dump into Postgres](https://stackoverflow.com/questions/6842393/import-sql-dump-into-postgresql-database)
 - [Make sure when you rows.Scan() you don't point it at a nil value](https://stackoverflow.com/questions/44670212/scan-sql-null-values-in-golang/46753197)
 
-## Deployment
+## Deployment (Docker Hub, legacy)
 
-Deployments are run using `vtec2/watchtower` to watch for container updates to the Docker Hub. New builds are tested and then tagged `latest` and pushed to Docker Hub so that Watchtower detects them on the EDH-Go production server.
-
-Note: You must be logged into the OpenMTG Docker Hub account to push the images.
+Deployments are run using `vtec2/watchtower` to watch for container updates to Docker Hub. New builds are tested and then tagged `latest` and pushed to Docker Hub so that Watchtower detects them on the EDH-Go production server.
 
 ## Environments
 
