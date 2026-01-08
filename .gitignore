@@ -2,6 +2,7 @@
 vendor/
 persistence/mtgallcards.sqlite
 *.sqlite*
+*.sqlc
 .DS_store
 bin/*
 *.env
