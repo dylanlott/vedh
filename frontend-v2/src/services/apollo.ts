@@ -82,39 +82,46 @@ const authLink = setContext((_operation, { headers }) => {
 // environments there is no window location or wsUri and creating a ws link
 // (which may access global networking) is undesirable.
 let wsLink: any = null;
-if (wsUri) {
-  wsLink = new GraphQLWsLink(createClient({
-    url: wsUri,
-    connectionParams: () => {
-      const raw = ((): string | null => {
+// graphql-ws requires a WebSocket implementation in Node.
+// For vitest/unit tests, we don’t need subscriptions, so skip wsLink.
+const hasWebSocket = typeof WebSocket !== 'undefined';
+if (wsUri && hasWebSocket) {
+  wsLink = new GraphQLWsLink(
+    createClient({
+      url: wsUri,
+      connectionParams: () => {
+        const raw = ((): string | null => {
+          try {
+            if (typeof localStorage !== 'undefined' && localStorage) return localStorage.getItem('edhgo/auth');
+          } catch (e) {}
+          try {
+            if (typeof window !== 'undefined' && window.localStorage) return window.localStorage.getItem('edhgo/auth');
+          } catch (e) {}
+          return null;
+        })();
+        if (!raw) return {};
         try {
-          if (typeof localStorage !== 'undefined' && localStorage) return localStorage.getItem('edhgo/auth');
-        } catch (e) {}
-        try {
-          if (typeof window !== 'undefined' && window.localStorage) return window.localStorage.getItem('edhgo/auth');
-        } catch (e) {}
-        return null;
-      })();
-      if (!raw) return {};
-      try {
-        const parsed = JSON.parse(raw) as { Token?: string };
-        return parsed.Token ? { authorization: `Bearer ${parsed.Token}` } : {};
-      } catch (error) {
-        console.warn('[apollo] failed to parse auth token for ws connection', error);
-        return {};
-      }
-    },
-  }));
+          const parsed = JSON.parse(raw) as { Token?: string };
+          return parsed.Token ? { authorization: `Bearer ${parsed.Token}` } : {};
+        } catch (error) {
+          console.warn('[apollo] failed to parse auth token for ws connection', error);
+          return {};
+        }
+      },
+    }),
+  );
 }
 
-const link = split(
-  ({ query }: { query: DocumentNode }) => {
-    const definition = getMainDefinition(query);
-    return definition.kind === 'OperationDefinition' && definition.operation === 'subscription';
-  },
-  wsLink ?? undefined,
-  authLink.concat(httpLink),
-);
+const link = wsLink
+  ? split(
+      ({ query }: { query: DocumentNode }) => {
+        const definition = getMainDefinition(query);
+        return definition.kind === 'OperationDefinition' && definition.operation === 'subscription';
+      },
+      wsLink,
+      authLink.concat(httpLink),
+    )
+  : authLink.concat(httpLink);
 
 export const apolloClient = new ApolloClient({
   link,

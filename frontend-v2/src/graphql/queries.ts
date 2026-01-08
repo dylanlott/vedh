@@ -26,39 +26,19 @@ export const GET_GAME_QUERY = gql`
         Username
         Boardstate {
           Life
-          Commander {
-            ID
-            Name
-          }
-          Battlefield {
-            ID
-            Name
-            Types
-          }
-          Hand {
-            ID
-            Name
-          }
-          Graveyard { ID Name }
-          Exiled { ID Name }
-          Revealed { ID Name }
-          Library { ID Name }
-          Controlled { ID Name }
+          Commander { ID Name Tapped }
+          Battlefield { ID Name Types Tapped }
+          Hand { ID Name Tapped }
+          Graveyard { ID Name Tapped }
+          Exiled { ID Name Tapped }
+          Revealed { ID Name Tapped }
+          Library { ID Name Tapped }
+          Controlled { ID Name Tapped }
         }
       }
-      Stack {
-        ID
-        Name
-      }
-      Turn {
-        Player
-        Phase
-        Number
-      }
-      Rules {
-        Name
-        Value
-      }
+      Stack { ID Name }
+      Turn { Player Phase Number }
+      Rules { Name Value }
     }
   }
 `;
@@ -67,35 +47,21 @@ export const GAME_UPDATED_SUBSCRIPTION = gql`
   subscription GameUpdated($gameID: String!, $userID: String!) {
     gameUpdated(gameID: $gameID, userID: $userID) {
       ID
-      Turn {
-        Player
-        Phase
-        Number
-      }
-      Stack {
-        ID
-        Name
-      }
+      Turn { Player Phase Number }
+      Stack { ID Name }
       Players {
         ID
         Username
         Boardstate {
           Life
-          Battlefield {
-            ID
-            Name
-            Types
-          }
-          Hand {
-            ID
-            Name
-          }
-          Commander { ID Name }
-          Graveyard { ID Name }
-          Exiled { ID Name }
-          Revealed { ID Name }
-          Library { ID Name }
-          Controlled { ID Name }
+          Battlefield { ID Name Types Tapped }
+          Hand { ID Name Tapped }
+          Commander { ID Name Tapped }
+          Graveyard { ID Name Tapped }
+          Exiled { ID Name Tapped }
+          Revealed { ID Name Tapped }
+          Library { ID Name Tapped }
+          Controlled { ID Name Tapped }
         }
       }
     }
@@ -107,6 +73,7 @@ export const SEARCH_CARDS_QUERY = gql`
     search(name: $name) {
       ID
       Name
+      Text
     }
   }
 `;

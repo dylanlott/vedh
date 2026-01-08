@@ -75,11 +75,11 @@ export const UPDATE_BOARDSTATE_MUTATION = gql`
       GameID
       Life
       Commander { ID Name }
-      Battlefield { ID Name }
-      Hand { ID Name }
-      Graveyard { ID Name }
-      Exiled { ID Name }
-      Revealed { ID Name }
+      Battlefield { ID Name Tapped }
+      Hand { ID Name Tapped }
+      Graveyard { ID Name Tapped }
+      Exiled { ID Name Tapped }
+      Revealed { ID Name Tapped }
     }
   }
 `;

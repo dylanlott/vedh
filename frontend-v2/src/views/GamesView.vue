@@ -85,9 +85,11 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGamesStore } from '../stores/games';
+import { useAuthStore } from '../stores/auth';
 import FormCreateGame from '../components/games/FormCreateGame.vue';
 
 const gamesStore = useGamesStore();
+const auth = useAuthStore();
 const router = useRouter();
 
 const loading = computed(() => gamesStore.loading);
@@ -97,9 +99,16 @@ const searchQuery = ref('');
 
 const filteredGames = computed(() => {
   const list = games.value ?? [];
+  const profile = auth.profile;
+
+  // Only show games the current authenticated user is in.
+  const userGames = profile
+    ? list.filter((g) => (g.Players ?? []).some((p) => (p?.ID && p.ID === profile.ID) || p?.Username === profile.Username))
+    : [];
+
   const q = searchQuery.value.trim().toLowerCase();
-  if (!q) return list;
-  return list.filter((g) => {
+  if (!q) return userGames;
+  return userGames.filter((g) => {
     const title = formatGameTitle(g).toLowerCase();
     return title.includes(q) || g.ID.toLowerCase().includes(q);
   });
