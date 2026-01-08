@@ -229,10 +229,14 @@
           <h2>Stack</h2>
         </header>
         <ul class="cards tiles">
-          <li v-for="(card, i) in game.Stack" :key="`${card.ID}-${i}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="false">
-            <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-            <span class="label">{{ card.Name }}</span>
-          </li>
+          <Card
+            v-for="(card, i) in game.Stack"
+            :key="`${card.ID}-${i}`"
+            :id="card.ID"
+            :name="card.Name"
+            :image-src="getImage(card.Name)"
+            :draggable="false"
+          />
         </ul>
       </section>
 
@@ -293,10 +297,20 @@
           </h3>
           <template v-if="!isStacked(selfPlayer.Username, 'Commander')">
             <ul class="cards tiles">
-              <li v-for="card in selfPlayer.Boardstate?.Commander ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Commander')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Commander')">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
+              <Card
+                v-for="card in selfPlayer.Boardstate?.Commander ?? []"
+                :key="card.ID"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                @dragstart="() => onDragStart(card, me.Username, 'Commander')"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Commander')"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Commander')"
+              />
             </ul>
           </template>
           <template v-else>
@@ -325,10 +339,20 @@
           </h3>
           <template v-if="!isStacked(selfPlayer.Username, 'Battlefield')">
             <ul class="cards tiles">
-              <li v-for="card in selfPlayer.Boardstate?.Battlefield ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Battlefield')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Battlefield')">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
+              <Card
+                v-for="card in selfPlayer.Boardstate?.Battlefield ?? []"
+                :key="card.ID"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                @dragstart="() => onDragStart(card, me.Username, 'Battlefield')"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Battlefield')"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Battlefield')"
+              />
             </ul>
           </template>
           <template v-else>
@@ -351,10 +375,20 @@
   <div class="zone" :data-zone="'Hand'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Hand') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Hand')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Hand')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Hand')">
           <h3>Hand ({{ selfPlayer.Boardstate?.Hand?.length ?? 0 }})</h3>
           <ul class="cards tiles">
-            <li v-for="card in selfPlayer.Boardstate?.Hand ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Hand')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Hand')">
-              <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-              <span class="label">{{ card.Name }}</span>
-            </li>
+            <Card
+              v-for="card in selfPlayer.Boardstate?.Hand ?? []"
+              :key="card.ID"
+              :id="card.ID"
+              :name="card.Name"
+              :image-src="getImage(card.Name)"
+              :tapped="isCardTapped(card)"
+              :draggable="true"
+              :dragging="currentDraggedId === card.ID"
+              @dragstart="() => onDragStart(card, me.Username, 'Hand')"
+              @dragend="onDragEnd"
+              @click="() => onCardClick(card, me.Username, 'Hand')"
+              @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Hand')"
+            />
           </ul>
         </div>
   <div class="zone" :data-zone="'Graveyard'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Graveyard') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Graveyard')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Graveyard')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Graveyard')">
@@ -366,10 +400,20 @@
           </h3>
           <template v-if="!isStacked(selfPlayer.Username, 'Graveyard')">
             <ul class="cards tiles">
-              <li v-for="card in selfPlayer.Boardstate?.Graveyard ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Graveyard')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Graveyard')">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
+              <Card
+                v-for="card in selfPlayer.Boardstate?.Graveyard ?? []"
+                :key="card.ID"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                @dragstart="() => onDragStart(card, me.Username, 'Graveyard')"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Graveyard')"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Graveyard')"
+              />
             </ul>
           </template>
           <template v-else>
@@ -398,10 +442,20 @@
           </h3>
           <template v-if="!isStacked(selfPlayer.Username, 'Exiled')">
             <ul class="cards tiles">
-              <li v-for="card in selfPlayer.Boardstate?.Exiled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Exiled')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Exiled')">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
+              <Card
+                v-for="card in selfPlayer.Boardstate?.Exiled ?? []"
+                :key="card.ID"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                @dragstart="() => onDragStart(card, me.Username, 'Exiled')"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Exiled')"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Exiled')"
+              />
             </ul>
           </template>
           <template v-else>
@@ -430,10 +484,20 @@
           </h3>
           <template v-if="!isStacked(selfPlayer.Username, 'Revealed')">
             <ul class="cards tiles">
-              <li v-for="card in selfPlayer.Boardstate?.Revealed ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Revealed')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Revealed')">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
+              <Card
+                v-for="card in selfPlayer.Boardstate?.Revealed ?? []"
+                :key="card.ID"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                @dragstart="() => onDragStart(card, me.Username, 'Revealed')"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Revealed')"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Revealed')"
+              />
             </ul>
           </template>
           <template v-else>
@@ -462,10 +526,20 @@
           </h3>
           <template v-if="!isStacked(selfPlayer.Username, 'Controlled')">
             <ul class="cards tiles">
-              <li v-for="card in selfPlayer.Boardstate?.Controlled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]" draggable="true" @dragstart="onDragStart(card, selfPlayer.Username, 'Controlled')" @dragend="onDragEnd" @click="quickMove(card, selfPlayer.Username, 'Controlled')">
-                <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
-                <span class="label">{{ card.Name }}</span>
-              </li>
+              <Card
+                v-for="card in selfPlayer.Boardstate?.Controlled ?? []"
+                :key="card.ID"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                @dragstart="() => onDragStart(card, me.Username, 'Controlled')"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Controlled')"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Controlled')"
+              />
             </ul>
           </template>
           <template v-else>
@@ -530,6 +604,7 @@ import { apolloClient } from '../services/apollo';
 import { UPDATE_BOARDSTATE_MUTATION } from '../graphql/mutations';
 // Subscriptions are handled centrally in the games store.
 import { fetchScryfallImageByName } from '../services/scryfall';
+import Card from '../components/Card.vue';
 // Dev logging helper: use console.log so messages appear without enabling Verbose level
 function dbg(...args: any[]) { console.log(...args); }
 
@@ -723,17 +798,17 @@ async function moveCard(args: MoveCardArgs) {
   // zones/type declared at module scope
 
   // Clone current zones
-  const current: Record<Zone, { ID: string; Name: string }[]> = Object.fromEntries(
+  const current: Record<Zone, any[]> = Object.fromEntries(
     zones.map(z => [z, [...(player.Boardstate?.[z as Zone] ?? [])]])
   ) as any;
 
   // Find full card details from source player's zones to preserve Name
   const sourcePlayer = g.Players.find(p => p.Username === args.fromUser);
-  let movedCard: { ID: string; Name: string } | null = null;
+  let movedCard: any | null = null;
   if (sourcePlayer?.Boardstate) {
     for (const z of zones) {
       const found = (sourcePlayer.Boardstate as any)[z]?.find((c: any) => c.ID === args.cardID);
-      if (found) { movedCard = { ID: found.ID, Name: found.Name }; break; }
+      if (found) { movedCard = { ...found }; break; }
     }
   }
 
@@ -742,7 +817,7 @@ async function moveCard(args: MoveCardArgs) {
     current[args.fromZone as Zone] = current[args.fromZone as Zone].filter(c => c.ID !== args.cardID);
   }
   // Add to destination zone (dedupe)
-  if (!current[args.toZone as Zone].some(c => c.ID === args.cardID)) {
+  if (!current[args.toZone as Zone].some((c: any) => c.ID === args.cardID)) {
     current[args.toZone as Zone].push(movedCard ?? { ID: args.cardID, Name: '' });
   }
 
@@ -775,6 +850,73 @@ async function moveCard(args: MoveCardArgs) {
   } catch (e) {
     console.error('[board] moveCard failed', e);
   }
+}
+
+// Toggle tapped state for a specific card within a zone and persist
+async function toggleTapped(user: string, zone: Zone, card: any) {
+  const g = game.value;
+  if (!g) return;
+  const player = g.Players.find(p => p.Username === user);
+  if (!player || !player.Boardstate) return;
+
+  // Clone zones
+  const current: Record<Zone, any[]> = Object.fromEntries(
+    zones.map(z => [z, [...(player.Boardstate?.[z as Zone] ?? [])]])
+  ) as any;
+
+  // Toggle tapped on the matching card in the zone
+  const list = current[zone] ?? [];
+  const updated = list.map((c: any) => c.ID === card.ID ? { ...c, Tapped: !c?.Tapped } : c);
+  current[zone] = updated;
+
+  const input: any = {
+    UserID: player.ID ?? user,
+    User: player.Username,
+    GameID: g.ID,
+    Life: player.Boardstate.Life,
+    ...current,
+  };
+
+  try {
+    await apolloClient.mutate({
+      mutation: UPDATE_BOARDSTATE_MUTATION,
+      variables: { input },
+    });
+    // Optimistic local update
+    applyLocalBoardstatePatch(user, (draft: any) => ({
+      ...draft,
+      ...current,
+      Life: player.Boardstate!.Life,
+    }));
+  } catch (e) {
+    console.error('[board] toggleTapped failed', e);
+  }
+}
+
+// Helper for template typing
+function isCardTapped(card: any): boolean { return !!card?.Tapped; }
+
+// Click vs dblclick handling to avoid triggering quick-move on double-tap
+const clickTimers = new Map<string, number>();
+function onCardClick(card: any, user: string, zone: Zone) {
+  const key = card.ID;
+  if (clickTimers.has(key)) {
+    window.clearTimeout(clickTimers.get(key)!);
+    clickTimers.delete(key);
+  }
+  const t = window.setTimeout(() => {
+    quickMove(card, user, zone);
+    clickTimers.delete(key);
+  }, 200);
+  clickTimers.set(key, t as unknown as number);
+}
+function onCardDblClick(card: any, user: string, zone: Zone) {
+  const key = card.ID;
+  if (clickTimers.has(key)) {
+    window.clearTimeout(clickTimers.get(key)!);
+    clickTimers.delete(key);
+  }
+  toggleTapped(user, zone, card);
 }
 
 // Toolbar actions (self only)

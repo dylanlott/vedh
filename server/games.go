@@ -326,14 +326,15 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 
 		// handle commander selection
 		if len(player.Commander) > 0 {
-			commander, err := s.Card(ctx, player.Commander[0].Name, nil)
-			if err != nil {
-				s.loggerFor(ctx).Warn("error getting commander for deck", "err", err, "card_name", player.Commander[0].Name, "game_id", g.ID, "user_id", player.UserID)
-				// fail gracefully and use their card name so they can still play a game
-				inputCard := getBareCard(player.Commander)
-				user.Boardstate.Commander = []*Card{inputCard[0]}
-			} else {
-				user.Boardstate.Commander = []*Card{commander}
+			for _, card := range player.Commander {
+				commander, err := s.Card(ctx, card.Name, nil)
+				if err != nil {
+					s.loggerFor(ctx).Warn("error getting commander for deck", "err", err, "card_name", card.Name, "game_id", g.ID, "user_id", player.UserID)
+					// fail gracefully and use their card name so they can still play a game
+					user.Boardstate.Commander = append(user.Boardstate.Commander, &Card{Name: card.Name, ID: card.ID})
+					continue
+				}
+				user.Boardstate.Commander = append(user.Boardstate.Commander, commander)
 			}
 		}
 

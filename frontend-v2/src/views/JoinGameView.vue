@@ -88,7 +88,8 @@
             </span>
             <button type="button" class="link" @click="clearAllCommanders">Clear all</button>
           </div>
-          <p v-else class="hint">No commander selected</p>
+          <p v-if="commanderError" class="hint">{{ commanderError }}</p>
+          <p v-else-if="!selectedCommanders.length" class="hint">No commander selected</p>
         </label>
         <footer class="actions">
           <button class="secondary" type="button" @click="isCommanderModalOpen = false">Done</button>
@@ -105,6 +106,12 @@ import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
 import { apolloClient } from '../services/apollo';
 import { SEARCH_CARDS_QUERY } from '../graphql/queries';
+import {
+  type CommanderPick,
+  canAddSecondCommander,
+  isValidPartnerPair,
+  partnerConstraintMessage,
+} from '../services/commanderPartner';
 
 const route = useRoute();
 const router = useRouter();
@@ -133,11 +140,12 @@ function submitInvite() {
 // Commander search state (mirrors FormCreateGame)
 const isCommanderModalOpen = ref(false);
 const commanderQuery = ref('');
-const commanderResults = ref<{ ID: string; Name: string }[]>([]);
-const selectedCommanders = ref<{ ID: string; Name: string }[]>([]);
+const commanderResults = ref<CommanderPick[]>([]);
+const selectedCommanders = ref<CommanderPick[]>([]);
 const showCommanderList = ref(false);
 const isSearching = ref(false);
 const activeIndex = ref(-1);
+const commanderError = ref<string>('');
 const resultsLimit = 8;
 let commanderDebounce: number | undefined;
 
@@ -151,7 +159,7 @@ async function runCommanderSearch(query: string) {
   }
   isSearching.value = true;
   try {
-    const { data } = await apolloClient.query<{ search: { ID: string; Name: string }[] }>({
+    const { data } = await apolloClient.query<{ search?: CommanderPick[] }>({
       query: SEARCH_CARDS_QUERY,
       variables: { name: `%${query}%` },
       fetchPolicy: 'no-cache',
@@ -202,9 +210,26 @@ function onCommanderBlur() {
 }
 
 function selectCommander(card: { ID: string; Name: string }) {
+  commanderError.value = '';
   const exists = selectedCommanders.value.some(c => c.ID === card.ID);
-  if (!exists && selectedCommanders.value.length < 2) {
-    selectedCommanders.value.push(card);
+
+  if (exists) {
+    commanderQuery.value = '';
+    showCommanderList.value = false;
+    return;
+  }
+
+  if (selectedCommanders.value.length === 0) {
+    selectedCommanders.value.push(card as CommanderPick);
+  } else if (selectedCommanders.value.length === 1) {
+    const first = selectedCommanders.value[0];
+    if (!canAddSecondCommander(selectedCommanders.value)) {
+      commanderError.value = partnerConstraintMessage(first);
+    } else if (!isValidPartnerPair(first, card as CommanderPick)) {
+      commanderError.value = partnerConstraintMessage(first);
+    } else {
+      selectedCommanders.value.push(card as CommanderPick);
+    }
   }
   commanderQuery.value = '';
   showCommanderList.value = false;
@@ -212,10 +237,12 @@ function selectCommander(card: { ID: string; Name: string }) {
 
 function removeCommander(index: number) {
   selectedCommanders.value.splice(index, 1);
+  commanderError.value = '';
 }
 
 function clearAllCommanders() {
   selectedCommanders.value = [];
+  commanderError.value = '';
 }
 
 // Decklist

@@ -69,6 +69,11 @@ func (r *queryResolver) Search(ctx context.Context, name *string, colors []*stri
 	panic(fmt.Errorf("not implemented: Search - search"))
 }
 
+// SearchAll is the resolver for the searchAll field.
+func (r *queryResolver) SearchAll(ctx context.Context, name *string, colors []*string, colorIdentity []*string, keywords []*string) ([]*Card, error) {
+	panic(fmt.Errorf("not implemented: SearchAll - searchAll"))
+}
+
 // GameUpdated is the resolver for the gameUpdated field.
 func (r *subscriptionResolver) GameUpdated(ctx context.Context, gameID string, userID string) (<-chan *Game, error) {
 	panic(fmt.Errorf("not implemented: GameUpdated - gameUpdated"))

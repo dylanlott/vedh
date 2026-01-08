@@ -30,8 +30,8 @@
             @keydown.enter.prevent="onCommanderKey('enter')"
             @keydown.esc.prevent="onCommanderKey('escape')"
             @blur="onCommanderBlur"
-            :placeholder="selectedCommanders.length >= 2 ? 'Maximum selected' : 'Search for a commander (e.g., Atraxa)'"
-            :disabled="selectedCommanders.length >= 2"
+            :placeholder="commanderPlaceholder"
+            :disabled="isCommanderInputDisabled"
             autocomplete="off"
             role="combobox"
             :aria-expanded="showCommanderList ? 'true' : 'false'"
@@ -69,7 +69,8 @@
             </span>
             <button v-if="selectedCommanders.length" type="button" class="link" @click="clearAllCommanders">Clear all</button>
           </div>
-          <p v-else class="hint">No commander selected</p>
+          <p v-if="commanderError" class="hint">{{ commanderError }}</p>
+          <p v-else-if="!selectedCommanders.length" class="hint">No commander selected</p>
         </label>
         <label>
           <span>Decklist (CSV: quantity,name per line)</span>
@@ -93,6 +94,12 @@ import { useGamesStore } from '../../stores/games';
 import { useAuthStore } from '../../stores/auth';
 import { apolloClient } from '../../services/apollo';
 import { SEARCH_CARDS_QUERY } from '../../graphql/queries';
+import {
+  type CommanderPick,
+  canAddSecondCommander,
+  isValidPartnerPair,
+  partnerConstraintMessage,
+} from '../../services/commanderPartner';
 
 const emit = defineEmits<{ (event: 'close'): void; (event: 'created', id: string): void }>();
 
@@ -107,11 +114,12 @@ const form = reactive({
 
 // Commander search state
 const commanderQuery = ref('');
-const commanderResults = ref<{ ID: string; Name: string }[]>([]);
-const selectedCommanders = ref<{ ID: string; Name: string }[]>([]);
+const commanderResults = ref<CommanderPick[]>([]);
+const selectedCommanders = ref<CommanderPick[]>([]);
 const showCommanderList = ref(false);
 const isSearching = ref(false);
 const activeIndex = ref(-1);
+const commanderError = ref<string>('');
 const resultsLimit = 8;
 let commanderDebounce: number | undefined;
 
@@ -125,7 +133,7 @@ async function runCommanderSearch(query: string) {
   }
   isSearching.value = true;
   try {
-    const { data } = await apolloClient.query<{ search: { ID: string; Name: string }[] }>({
+    const { data } = await apolloClient.query<{ search?: CommanderPick[] }>({
       query: SEARCH_CARDS_QUERY,
       variables: { name: `%${query}%` },
       fetchPolicy: 'no-cache',
@@ -177,21 +185,57 @@ function onCommanderBlur() {
 }
 
 function selectCommander(card: { ID: string; Name: string }) {
+  commanderError.value = '';
   const exists = selectedCommanders.value.some(c => c.ID === card.ID);
-  if (!exists && selectedCommanders.value.length < 2) {
-    selectedCommanders.value.push(card);
+
+  if (exists) {
+    commanderQuery.value = '';
+    showCommanderList.value = false;
+    return;
   }
+
+  if (selectedCommanders.value.length === 0) {
+    selectedCommanders.value.push(card as CommanderPick);
+  } else if (selectedCommanders.value.length === 1) {
+    const first = selectedCommanders.value[0];
+    if (!canAddSecondCommander(selectedCommanders.value)) {
+      commanderError.value = partnerConstraintMessage(first);
+    } else if (!isValidPartnerPair(first, card as CommanderPick)) {
+      commanderError.value = partnerConstraintMessage(first);
+    } else {
+      selectedCommanders.value.push(card as CommanderPick);
+    }
+  }
+
   commanderQuery.value = '';
   showCommanderList.value = false;
 }
 
 function removeCommander(index: number) {
   selectedCommanders.value.splice(index, 1);
+  commanderError.value = '';
 }
 
 function clearAllCommanders() {
   selectedCommanders.value = [];
+  commanderError.value = '';
 }
+
+const isCommanderInputDisabled = computed(() => {
+  if (selectedCommanders.value.length >= 2) return true;
+  if (selectedCommanders.value.length === 1) {
+    return !canAddSecondCommander(selectedCommanders.value);
+  }
+  return false;
+});
+
+const commanderPlaceholder = computed(() => {
+  if (selectedCommanders.value.length >= 2) return 'Maximum selected';
+  if (selectedCommanders.value.length === 1 && !canAddSecondCommander(selectedCommanders.value)) {
+    return 'Second commander requires Partner';
+  }
+  return 'Search for a commander (e.g., Atraxa)';
+});
 
 // Decklist raw CSV input
 const decklist = ref('');
