@@ -10,6 +10,11 @@ RUN npm ci
 
 # Copy source and build
 COPY . .
+# Allow Vite to pick up build-time GraphQL endpoints from Dokku build args.
+ARG VITE_GRAPHQL_HTTP
+ARG VITE_GRAPHQL_WS
+ENV VITE_GRAPHQL_HTTP=$VITE_GRAPHQL_HTTP
+ENV VITE_GRAPHQL_WS=$VITE_GRAPHQL_WS
 RUN npm run build
 
 
