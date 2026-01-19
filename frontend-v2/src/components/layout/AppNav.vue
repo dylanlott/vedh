@@ -1,9 +1,7 @@
 <template>
   <header class="app-nav">
     <div class="brand" @click="goHome">
-      <span class="logo">EDH</span>
-      <span class="wordmark">Go</span>
-      <span class="badge">v2</span>
+      <span class="logo">vEDH</span>
     </div>
     <nav>
       <RouterLink to="/">Home</RouterLink>
@@ -58,7 +56,7 @@ function logout() {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1.5rem;
-  background: rgba(10, 10, 10, 0.85);
+  background: rgba(12, 12, 16, 0.86);
   backdrop-filter: blur(12px);
   color: #f5f5f5;
   z-index: 20;
@@ -67,7 +65,6 @@ function logout() {
 .brand {
   display: flex;
   align-items: baseline;
-  gap: 0.35rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -75,18 +72,7 @@ function logout() {
 .logo {
   font-size: 1.25rem;
   letter-spacing: 0.08em;
-}
-
-.wordmark {
-  font-size: 1.25rem;
-  color: #85d7ff;
-}
-
-.badge {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.6);
+  color: #f7b500;
 }
 
 nav {
@@ -99,10 +85,38 @@ a {
   color: inherit;
   text-decoration: none;
   font-weight: 500;
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -0.3rem;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, #f7b500, #ff6b6b);
+  opacity: 0;
+  transform: scaleX(0.6);
+  transform-origin: left;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+a:hover,
+a:focus-visible {
+  color: #f7b500;
+}
+
+a:hover::after,
+a:focus-visible::after {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 a.router-link-active {
-  color: #85d7ff;
+  color: #f7b500;
 }
 
 .auth {
@@ -125,7 +139,7 @@ button:hover {
 }
 
 button.primary {
-  background: #85d7ff;
+  background: linear-gradient(120deg, #f7b500, #ff6b6b);
   color: #111;
 }
 

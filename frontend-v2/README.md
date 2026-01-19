@@ -1,6 +1,6 @@
-# EDH Go – Frontend v2
+# vEDH – Frontend
 
-A ground-up modernization of the original EDH Go frontend using Vue 3, Vite, Pinia, and Apollo Client. The goal is to preserve the existing product features—authentication, lobby management, board state control, and rich card interactions—while adopting a contemporary stack and a more maintainable architecture.
+A ground-up modernization of the original EDH Go frontend, rebranded as vEDH, using Vue 3, Vite, Pinia, and Apollo Client. The goal is to preserve the existing product features—authentication, lobby management, board state control, and rich card interactions—while adopting a contemporary stack and a more maintainable architecture.
 
 ## Getting started
 
