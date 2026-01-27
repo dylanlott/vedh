@@ -13,6 +13,10 @@ export default defineConfig(({ mode }) => {
       hmr: {
         clientPort: devPort,
       },
+      watch: {
+        usePolling: true,
+        interval: 100,
+      },
       proxy: {
         '/graphql': {
           target: 'http://localhost:8080',
