@@ -40,31 +40,31 @@ migrate-prod: confirm
 	migrate -path ./persistence/migrations -database $(EDHGO_PG_URL) up
 
 # Run migrations directory against your local environment.
-migrate-local: confirm 
+migrate-local: confirm
 	migrate \
 		-database "postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable" \
 		-source "file://./persistence/migrations/" up
 
-docker: docker-ui docker-server
+# docker: docker-ui docker-server
 
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
 
-docker-ui:
-	docker buildx build \
-		-f ./frontend/Dockerfile \
-		-t openmtg/edhgo-ui:$(BUILD_TAG) \
-		--build-arg NODE_ENV=production \
-		--build-arg VUE_APP_WEBSOCKET_URL=wss://api.vedh.xyz/graphql \
-		--build-arg VUE_APP_BASE_URL=https://api.vedh.xyz/graphql \
-		--platform linux/amd64 ./frontend
+# docker-ui:
+# 	docker buildx build \
+# 		-f ./frontend/Dockerfile \
+# 		-t openmtg/edhgo-ui:$(BUILD_TAG) \
+# 		--build-arg NODE_ENV=production \
+# 		--build-arg VUE_APP_WEBSOCKET_URL=wss://api.vedh.xyz/graphql \
+# 		--build-arg VUE_APP_BASE_URL=https://api.vedh.xyz/graphql \
+# 		--platform linux/amd64 ./frontend
+#
+# docker-server:
+# 	docker build -t openmtg/edhgo-server:$(BUILD_TAG) .
 
-docker-server:
-	docker build -t openmtg/edhgo-server:$(BUILD_TAG) .
-
-sync:
-	@echo "syncing git files to remote server"
-	scripts/sync.sh
+# sync:
+# 	@echo "syncing git files to remote server"
+# 	scripts/sync.sh
 
 # import-db assumes that the desired cards.csv is present in the root directory.
 # refresh the CSV file here: https://mtgjson.com/downloads/all-files
@@ -76,17 +76,9 @@ import-db:
 import-allprintings:
 	$(GOCMD) run scripts/db_import.go -sql AllPrintings.sql -verbose
 
-import-csv: 
+# import-csv assumes that AllPrintings.csv is present in the root directory.
+import-csv:
 	$(GOCMD) run scripts/db_import.go -csv cards.csv -verbose
-
-deploy: confirm deploy-server deploy-ui
-	@echo "----- edhgo deployed 🚀 -----"
-
-deploy-ui: confirm docker-ui
-	docker push openmtg/edhgo-ui:$(BUILD_TAG)
-
-deploy-server: confirm docker-server
-	docker push openmtg/edhgo-server:$(BUILD_TAG)
 
 persistence:
 	docker-compose -f dev.docker-compose.yml up -d postgres
