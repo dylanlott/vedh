@@ -12,6 +12,7 @@
 ```
 
 > Pronounced "vee-dee-aych"
+> The virtual expressive deck handler.
 
 ## Development
 
