@@ -34,7 +34,7 @@ func (s *graphQLServer) BoardstateUpdated(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("failed to register listener: %w", err)
 	}
-
+	s.logger.Info("boardstate update subscription registered", "observer_id", obsID, "user_id", userID)
 	return ch, nil
 }
 
@@ -50,20 +50,24 @@ func (s *graphQLServer) UpdateBoardState(
 	if err != nil {
 		return nil, fmt.Errorf("invalid boardstate: %w", err)
 	}
+	s.logger.Debug("parsed boardstate for update", "user", bs.User, "game_id", bs.GameID)
 
 	game, err := s.GetGame(ctx, bs.GameID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get game from the database: %w", err)
 	}
+	s.logger.Debug("fetched game for boardstate update", "game_id", game.ID)
 
 	// update matching username's boardstate
 	for index, player := range game.Players {
 		if player.Username == bs.User {
 			game.Players[index].Boardstate = bs
+			s.logger.Debug("updated boardstate", "user", bs.User, "game_id", bs.GameID)
 			// break early
 			break
 		}
 	}
+	s.logger.Debug("updated boardstate for user", "user", bs.User, "game_id", bs.GameID)
 
 	// Persist the updated game first to ensure all consumers eventually see
 	// the same state in case they refetch after subscription delivery.

@@ -100,11 +100,17 @@ const searchQuery = ref('');
 const filteredGames = computed(() => {
   const list = games.value ?? [];
   const profile = auth.profile;
+  const username = profile?.Username?.toLowerCase();
+  const userId = profile?.ID;
 
   // Only show games the current authenticated user is in.
-  const userGames = profile
-    ? list.filter((g) => (g.Players ?? []).some((p) => (p?.ID && p.ID === profile.ID) || p?.Username === profile.Username))
-    : [];
+  const userGames = (!userId && !username)
+    ? list
+    : list.filter((g) => (g.Players ?? []).some((p) => {
+      if (userId && p?.ID && p.ID === userId) return true;
+      if (username && p?.Username) return p.Username.toLowerCase() === username;
+      return false;
+    }));
 
   const q = searchQuery.value.trim().toLowerCase();
   if (!q) return userGames;
@@ -127,8 +133,8 @@ function handleGameCreated(id: string) {
   router.push({ name: 'board', params: { id } });
 }
 
-function formatGameTitle(game: { ID: string; Players: { Username: string }[] }) {
-  const playerNames = game.Players.map((player) => player.Username).join(', ');
+function formatGameTitle(game: { ID: string; Players?: { Username?: string }[] }) {
+  const playerNames = (game.Players ?? []).map((player) => player?.Username).filter(Boolean).join(', ');
   return playerNames || `Game ${game.ID.slice(0, 4)}`;
 }
 

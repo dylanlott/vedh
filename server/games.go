@@ -474,12 +474,12 @@ func (s *graphQLServer) publishGame(gameID string, g *Game) {
 			}
 			logger.Debug("publishGame: sending update", "observer_ids", ids)
 		}
-		for _, v := range fullgame.Observers {
+		for _, gameObs := range fullgame.Observers {
 			select {
-			case v.Channel <- g:
+			case gameObs.Channel <- g:
 			default:
 				// drop if subscriber isn't reading to avoid blocking others
-				logger.Warn("publishGame: drop update (channel full)", "observer_user_id", v.UserID)
+				logger.Warn("publishGame: drop update (channel full)", "observer_user_id", gameObs.UserID)
 			}
 		}
 	} else {
