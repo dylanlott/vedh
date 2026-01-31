@@ -26,6 +26,9 @@ func testAPI(t *testing.T) *graphQLServer {
 	if err := ensurePostgresReachable(cfg.PostgresURL); err != nil {
 		t.Skipf("postgres unavailable: %s", err)
 	}
+	if err := persistence.ForceCleanMigrations("../persistence/migrations_test/", cfg.PostgresURL); err != nil {
+		t.Skipf("failed to reset test migrations: %s", err)
+	}
 	appDB, err := persistence.NewPostgres("../persistence/migrations_test/", cfg.PostgresURL)
 	if err != nil {
 		t.Skipf("postgres unavailable: %s", err)
