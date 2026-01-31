@@ -41,6 +41,13 @@
             <button class="tool" type="button" :disabled="!isTurnPlayer || !phaseTarget" @click="advancePhase(phaseTarget)">
               Advance
             </button>
+            <button class="tool" type="button" :disabled="!hasPriority" @click="claimWin">
+              Claim win
+            </button>
+          </div>
+          <div v-if="pendingWinClaim" class="win-claim">
+            <span>Win claim: {{ pendingWinClaim.ClaimedBy }}</span>
+            <span class="muted">{{ pendingWinText }}</span>
           </div>
         </div>
       </div>
@@ -843,6 +850,24 @@ async function advancePhase(phase: string) {
   } catch (e) {
     console.error('[board] advancePhase failed', e);
     addToast('Failed to advance phase');
+  }
+}
+
+async function claimWin() {
+  const g = game.value;
+  if (!g) return;
+  const response = window.prompt('Win condition (optional)', '');
+  if (response === null) return;
+  const condition = response.trim();
+  try {
+    await apolloClient.mutate({
+      mutation: CLAIM_WIN_MUTATION,
+      variables: { gameID: g.ID, condition: condition || null },
+    });
+    addToast('Win claimed');
+  } catch (e) {
+    console.error('[board] claimWin failed', e);
+    addToast('Failed to claim win');
   }
 }
 
