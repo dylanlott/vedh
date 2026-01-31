@@ -182,6 +182,10 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 	// Ensure the caller is a participant in the existing game or the new input.
 	existing, err := s.GetGame(ctx, game.ID)
 	if err == nil {
+		ensureGameDefaults(existing)
+		if existing.Status == GameStatusFinished {
+			return nil, errors.New("game already finished")
+		}
 		if !isUserInGame(existing, authUser) {
 			return nil, errors.New("forbidden: not a participant in this game")
 		}
@@ -194,9 +198,18 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 	}
 
 	if existing != nil {
+		game.Status = existing.Status
+		game.Result = existing.Result
+		game.WinnerIDs = existing.WinnerIDs
+		game.WinCondition = existing.WinCondition
+		game.PendingWinClaim = existing.PendingWinClaim
 		if err := enforceStackPriority(existing, game); err != nil {
 			return nil, err
 		}
+	}
+
+	if game.PendingWinClaim != nil {
+		s.cancelPendingWinClaim(ctx, game, authUser.Username, "game updated")
 	}
 
 	go s.publishGame(game.ID, game)
@@ -205,6 +218,9 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 		return game, err
 	}
 
+	if existing != nil {
+		s.logGameChanges(ctx, game.ID, authUser.Username, existing, game)
+	}
 	return game, nil
 }
 
