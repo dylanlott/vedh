@@ -1,0 +1,1 @@
+ALTER TABLE games ADD CONSTRAINT unique_id UNIQUE (id);
