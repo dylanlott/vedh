@@ -22,6 +22,11 @@ export const GET_GAME_QUERY = gql`
     getGame(gameID: $gameID) {
       ID
       CreatedAt
+      Status
+      Result
+      WinnerIDs
+      WinCondition
+      PendingWinClaim { ClaimedBy Condition Remaining }
       Players {
         ID
         Username
@@ -49,6 +54,11 @@ export const GAME_UPDATED_SUBSCRIPTION = gql`
     gameUpdated(gameID: $gameID, userID: $userID) {
       ID
       CreatedAt
+      Status
+      Result
+      WinnerIDs
+      WinCondition
+      PendingWinClaim { ClaimedBy Condition Remaining }
       Turn { Player Phase Number Priority }
       Stack { ID Name CurrentZone }
       Rules { Name Value }
@@ -67,6 +77,19 @@ export const GAME_UPDATED_SUBSCRIPTION = gql`
           Controlled { ID Name Tapped }
         }
       }
+    }
+  }
+`;
+
+export const GAME_LOGS_QUERY = gql`
+  query GameLogs($gameID: String!, $offset: Int!, $limit: Int!) {
+    gameLogs(gameID: $gameID, offset: $offset, limit: $limit) {
+      ID
+      GameID
+      EventTime
+      Type
+      Actor
+      Payload
     }
   }
 `;

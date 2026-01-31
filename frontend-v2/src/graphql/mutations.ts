@@ -98,6 +98,20 @@ export const ADVANCE_PHASE_MUTATION = gql`
   }
 `;
 
+export const CLAIM_WIN_MUTATION = gql`
+  mutation ClaimWin($gameID: String!, $condition: String) {
+    claimWin(gameID: $gameID, condition: $condition) {
+      ID
+      Status
+      Result
+      WinnerIDs
+      WinCondition
+      PendingWinClaim { ClaimedBy Condition Remaining }
+      Turn { Player Phase Number Priority }
+    }
+  }
+`;
+
 export const UPDATE_BOARDSTATE_MUTATION = gql`
   mutation UpdateBoardState($input: InputBoardState!) {
     updateBoardState(input: $input) {
