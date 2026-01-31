@@ -30,6 +30,9 @@ func (s *graphQLServer) BoardstateUpdated(ctx context.Context,
 	obsID string,
 	userID string,
 ) (<-chan *BoardState, error) {
+	if _, err := requireMatchingUser(ctx, userID, ""); err != nil {
+		return nil, err
+	}
 	ch, err := s.registerObserver(ctx, obsID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to register listener: %w", err)
@@ -42,6 +45,9 @@ func (s *graphQLServer) UpdateBoardState(
 	ctx context.Context,
 	input InputBoardState,
 ) (*BoardState, error) {
+	if _, err := requireMatchingUser(ctx, input.UserID, input.User); err != nil {
+		return nil, err
+	}
 	if input.User == "" {
 		return nil, fmt.Errorf("invalid user")
 	}

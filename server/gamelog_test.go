@@ -32,6 +32,8 @@ func Test_pgLogger_Add(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				event: Event{
+					GameID:  "game-1",
+					Type:    "TEST_EVENT",
 					Payload: nil,
 				},
 			},
@@ -46,6 +48,8 @@ func Test_pgLogger_Add(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				event: Event{
+					GameID: "game-1",
+					Type:   "BOARDSTATE_UPDATED",
 					Payload: map[string]interface{}{
 						"boardstate": BoardState{
 							User: "shakezula",

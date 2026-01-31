@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/99designs/gqlgen/handler"
 	"github.com/google/uuid"
@@ -161,18 +162,26 @@ func (s *graphQLServer) withRequestLogging(next http.Handler) http.Handler {
 // GraphQL playground and API at the given route and port.
 func (s *graphQLServer) Serve(route string, port int) error {
 	mux := http.NewServeMux()
+	gqlHandler := handler.GraphQL(NewExecutableSchema(Config{Resolvers: s}),
+		handler.WebsocketUpgrader(websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		}),
+		handler.WebsocketInitFunc(func(ctx context.Context, initPayload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
+			user, err := parseAuthFromInitPayload(initPayload)
+			if err != nil {
+				return ctx, nil, err
+			}
+			return withAuth(ctx, user), nil, nil
+		}),
+		handler.WebsocketKeepAliveDuration(time.Second*10),
+	)
 	mux.Handle(
 		route,
-		handler.GraphQL(NewExecutableSchema(Config{Resolvers: s}),
-			handler.WebsocketUpgrader(websocket.Upgrader{
-				CheckOrigin: func(r *http.Request) bool {
-					return true
-				},
-			}),
-			handler.WebsocketKeepAliveDuration(time.Second*10),
-		),
+		gqlHandler,
 	)
-	h := cors.AllowAll().Handler(s.auth(mux))
+	h := cors.AllowAll().Handler(s.withAuthContext(mux))
 	h = s.withRequestLogging(h)
 	h = s.withRequestID(h)
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
@@ -181,57 +190,17 @@ func (s *graphQLServer) Serve(route string, port int) error {
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), h)
 }
 
-// auth is a middleware responsible for passing header and cookie info to the
-// context
-func (s *graphQLServer) auth(next http.Handler) http.Handler {
+// withAuthContext validates bearer tokens (if present) and attaches the user to the request context.
+func (s *graphQLServer) withAuthContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r)
-
-		// TODO: all of this code below needs to be vetted to find where
-		// Gorilla's websocket is getting clobbered and fix that
-
-		// username, err := r.Cookie("username")
-		// if err != nil {
-		// 	// log.Printf("username not present: %s", err)
-		// 	// This means they're not attempting to auth, so we need to let them through
-		// 	// to either sign up or login.
-		// 	next.ServeHTTP(w, r)
-		// 	return
-		// }
-		// token, err := r.Cookie("token")
-		// if err != nil {
-		// 	log.Printf("error parsing token: %s", err)
-		// 	next.ServeHTTP(w, r)
-		// }
-		// if token == nil {
-		// 	// allow unauthed users in for login/signup
-		// 	next.ServeHTTP(w, r)
-		// 	return
-		// }
-
-		// // If they have a token, we have to compare it.
-		// log.Printf("token: %s", token)
-		// // find and authenticate
-		// rows, err := s.db.Query("SELECT * FROM users WHERE username = ?", username)
-		// if err != nil {
-		// 	log.Printf("error querying users: %s", err)
-		// 	next.ServeHTTP(w, r)
-		// 	return
-		// }
-
-		// for rows.Next() {
-		// 	cols, err := rows.Columns()
-		// 	if err != nil {
-		// 		log.Printf("error getting rows: %s", err)
-		// 	}
-		// 	log.Printf("columns: %s", cols)
-		// 	continue
-		// }
-
-		// // TODO: Assign the found user to the request
-		// // ctx := context.WithValue(r.Context(), userCtxKey, user)
-		// // r = r.WithContext(ctx)
-		// next.ServeHTTP(w, r)
+		user, err := parseAuthFromRequest(r)
+		if err != nil {
+			s.loggerFor(r.Context()).Warn("invalid auth token", "err", err)
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		ctx := withAuth(r.Context(), user)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -246,11 +215,3 @@ func (s *graphQLServer) Query() QueryResolver {
 func (s *graphQLServer) Subscription() SubscriptionResolver {
 	return s
 }
-
-// func use(h http.HandlerFunc, middleware ...func(http.HandlerFunc) http.HandlerFunc) http.HandlerFunc {
-// 	for _, m := range middleware {
-// 		h = m(h)
-// 	}
-
-// 	return h
-// }

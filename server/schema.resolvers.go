@@ -34,9 +34,24 @@ func (r *mutationResolver) UpdateGame(ctx context.Context, input InputGame) (*Ga
 	panic(fmt.Errorf("not implemented: UpdateGame - updateGame"))
 }
 
+// PassPriority is the resolver for the passPriority field.
+func (r *mutationResolver) PassPriority(ctx context.Context, gameID string, toPlayer string) (*Game, error) {
+	panic(fmt.Errorf("not implemented: PassPriority - passPriority"))
+}
+
+// AdvancePhase is the resolver for the advancePhase field.
+func (r *mutationResolver) AdvancePhase(ctx context.Context, gameID string, phase string, number *int) (*Game, error) {
+	panic(fmt.Errorf("not implemented: AdvancePhase - advancePhase"))
+}
+
 // UpdateBoardState is the resolver for the updateBoardState field.
 func (r *mutationResolver) UpdateBoardState(ctx context.Context, input InputBoardState) (*BoardState, error) {
 	panic(fmt.Errorf("not implemented: UpdateBoardState - updateBoardState"))
+}
+
+// ClaimWin is the resolver for the claimWin field.
+func (r *mutationResolver) ClaimWin(ctx context.Context, gameID string, condition *string) (*Game, error) {
+	panic(fmt.Errorf("not implemented: ClaimWin - claimWin"))
 }
 
 // Users is the resolver for the users field.
@@ -52,6 +67,11 @@ func (r *queryResolver) Games(ctx context.Context, offset int, limit int) ([]*Ga
 // GetGame is the resolver for the getGame field.
 func (r *queryResolver) GetGame(ctx context.Context, gameID string) (*Game, error) {
 	panic(fmt.Errorf("not implemented: GetGame - getGame"))
+}
+
+// GameLogs is the resolver for the gameLogs field.
+func (r *queryResolver) GameLogs(ctx context.Context, gameID string, offset int, limit int) ([]*GameLogEvent, error) {
+	panic(fmt.Errorf("not implemented: GameLogs - gameLogs"))
 }
 
 // Card is the resolver for the card field.

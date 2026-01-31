@@ -2,11 +2,17 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+func uniqueUsername(prefix string) string {
+	return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
+}
 
 func Test_graphQLServer_Signup(t *testing.T) {
 	type args struct {
@@ -43,7 +49,14 @@ func Test_graphQLServer_Signup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := testAPI(t)
-			got, err := s.Signup(context.Background(), tt.args.username, tt.args.password)
+			username := tt.args.username
+			if !tt.wantErr {
+				username = uniqueUsername("user")
+			}
+			got, err := s.Signup(context.Background(), username, tt.args.password)
+			if tt.want != nil && !tt.wantErr {
+				tt.want.Username = username
+			}
 			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(User{}, "ID")); diff != "" {
 				t.Errorf("graphQLServer.Signup: wanted: %+v - got: %+v", tt.want, got)
 			}
@@ -109,11 +122,20 @@ func Test_graphQLServer_Login(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := testAPI(t)
-			created, err := s.Signup(tt.args.ctx, "shakezula", "testpassword")
-			if err != nil {
-				t.Errorf("failed to create user for login tests: %s", err)
+			createdUsername := uniqueUsername("user")
+			if tt.name != "should return an error when user not found" {
+				_, err := s.Signup(tt.args.ctx, createdUsername, "testpassword")
+				if err != nil {
+					t.Errorf("failed to create user for login tests: %s", err)
+				}
 			}
-			got, err := s.Login(tt.args.ctx, tt.args.username, tt.args.password)
+			username := tt.args.username
+			if tt.name != "should return an error when user not found" {
+				username = createdUsername
+			} else {
+				username = uniqueUsername("missing")
+			}
+			got, err := s.Login(tt.args.ctx, username, tt.args.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("graphQLServer.Login() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -132,7 +154,7 @@ func Test_graphQLServer_Login(t *testing.T) {
 				if got.Token == nil {
 					t.Errorf("failed to set token")
 				}
-				if got.Username != created.Username {
+				if got.Username != createdUsername {
 					t.Errorf("failed to set correct username")
 				}
 			}

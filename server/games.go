@@ -35,6 +35,11 @@ type FullGame struct {
 // Games returns a list of Games that are unmarshaled from the payload column of the
 // games table.
 func (s *graphQLServer) Games(ctx context.Context, offset int, limit int) ([]*Game, error) {
+	if !isPublicQuery("games") {
+		if _, err := requireAuth(ctx); err != nil {
+			return nil, err
+		}
+	}
 	// Basic pagination: order by id for stability and apply limit/offset.
 	// If you add created_at to the table, prefer ordering by that.
 	rows, err := s.db.Query("SELECT id, payload FROM games ORDER BY id DESC LIMIT $1 OFFSET $2", limit, offset)
@@ -43,7 +48,7 @@ func (s *graphQLServer) Games(ctx context.Context, offset int, limit int) ([]*Ga
 	}
 	defer rows.Close()
 
-	var games []*Game
+	games := []*Game{}
 	for rows.Next() {
 		var id string
 		var pbz []byte
@@ -61,21 +66,33 @@ func (s *graphQLServer) Games(ctx context.Context, offset int, limit int) ([]*Ga
 
 // GetGame returns a single game from the
 func (s *graphQLServer) GetGame(ctx context.Context, gameID string) (*Game, error) {
+	if !isPublicQuery("getGame") {
+		if _, err := requireAuth(ctx); err != nil {
+			return nil, err
+		}
+	}
 	var payload []byte
 	query := `SELECT payload FROM games WHERE id = $1`
 	err := s.db.QueryRow(query, gameID).Scan(&payload)
 	if err != nil {
+		s.logger.Debug("game not found", "game_id", gameID)
 		return nil, err
 	}
+	s.logger.Debug("found game in database", "game_id", gameID, "payload", string(payload))
 	game := &Game{}
 	if err := json.Unmarshal(payload, &game); err != nil {
 		return nil, err
 	}
+	ensureGameDefaults(game)
+	s.logger.Debug("deserialized game", "game", game)
 	return game, nil
 }
 
 // GameUpdated returns a channel for a game or an error.
 func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID string) (<-chan *Game, error) {
+	if _, err := requireMatchingUser(ctx, userID, ""); err != nil {
+		return nil, err
+	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -129,6 +146,10 @@ func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID s
 // UpdateGame is what's used to change the name of the game, format, insert
 // or remove players, or change other meta informatin about a game.
 func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, error) {
+	authUser, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
 	game := &Game{}
 	b, err := json.Marshal(new)
 	if err != nil {
@@ -137,6 +158,9 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 	err = json.Unmarshal(b, &game)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal game: %s", err)
+	}
+	if game.Turn != nil && game.Turn.Priority == "" {
+		game.Turn.Priority = game.Turn.Player
 	}
 
 	// Ensure players have stable IDs even when input omits them. Tests expect
@@ -155,6 +179,26 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 		}
 	}
 
+	// Ensure the caller is a participant in the existing game or the new input.
+	existing, err := s.GetGame(ctx, game.ID)
+	if err == nil {
+		if !isUserInGame(existing, authUser) {
+			return nil, errors.New("forbidden: not a participant in this game")
+		}
+	} else if err == sql.ErrNoRows {
+		if !isUserInGame(game, authUser) {
+			return nil, errors.New("forbidden: caller must be a participant in new game")
+		}
+	} else {
+		return nil, fmt.Errorf("failed to load game for authorization: %w", err)
+	}
+
+	if existing != nil {
+		if err := enforceStackPriority(existing, game); err != nil {
+			return nil, err
+		}
+	}
+
 	go s.publishGame(game.ID, game)
 
 	if err := s.upsertGame(game); err != nil {
@@ -164,8 +208,208 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 	return game, nil
 }
 
+func enforceStackPriority(current *Game, next *Game) error {
+	if current == nil || next == nil {
+		return nil
+	}
+	oldStack := current.Stack
+	newStack := next.Stack
+	if len(newStack) <= len(oldStack) {
+		return nil
+	}
+	priority := ""
+	if current.Turn != nil {
+		if current.Turn.Priority != "" {
+			priority = current.Turn.Priority
+		} else {
+			priority = current.Turn.Player
+		}
+	}
+	if priority == "" {
+		return nil
+	}
+	added := diffStack(oldStack, newStack)
+	for _, card := range added {
+		if card == nil {
+			continue
+		}
+		owner := ""
+		if card.CurrentZone != nil {
+			owner = *card.CurrentZone
+		}
+		if owner == "" || owner != priority {
+			return fmt.Errorf("only %s can add cards to the stack", priority)
+		}
+	}
+	return nil
+}
+
+func (s *graphQLServer) PassPriority(ctx context.Context, gameID string, toPlayer string) (*Game, error) {
+	authUser, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	game, err := s.GetGame(ctx, gameID)
+	if err != nil {
+		return nil, err
+	}
+	ensureGameDefaults(game)
+	if game.Status == GameStatusFinished {
+		return nil, errors.New("game already finished")
+	}
+	if !isUserInGame(game, authUser) {
+		return nil, errors.New("forbidden: not a participant in this game")
+	}
+	if game.Turn == nil {
+		return nil, errors.New("game has no turn state")
+	}
+	if game.Turn.Priority != authUser.Username {
+		return nil, errors.New("forbidden: only priority player can pass priority")
+	}
+	if !playerExists(game, toPlayer) {
+		return nil, errors.New("target player not in game")
+	}
+	if game.PendingWinClaim != nil {
+		if !claimMatchesPrioritySequence(game.PendingWinClaim, toPlayer) {
+			s.cancelPendingWinClaim(ctx, game, authUser.Username, "priority passed out of sequence")
+		} else {
+			claimer := game.PendingWinClaim.ClaimedBy
+			condition := game.PendingWinClaim.Condition
+			game.PendingWinClaim.Remaining = game.PendingWinClaim.Remaining[1:]
+			if toPlayer == claimer && len(game.PendingWinClaim.Remaining) == 0 {
+				finalizeGame(game, GameResultWin, []string{claimer}, condition)
+				s.logEvent(ctx, Event{
+					GameID: game.ID,
+					Type:   EventTypeGameFinished,
+					Actor:  authUser.Username,
+					Payload: map[string]interface{}{
+						"result":      GameResultWin,
+						"winnerNames": []string{claimer},
+						"condition":   condition,
+					},
+				})
+			}
+		}
+	}
+	game.Turn.Priority = toPlayer
+	s.logEvent(ctx, Event{
+		GameID: game.ID,
+		Type:   EventTypePriorityPassed,
+		Actor:  authUser.Username,
+		Payload: map[string]interface{}{
+			"from": authUser.Username,
+			"to":   toPlayer,
+		},
+	})
+	go s.publishGame(game.ID, game)
+	if err := s.upsertGame(game); err != nil {
+		return game, err
+	}
+	return game, nil
+}
+
+func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase string, number *int) (*Game, error) {
+	authUser, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	game, err := s.GetGame(ctx, gameID)
+	if err != nil {
+		return nil, err
+	}
+	ensureGameDefaults(game)
+	if game.Status == GameStatusFinished {
+		return nil, errors.New("game already finished")
+	}
+	if !isUserInGame(game, authUser) {
+		return nil, errors.New("forbidden: not a participant in this game")
+	}
+	if game.Turn == nil {
+		return nil, errors.New("game has no turn state")
+	}
+	if game.Turn.Player != authUser.Username {
+		return nil, errors.New("forbidden: only the turn player can advance the phase")
+	}
+	game.Turn.Phase = phase
+	if number != nil {
+		game.Turn.Number = *number
+	}
+	if game.Turn.Priority == "" {
+		game.Turn.Priority = game.Turn.Player
+	}
+	if game.PendingWinClaim != nil {
+		s.cancelPendingWinClaim(ctx, game, authUser.Username, "turn advanced")
+	}
+	go s.publishGame(game.ID, game)
+	if err := s.upsertGame(game); err != nil {
+		return game, err
+	}
+	return game, nil
+}
+
+func playerExists(game *Game, username string) bool {
+	for _, p := range game.Players {
+		if p != nil && p.Username == username {
+			return true
+		}
+	}
+	return false
+}
+
+func diffStack(oldStack []*Card, newStack []*Card) []*Card {
+	oldCounts := countStack(oldStack)
+	newCounts := countStack(newStack)
+	var added []*Card
+	for _, card := range newStack {
+		key := stackKey(card)
+		if key == "" {
+			continue
+		}
+		if newCounts[key] > oldCounts[key] {
+			added = append(added, card)
+			oldCounts[key]++
+		}
+	}
+	return added
+}
+
+func countStack(stack []*Card) map[string]int {
+	counts := make(map[string]int)
+	for _, card := range stack {
+		key := stackKey(card)
+		if key == "" {
+			continue
+		}
+		counts[key]++
+	}
+	return counts
+}
+
+func stackKey(card *Card) string {
+	if card == nil {
+		return ""
+	}
+	if card.ID != "" {
+		return "id:" + card.ID
+	}
+	if card.Name == "" {
+		return ""
+	}
+	if card.CurrentZone != nil && *card.CurrentZone != "" {
+		return "name:" + card.Name + "|owner:" + *card.CurrentZone
+	}
+	return "name:" + card.Name
+}
+
 // JoinGame handles a user joining an existing game.
 func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Game, error) {
+	if input == nil || input.BoardState == nil {
+		return nil, errors.New("must provide boardstate to join a game")
+	}
+	authUser, err := requireMatchingUser(ctx, input.BoardState.UserID, input.BoardState.User)
+	if err != nil {
+		return nil, err
+	}
 	// TODO: Handle rejoins by detecting if that player's user.ID already exists
 	// in a given game. If it does, just return that same setup.
 	// TODO: Check context for User auth and append user info that way
@@ -179,6 +423,9 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	if input.BoardState.User == "" {
 		return nil, errors.New("must provide a username to join")
 	}
+	if input.Decklist == nil {
+		return nil, errors.New("must provide a decklist to join")
+	}
 
 	// get the game and verify itself
 	game, err := s.GetGame(ctx, input.ID)
@@ -191,6 +438,9 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 
 	if len(game.Players) >= 4 {
 		return nil, errors.New("game is full")
+	}
+	if isUserInGame(game, authUser) {
+		return nil, errors.New("user already in game")
 	}
 
 	user := &User{
@@ -254,6 +504,10 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 
 // CreateGame creates a new game and hydrates the decklists for the players in it.
 func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGame) (*Game, error) {
+	authUser, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
 	// don't allow a game to be created with an existing name
 	// TECHDEBT replace this with a proper cache
 	if _, exists := s.games[inputGame.ID]; exists {
@@ -270,10 +524,17 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		CreatedAt: time.Now(),
 		Players:   []*User{},
 		Stack:     []*Card{},
+		Status:    GameStatusInProgress,
 		Turn: &Turn{
 			Player: inputGame.Turn.Player,
 			Phase:  inputGame.Turn.Phase,
 			Number: inputGame.Turn.Number,
+			Priority: func() string {
+				if inputGame.Turn.Priority != "" {
+					return inputGame.Turn.Priority
+				}
+				return inputGame.Turn.Player
+			}(),
 		},
 		// NB: We're only supporting EDH at this time. We will add more flexible validation later.
 		Rules: []*Rule{
@@ -290,6 +551,11 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 
 	// build player boardstates
 	for _, player := range inputGame.Players {
+		if player.UserID == authUser.ID {
+			if player.User != "" && authUser.Username != "" && player.User != authUser.Username {
+				return nil, errors.New("forbidden: username mismatch for player")
+			}
+		}
 		// TODO: Deck validation should happen here.
 		user := &User{
 			ID:       player.UserID,
@@ -345,6 +611,9 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		}
 		user.Boardstate.Library = shuff
 		g.Players = append(g.Players, user)
+	}
+	if !isUserInGame(g, authUser) {
+		return nil, errors.New("forbidden: caller must be included as a player")
 	}
 
 	if err := s.upsertGame(g); err != nil {
@@ -407,10 +676,15 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 	// and trim leading spaces
 	r.TrimLeadingSpace = true
 
-	cards := []*Card{}
+	type deckEntry struct {
+		name string
+		qty  int64
+	}
+	entries := []deckEntry{}
+	lookupNames := []string{}
+	lookupSeen := map[string]struct{}{}
+
 	for {
-		// TODO: Use r.ReadAll() to get the whole decklist and do only one
-		// DB lookup for all of the cards instead of one by one.
 		record, err := r.Read()
 		if err == io.EOF {
 			break
@@ -426,12 +700,44 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 			return nil, fmt.Errorf("failed to parse quantity: %w", err)
 		}
 
-		found, err := s.Card(ctx, name, nil)
+		entries = append(entries, deckEntry{name: name, qty: quantity})
+		key := strings.ToLower(strings.TrimSpace(name))
+		if key != "" {
+			if _, ok := lookupSeen[key]; !ok {
+				lookupSeen[key] = struct{}{}
+				lookupNames = append(lookupNames, name)
+			}
+		}
+	}
+
+	lookup := map[string]*Card{}
+	if len(lookupNames) > 0 {
+		found, err := s.Cards(ctx, lookupNames)
 		if err != nil {
-			s.loggerFor(ctx).Warn("failed to find card", "err", err, "card_name", name)
-			cards = addX(quantity, cards, &Card{Name: name})
+			s.loggerFor(ctx).Warn("batch card lookup failed", "err", err)
+		}
+		for i, name := range lookupNames {
+			key := strings.ToLower(strings.TrimSpace(name))
+			if key == "" || i >= len(found) {
+				continue
+			}
+			if found[i] != nil {
+				lookup[key] = found[i]
+			}
+		}
+	}
+
+	cards := []*Card{}
+	for _, entry := range entries {
+		key := strings.ToLower(strings.TrimSpace(entry.name))
+		if key == "" {
+			cards = addX(entry.qty, cards, &Card{Name: entry.name})
+			continue
+		}
+		if found := lookup[key]; found != nil {
+			cards = addX(entry.qty, cards, found)
 		} else {
-			cards = addX(quantity, cards, found)
+			cards = addX(entry.qty, cards, &Card{Name: entry.name})
 		}
 	}
 

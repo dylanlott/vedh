@@ -3,6 +3,10 @@
 package server
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
 	"time"
 )
 
@@ -56,12 +60,26 @@ type Counter struct {
 }
 
 type Game struct {
+	ID              string           `json:"ID"`
+	CreatedAt       time.Time        `json:"CreatedAt"`
+	Rules           []*Rule          `json:"Rules,omitempty"`
+	Turn            *Turn            `json:"Turn,omitempty"`
+	Players         []*User          `json:"Players,omitempty"`
+	Stack           []*Card          `json:"Stack,omitempty"`
+	Status          GameStatus       `json:"Status"`
+	Result          *GameResult      `json:"Result,omitempty"`
+	WinnerIDs       []string         `json:"WinnerIDs,omitempty"`
+	WinCondition    *string          `json:"WinCondition,omitempty"`
+	PendingWinClaim *PendingWinClaim `json:"PendingWinClaim,omitempty"`
+}
+
+type GameLogEvent struct {
 	ID        string    `json:"ID"`
-	CreatedAt time.Time `json:"CreatedAt"`
-	Rules     []*Rule   `json:"Rules,omitempty"`
-	Turn      *Turn     `json:"Turn,omitempty"`
-	Players   []*User   `json:"Players,omitempty"`
-	Stack     []*Card   `json:"Stack,omitempty"`
+	GameID    string    `json:"GameID"`
+	EventTime time.Time `json:"EventTime"`
+	Type      string    `json:"Type"`
+	Actor     *string   `json:"Actor,omitempty"`
+	Payload   *string   `json:"Payload,omitempty"`
 }
 
 type InputBoardState struct {
@@ -162,9 +180,10 @@ type InputSignup struct {
 }
 
 type InputTurn struct {
-	Player string `json:"Player"`
-	Phase  string `json:"Phase"`
-	Number int    `json:"Number"`
+	Player   string `json:"Player"`
+	Phase    string `json:"Phase"`
+	Number   int    `json:"Number"`
+	Priority string `json:"Priority"`
 }
 
 type InputUser struct {
@@ -174,6 +193,12 @@ type InputUser struct {
 }
 
 type Mutation struct {
+}
+
+type PendingWinClaim struct {
+	ClaimedBy string   `json:"ClaimedBy"`
+	Condition *string  `json:"Condition,omitempty"`
+	Remaining []string `json:"Remaining"`
 }
 
 type Query struct {
@@ -188,9 +213,10 @@ type Subscription struct {
 }
 
 type Turn struct {
-	Player string `json:"Player"`
-	Phase  string `json:"Phase"`
-	Number int    `json:"Number"`
+	Player   string `json:"Player"`
+	Phase    string `json:"Phase"`
+	Number   int    `json:"Number"`
+	Priority string `json:"Priority"`
 }
 
 type User struct {
@@ -199,4 +225,114 @@ type User struct {
 	Password   *string     `json:"Password,omitempty"`
 	Token      *string     `json:"Token,omitempty"`
 	Boardstate *BoardState `json:"Boardstate,omitempty"`
+}
+
+type GameResult string
+
+const (
+	GameResultWin  GameResult = "WIN"
+	GameResultDraw GameResult = "DRAW"
+)
+
+var AllGameResult = []GameResult{
+	GameResultWin,
+	GameResultDraw,
+}
+
+func (e GameResult) IsValid() bool {
+	switch e {
+	case GameResultWin, GameResultDraw:
+		return true
+	}
+	return false
+}
+
+func (e GameResult) String() string {
+	return string(e)
+}
+
+func (e *GameResult) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = GameResult(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid GameResult", str)
+	}
+	return nil
+}
+
+func (e GameResult) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *GameResult) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e GameResult) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type GameStatus string
+
+const (
+	GameStatusInProgress GameStatus = "IN_PROGRESS"
+	GameStatusFinished   GameStatus = "FINISHED"
+)
+
+var AllGameStatus = []GameStatus{
+	GameStatusInProgress,
+	GameStatusFinished,
+}
+
+func (e GameStatus) IsValid() bool {
+	switch e {
+	case GameStatusInProgress, GameStatusFinished:
+		return true
+	}
+	return false
+}
+
+func (e GameStatus) String() string {
+	return string(e)
+}
+
+func (e *GameStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = GameStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid GameStatus", str)
+	}
+	return nil
+}
+
+func (e GameStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *GameStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e GameStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }

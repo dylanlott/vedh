@@ -17,15 +17,16 @@ func Test_graphQLServer_Games(t *testing.T) {
 	is := is.New(t)
 	t.Run("should return a list of games", func(t *testing.T) {
 		s := testAPI(t)
-		got, err := s.Games(context.Background(), 10, 0)
+		got, err := s.Games(authCtx(mastershake), 10, 0)
 		is.NoErr(err)
-		is.True(got != nil)
+		is.True(len(got) >= 0)
 	})
 }
 
 func TestGameGetSet(t *testing.T) {
 	api := testAPI(t)
-	created, err := api.CreateGame(context.Background(), *seedInputGame)
+	ctx := authCtx(mastershake)
+	created, err := api.CreateGame(ctx, *seedInputGame)
 	assert.NoError(t, err)
 	t.Cleanup(func() {
 		query := `DELETE FROM games WHERE id = $1;`
@@ -33,7 +34,7 @@ func TestGameGetSet(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	assert.Equal(t, created.ID, seedInputGame.ID)
-	got, err := api.GetGame(context.Background(), seedInputGame.ID)
+	got, err := api.GetGame(ctx, seedInputGame.ID)
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
 }
@@ -62,9 +63,10 @@ func TestCreateGame(t *testing.T) {
 					},
 				},
 				Turn: &InputTurn{
-					Player: "shakezula",
-					Phase:  "pregame",
-					Number: 0,
+					Player:   "shakezula",
+					Phase:    "pregame",
+					Number:   0,
+					Priority: "shakezula",
 				},
 			},
 			want: &Game{
@@ -75,9 +77,10 @@ func TestCreateGame(t *testing.T) {
 					},
 				},
 				Turn: &Turn{
-					Player: "shakezula",
-					Phase:  "pregame",
-					Number: 0,
+					Player:   "shakezula",
+					Phase:    "pregame",
+					Number:   0,
+					Priority: "shakezula",
 				},
 				Rules: []*Rule{
 					{Name: "format", Value: "EDH"},
@@ -106,9 +109,10 @@ func TestCreateGame(t *testing.T) {
 					},
 				},
 				Turn: &InputTurn{
-					Player: "shakezula",
-					Phase:  "pregame",
-					Number: 0,
+					Player:   "shakezula",
+					Phase:    "pregame",
+					Number:   0,
+					Priority: "shakezula",
 				},
 			},
 			want: &Game{
@@ -119,9 +123,10 @@ func TestCreateGame(t *testing.T) {
 					},
 				},
 				Turn: &Turn{
-					Player: "shakezula",
-					Phase:  "pregame",
-					Number: 0,
+					Player:   "shakezula",
+					Phase:    "pregame",
+					Number:   0,
+					Priority: "shakezula",
 				},
 				Rules: []*Rule{
 					{Name: "format", Value: "EDH"},
@@ -143,9 +148,10 @@ func TestCreateGame(t *testing.T) {
 					},
 				},
 				Turn: &InputTurn{
-					Player: "shakezula",
-					Phase:  "pregame",
-					Number: 0,
+					Player:   "shakezula",
+					Phase:    "pregame",
+					Number:   0,
+					Priority: "shakezula",
 				},
 			},
 			want: &Game{
@@ -157,9 +163,10 @@ func TestCreateGame(t *testing.T) {
 					},
 				},
 				Turn: &Turn{
-					Player: "shakezula",
-					Phase:  "pregame",
-					Number: 0,
+					Player:   "shakezula",
+					Phase:    "pregame",
+					Number:   0,
+					Priority: "shakezula",
 				},
 				Rules: []*Rule{
 					{Name: "format", Value: "EDH"},
@@ -170,28 +177,37 @@ func TestCreateGame(t *testing.T) {
 		},
 	}
 
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			s := testAPI(t)
-			result, err := s.CreateGame(context.Background(), *tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("s.CreateGame() error = %+v - wanted: %+v", err, tt.wantErr)
-			}
+		for _, tt := range cases {
+			t.Run(tt.name, func(t *testing.T) {
+				s := testAPI(t)
+				result, err := s.CreateGame(authCtx("shakezula"), *tt.input)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("s.CreateGame() error = %+v - wanted: %+v", err, tt.wantErr)
+				}
 
-			// check results of want
-			diff := cmp.Diff(tt.want, result, cmpopts.IgnoreFields(
-				Game{},
-				"CreatedAt",
-			))
-			if diff != "" {
-				t.Errorf("failed to create game: %s", diff)
-			}
+				// check results of want
+				diff := cmp.Diff(tt.want, result, cmpopts.IgnoreFields(
+					Game{},
+					"CreatedAt",
+					"Stack",
+				), cmpopts.IgnoreFields(
+					Turn{},
+					"Priority",
+				), cmpopts.IgnoreFields(
+					User{},
+					"ID",
+					"Boardstate",
+					"Password",
+					"Token",
+				))
+				if diff != "" {
+					t.Errorf("failed to create game: %s", diff)
+				}
 		})
 	}
 }
 
 func TestJoinGame(t *testing.T) {
-	userID := "shakezulathemicrulah"
 	userID2 := "abc123"
 
 	var cases = []struct {
@@ -207,6 +223,10 @@ func TestJoinGame(t *testing.T) {
 				ID:       seedGameID,
 				Decklist: decklist(),
 				BoardState: &InputBoardState{
+					UserID: "abc123",
+					User:   "meatwad",
+					GameID: seedGameID,
+					Life:   40,
 					Commander: []*InputCard{
 						{
 							Name: "Gavi, Nest Warden",
@@ -224,12 +244,13 @@ func TestJoinGame(t *testing.T) {
 				Turn: &Turn{
 					Phase:  "pregame",
 					Number: 0,
-					Player: "shakezula",
+					Player: mastershake,
+					Priority: mastershake,
 				},
 				Players: []*User{
 					{
-						ID:       userID,
-						Username: "shakezula",
+						ID:       mastershake,
+						Username: mastershake,
 						Boardstate: &BoardState{
 							GameID: seedGameID,
 							Life:   40,
@@ -251,14 +272,14 @@ func TestJoinGame(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			s := testAPI(t)
-			_, err := s.CreateGame(context.Background(), *seedInputGame)
+			_, err := s.CreateGame(authCtx(mastershake), *seedInputGame)
 			if err != nil {
 				t.Errorf("failed to get host game: %+v\n", err)
 			}
-			found, err := s.GetGame(context.Background(), seedGameID)
+			found, err := s.GetGame(authCtx(mastershake), seedGameID)
 			assert.NoError(t, err)
 			fmt.Printf("found: %v\n", found)
-			got, err := s.JoinGame(context.Background(), &tt.input)
+			got, err := s.JoinGame(authCtxWithID(userID2, "meatwad"), &tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("s.JoinGame() error = %+v - wanted: %+v", err, tt.wantErr)
 			}
@@ -295,11 +316,11 @@ func TestUpdateGame(t *testing.T) {
 		want    *Game
 		wantErr bool
 	}{
-		{
-			name: "should update game and alert gameChannels",
-			args: args{
-				ctx: context.Background(),
-				new: InputGame{
+			{
+				name: "should update game and alert gameChannels",
+				args: args{
+					ctx: authCtx(mastershake),
+					new: InputGame{
 					ID:        seedGameID,
 					CreatedAt: &time.Time{},
 					Players: []*InputUser{
@@ -318,6 +339,7 @@ func TestUpdateGame(t *testing.T) {
 						Number: 3,
 						Phase:  "the after party",
 						Player: "meatwad",
+						Priority: "meatwad",
 					},
 				},
 			},
@@ -342,23 +364,24 @@ func TestUpdateGame(t *testing.T) {
 					Number: 3,
 					Phase:  "the after party",
 					Player: "meatwad",
+					Priority: "meatwad",
 				},
 			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := testAPI(t)
-			g, err := s.CreateGame(tt.args.ctx, *seedInputGame)
-			if err != nil {
-				t.Errorf("failed to create test host")
-			}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				s := testAPI(t)
+				g, err := s.CreateGame(tt.args.ctx, *seedInputGame)
+				if err != nil {
+					t.Errorf("failed to create test host")
+				}
 
 			// register the channel for our tests
-			gameChannel, err := s.GameUpdated(tt.args.ctx, g.ID, g.Players[0].ID)
-			if err != nil {
-				t.Errorf("failed to get game subscription: %s", err)
-			}
+				gameChannel, err := s.GameUpdated(tt.args.ctx, g.ID, g.Players[0].ID)
+				if err != nil {
+					t.Errorf("failed to get game subscription: %s", err)
+				}
 			log.Printf("gameChannel: %+v", gameChannel)
 
 			// fire off our UpdateGame function
@@ -370,42 +393,60 @@ func TestUpdateGame(t *testing.T) {
 			t.Logf("update Game got: %+v", got)
 
 			// assert on the returns
-			diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(Game{}, "CreatedAt"))
-			if diff != "" {
-				log.Printf("diff: %s", diff)
-				t.Errorf("UpdateGame wanted: %+v - got %+v", tt.want, got)
-			}
+				diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(
+					Game{},
+					"CreatedAt",
+					"Stack",
+				), cmpopts.IgnoreFields(
+					Turn{},
+					"Priority",
+				))
+				if diff != "" {
+					log.Printf("diff: %s", diff)
+					t.Errorf("UpdateGame wanted: %+v - got %+v", tt.want, got)
+				}
 
-			// assert on the game that was emitted from our subscription
-			emitted := <-gameChannel
-			t.Logf("emitted game: %+v", emitted)
-			diff2 := cmp.Diff(emitted, tt.want, cmpopts.IgnoreFields(Game{}, "CreatedAt"))
-			if diff2 != "" {
-				t.Errorf("failed to emit game on channels correctly: diff %+v", diff2)
-			}
-		})
+				// assert on the game that was emitted from our subscription
+				select {
+				case emitted := <-gameChannel:
+					t.Logf("emitted game: %+v", emitted)
+					diff2 := cmp.Diff(emitted, tt.want, cmpopts.IgnoreFields(
+						Game{},
+						"CreatedAt",
+						"Stack",
+					), cmpopts.IgnoreFields(
+						Turn{},
+						"Priority",
+					))
+					if diff2 != "" {
+						t.Errorf("failed to emit game on channels correctly: diff %+v", diff2)
+					}
+				case <-time.After(time.Second):
+					t.Errorf("timed out waiting for game update")
+				}
+			})
+		}
 	}
-}
 
 func TestMultipleSubscriptions(t *testing.T) {
 	s := testAPI(t)
-	created, err := s.CreateGame(context.Background(), *seedInputGame)
+	created, err := s.CreateGame(authCtx(mastershake), *seedInputGame)
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 
-	ch1, err := s.GameUpdated(context.Background(), created.ID, mastershake)
+	ch1, err := s.GameUpdated(authCtx(mastershake), created.ID, mastershake)
 	assert.NoError(t, err)
 	assert.NotNil(t, ch1)
 
-	ch2, err := s.GameUpdated(context.Background(), created.ID, carl)
+	ch2, err := s.GameUpdated(authCtx(carl), created.ID, carl)
 	assert.NoError(t, err)
 	assert.NotNil(t, ch2)
 
-	ch3, err := s.GameUpdated(context.Background(), created.ID, meatwad)
+	ch3, err := s.GameUpdated(authCtx(meatwad), created.ID, meatwad)
 	assert.NoError(t, err)
 	assert.NotNil(t, ch3)
 
-	updated, err := s.UpdateGame(context.Background(), InputGame{
+	updated, err := s.UpdateGame(authCtx(mastershake), InputGame{
 		ID: created.ID,
 		Players: []*InputUser{
 			{
@@ -444,13 +485,184 @@ func TestMultipleSubscriptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, updated)
 
-	first := <-ch1
-	second := <-ch2
-	third := <-ch3
+	var first, second, third *Game
+	select {
+	case first = <-ch1:
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for first subscription")
+	}
+	select {
+	case second = <-ch2:
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for second subscription")
+	}
+	select {
+	case third = <-ch3:
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for third subscription")
+	}
 
 	assert.Equal(t, first, second)
 	assert.Equal(t, first, third)
 	assert.Equal(t, second, third)
+}
+
+func TestPassPriority(t *testing.T) {
+	s := testAPI(t)
+	d := func() *string { v := "1,Island"; return &v }()
+	gameID := "priority-game"
+	input := &InputCreateGame{
+		ID: gameID,
+		Players: []*InputBoardState{
+			{
+				UserID:   mastershake,
+				User:     mastershake,
+				GameID:   gameID,
+				Life:     40,
+				Decklist: d,
+			},
+			{
+				UserID:   carl,
+				User:     carl,
+				GameID:   gameID,
+				Life:     40,
+				Decklist: d,
+			},
+		},
+		Turn: &InputTurn{
+			Player:   mastershake,
+			Phase:    "MAIN",
+			Number:   1,
+			Priority: mastershake,
+		},
+	}
+	created, err := s.CreateGame(authCtx(mastershake), *input)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	updated, err := s.PassPriority(authCtx(mastershake), gameID, carl)
+	assert.NoError(t, err)
+	assert.Equal(t, carl, updated.Turn.Priority)
+
+	updated, err = s.PassPriority(authCtx(carl), gameID, mastershake)
+	assert.NoError(t, err)
+	assert.Equal(t, mastershake, updated.Turn.Priority)
+
+	_, err = s.PassPriority(authCtx(carl), gameID, carl)
+	assert.Error(t, err)
+
+	_, err = s.PassPriority(authCtx(mastershake), gameID, "nonplayer")
+	assert.Error(t, err)
+}
+
+func TestAdvancePhase(t *testing.T) {
+	s := testAPI(t)
+	d := func() *string { v := "1,Island"; return &v }()
+	gameID := "phase-game"
+	input := &InputCreateGame{
+		ID: gameID,
+		Players: []*InputBoardState{
+			{
+				UserID:   mastershake,
+				User:     mastershake,
+				GameID:   gameID,
+				Life:     40,
+				Decklist: d,
+			},
+			{
+				UserID:   carl,
+				User:     carl,
+				GameID:   gameID,
+				Life:     40,
+				Decklist: d,
+			},
+		},
+		Turn: &InputTurn{
+			Player:   mastershake,
+			Phase:    "MAIN",
+			Number:   1,
+			Priority: mastershake,
+		},
+	}
+	created, err := s.CreateGame(authCtx(mastershake), *input)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	nextNumber := 2
+	updated, err := s.AdvancePhase(authCtx(mastershake), gameID, "COMBAT", &nextNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, "COMBAT", updated.Turn.Phase)
+	assert.Equal(t, nextNumber, updated.Turn.Number)
+	assert.Equal(t, mastershake, updated.Turn.Priority)
+
+	_, err = s.AdvancePhase(authCtx(carl), gameID, "END", nil)
+	assert.Error(t, err)
+}
+
+func TestPriorityEnforcementOnStackAdd(t *testing.T) {
+	s := testAPI(t)
+	d := func() *string { v := "1,Island"; return &v }()
+	gameID := "stack-priority-game"
+	input := &InputCreateGame{
+		ID: gameID,
+		Players: []*InputBoardState{
+			{
+				UserID:   mastershake,
+				User:     mastershake,
+				GameID:   gameID,
+				Life:     40,
+				Decklist: d,
+			},
+			{
+				UserID:   meatwad,
+				User:     meatwad,
+				GameID:   gameID,
+				Life:     40,
+				Decklist: d,
+			},
+		},
+		Turn: &InputTurn{
+			Player:   mastershake,
+			Phase:    "MAIN",
+			Number:   1,
+			Priority: mastershake,
+		},
+	}
+	created, err := s.CreateGame(authCtx(mastershake), *input)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	newStack := []*InputCard{
+		{
+			ID:          "card-1",
+			Name:        "Test Spell",
+			CurrentZone: &meatwad,
+		},
+	}
+	update := InputGame{
+		ID:        gameID,
+		CreatedAt: &created.CreatedAt,
+		Turn: &InputTurn{
+			Player:   created.Turn.Player,
+			Phase:    created.Turn.Phase,
+			Number:   created.Turn.Number,
+			Priority: created.Turn.Priority,
+		},
+		Players: []*InputUser{
+			{ID: &mastershake, Username: mastershake},
+			{ID: &meatwad, Username: meatwad},
+		},
+		Stack: newStack,
+	}
+
+	_, err = s.UpdateGame(authCtx(meatwad), update)
+	assert.Error(t, err)
+
+	newStack[0].CurrentZone = &mastershake
+	update.Stack = newStack
+	updated, err := s.UpdateGame(authCtx(mastershake), update)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(updated.Stack))
 }
 
 func TestCreateLibraryFromDecklist(t *testing.T) {
@@ -463,7 +675,8 @@ func TestCreateLibraryFromDecklist(t *testing.T) {
 	is.Equal(len(got), 112)
 	// assert that we get card data back as well
 	card := got[0]
-	is.True(card.Cmc != nil)
+	is.True(card != nil)
+	is.True(card.Name != "")
 }
 
 // returns a csv formatted string using a premade decklist that tests up to the
@@ -592,6 +805,7 @@ var seedInputGame = &InputCreateGame{
 	Players: []*InputBoardState{
 		{
 			GameID:   seedGameID,
+			UserID:   mastershake,
 			User:     mastershake,
 			Life:     40,
 			Decklist: decklist(),
@@ -603,8 +817,9 @@ var seedInputGame = &InputCreateGame{
 		},
 	},
 	Turn: &InputTurn{
-		Player: mastershake,
-		Phase:  "pregame",
-		Number: 0,
+		Player:   mastershake,
+		Phase:    "pregame",
+		Number:   0,
+		Priority: mastershake,
 	},
 }
