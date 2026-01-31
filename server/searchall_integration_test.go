@@ -13,7 +13,7 @@ import (
 // misses since the `allcards` table may not have all printings or may use
 // different naming for some cards.
 func Test_graphQLServer_SearchAll_JaradDeck(t *testing.T) {
-	f, err := os.Open("../test/jarad.csv")
+	f, err := os.Open("../test/decklists/jarad.csv")
 	if err != nil {
 		t.Fatalf("failed to open decklist: %v", err)
 	}

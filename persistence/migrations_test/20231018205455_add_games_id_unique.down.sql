@@ -1,0 +1,1 @@
+ALTER TABLE games DROP CONSTRAINT unique_id;
