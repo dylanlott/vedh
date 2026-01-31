@@ -35,7 +35,7 @@ describe('JoinGame (integration)', () => {
     const gameID = `join-test-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const createPayload = {
       ID: gameID,
-      Turn: { Player: aProfile.Username, Phase: 'MAIN', Number: 1 },
+      Turn: { Player: aProfile.Username, Phase: 'MAIN', Number: 1, Priority: aProfile.Username },
       Players: [
         {
           UserID: aProfile.ID,

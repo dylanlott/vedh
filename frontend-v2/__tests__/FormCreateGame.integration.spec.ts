@@ -50,7 +50,7 @@ describe('FormCreateGame (integration)', () => {
     const newId = `testgame-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const payload = {
       ID: newId,
-      Turn: { Player: profile.Username, Phase: 'MAIN', Number: 1 },
+      Turn: { Player: profile.Username, Phase: 'MAIN', Number: 1, Priority: profile.Username },
       Players: [
         {
           UserID: profile.ID,

@@ -2,8 +2,64 @@
   <section class="board" v-if="game" :style="{ '--main-player-height': mainPlayerHeightCss }">
     <header class="board-header">
       <div class="title">
-        <h1>Game {{ game.ID }}</h1>
-        <p>Turn {{ game.Turn?.Number ?? '—' }} • {{ game.Turn?.Player ?? 'Unknown player' }} ({{ game.Turn?.Phase ?? 'Phase' }})</p>
+        <div class="turn-spotlight" :class="{ 'priority-owner': priorityOnTurn }">
+          <div class="turn-number">
+            <span class="eyebrow">Turn</span>
+            <strong>{{ game.Turn?.Number ?? '—' }}</strong>
+          </div>
+          <div class="turn-phase">
+            <span class="eyebrow">Phase</span>
+            <strong>{{ game.Turn?.Phase ?? '—' }}</strong>
+          </div>
+          <div class="turn-priority">
+            <span class="eyebrow">Priority</span>
+            <strong>{{ currentPriority ?? '—' }}</strong>
+          </div>
+        </div>
+        <p class="turn-meta">
+          Active player: {{ game.Turn?.Player ?? 'Unknown player' }}
+        </p>
+        <div class="turn-tracker">
+          <span class="chip">Turn {{ game.Turn?.Number ?? '—' }}</span>
+          <span class="chip">Phase: {{ game.Turn?.Phase ?? '—' }}</span>
+          <div class="turn-controls">
+            <label class="inline-control">
+              <span>Pass to</span>
+              <select v-model="priorityTarget" :disabled="!hasPriority">
+                <option v-for="name in playerNames" :key="name" :value="name">{{ name }}</option>
+              </select>
+            </label>
+            <button class="tool" type="button" :disabled="!hasPriority || !priorityTarget" @click="passPriority(priorityTarget)">
+              Pass priority
+            </button>
+            <label class="inline-control">
+              <span>Phase</span>
+              <select v-model="phaseTarget" :disabled="!isTurnPlayer">
+                <option v-for="p in phaseOptions" :key="p" :value="p">{{ p }}</option>
+              </select>
+            </label>
+            <button class="tool" type="button" :disabled="!isTurnPlayer || !phaseTarget" @click="advancePhase(phaseTarget)">
+              Advance
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="settings">
+        <button class="settings-trigger" type="button" @click="settingsOpen = !settingsOpen" aria-label="Open settings">
+          ⚙️
+        </button>
+        <div v-if="settingsOpen" class="settings-drawer" @click.stop>
+          <div class="settings-title">Settings</div>
+          <label class="toast-toggle">
+            <input type="checkbox" v-model="boardstateToastsEnabled" />
+            <span>Board toasts</span>
+          </label>
+          <label class="toast-ttl">
+            <span>Toast TTL</span>
+            <input type="number" min="500" max="10000" step="250" v-model.number="toastDurationMs" />
+            <span class="unit">ms</span>
+          </label>
+        </div>
       </div>
     </header>
 
@@ -19,7 +75,7 @@
               <h3>
                 Commander
                 <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Commander')">
-                  {{ isStacked(player.Username, 'Commander') ? 'Tiles' : 'Stack' }}
+                  {{ isStacked(player.Username, 'Commander') ? 'Tiles' : 'Art' }}
                 </button>
               </h3>
               <template v-if="!isStacked(player.Username, 'Commander')">
@@ -29,29 +85,20 @@
                     <span class="label">{{ card.Name }}</span>
                   </li>
                 </ul>
-              </template>
-              <template v-else>
-                <ul class="cards stacks">
-                  <li v-for="g in groupByName(player.Boardstate?.Commander ?? [])" :key="g.name" class="stack-group">
-                    <div class="stack-condensed">
-                      <div class="stack-thumb">
-                        <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                      </div>
-                      <div class="stack-info">
-                        <div class="stack-name">{{ g.name }}</div>
-                        <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                      </div>
-                      <div class="count">{{ g.count }}</div>
-                    </div>
-                  </li>
-                </ul>
-              </template>
+            </template>
+            <template v-else>
+              <ul class="cards art">
+                <li v-for="card in player.Boardstate?.Commander ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                </li>
+              </ul>
+            </template>
           </div>
           <div class="zone" :data-zone="'Battlefield'" :class="{ 'drag-over': isDragOver(player.Username, 'Battlefield') }" @dragenter.prevent="onDragEnter(player.Username, 'Battlefield')" @dragleave.prevent="onDragLeave(player.Username, 'Battlefield')">
               <h3>
                 Battlefield
                 <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Battlefield')">
-                  {{ isStacked(player.Username, 'Battlefield') ? 'Tiles' : 'Stack' }}
+                  {{ isStacked(player.Username, 'Battlefield') ? 'Tiles' : 'Art' }}
                 </button>
               </h3>
               <template v-if="!isStacked(player.Username, 'Battlefield')">
@@ -61,23 +108,14 @@
                     <span class="label">{{ card.Name }}</span>
                   </li>
                 </ul>
-              </template>
-              <template v-else>
-                <ul class="cards stacks">
-                  <li v-for="g in groupByName(player.Boardstate?.Battlefield ?? [])" :key="g.name" class="stack-group">
-                    <div class="stack-condensed">
-                      <div class="stack-thumb">
-                        <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                      </div>
-                      <div class="stack-info">
-                        <div class="stack-name">{{ g.name }}</div>
-                        <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                      </div>
-                      <div class="count">{{ g.count }}</div>
-                    </div>
-                  </li>
-                </ul>
-              </template>
+            </template>
+            <template v-else>
+              <ul class="cards art">
+                <li v-for="card in player.Boardstate?.Battlefield ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+                </li>
+              </ul>
+            </template>
           </div>
           <div class="zone" :data-zone="'Hand'">
             <h3>Hand ({{ player.Boardstate?.Hand?.length ?? 0 }})</h3>
@@ -89,7 +127,7 @@
             <h3>
               Graveyard ({{ player.Boardstate?.Graveyard?.length ?? 0 }})
               <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Graveyard')">
-                {{ isStacked(player.Username, 'Graveyard') ? 'Tiles' : 'Stack' }}
+                {{ isStacked(player.Username, 'Graveyard') ? 'Tiles' : 'Art' }}
               </button>
             </h3>
             <template v-if="!isStacked(player.Username, 'Graveyard')">
@@ -101,18 +139,9 @@
               </ul>
             </template>
             <template v-else>
-              <ul class="cards stacks">
-                <li v-for="g in groupByName(player.Boardstate?.Graveyard ?? [])" :key="g.name" class="stack-group">
-                  <div class="stack-condensed">
-                    <div class="stack-thumb">
-                      <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                    </div>
-                    <div class="stack-info">
-                      <div class="stack-name">{{ g.name }}</div>
-                      <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                    </div>
-                    <div class="count">{{ g.count }}</div>
-                  </div>
+              <ul class="cards art">
+                <li v-for="card in player.Boardstate?.Graveyard ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
             </template>
@@ -121,7 +150,7 @@
             <h3>
               Exiled ({{ player.Boardstate?.Exiled?.length ?? 0 }})
               <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Exiled')">
-                {{ isStacked(player.Username, 'Exiled') ? 'Tiles' : 'Stack' }}
+                {{ isStacked(player.Username, 'Exiled') ? 'Tiles' : 'Art' }}
               </button>
             </h3>
             <template v-if="!isStacked(player.Username, 'Exiled')">
@@ -133,18 +162,9 @@
               </ul>
             </template>
             <template v-else>
-              <ul class="cards stacks">
-                <li v-for="g in groupByName(player.Boardstate?.Exiled ?? [])" :key="g.name" class="stack-group">
-                  <div class="stack-condensed">
-                    <div class="stack-thumb">
-                      <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                    </div>
-                    <div class="stack-info">
-                      <div class="stack-name">{{ g.name }}</div>
-                      <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                    </div>
-                    <div class="count">{{ g.count }}</div>
-                  </div>
+              <ul class="cards art">
+                <li v-for="card in player.Boardstate?.Exiled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
             </template>
@@ -153,7 +173,7 @@
             <h3>
               Revealed ({{ player.Boardstate?.Revealed?.length ?? 0 }})
               <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Revealed')">
-                {{ isStacked(player.Username, 'Revealed') ? 'Tiles' : 'Stack' }}
+                {{ isStacked(player.Username, 'Revealed') ? 'Tiles' : 'Art' }}
               </button>
             </h3>
             <template v-if="!isStacked(player.Username, 'Revealed')">
@@ -165,18 +185,9 @@
               </ul>
             </template>
             <template v-else>
-              <ul class="cards stacks">
-                <li v-for="g in groupByName(player.Boardstate?.Revealed ?? [])" :key="g.name" class="stack-group">
-                  <div class="stack-condensed">
-                    <div class="stack-thumb">
-                      <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                    </div>
-                    <div class="stack-info">
-                      <div class="stack-name">{{ g.name }}</div>
-                      <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                    </div>
-                    <div class="count">{{ g.count }}</div>
-                  </div>
+              <ul class="cards art">
+                <li v-for="card in player.Boardstate?.Revealed ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
             </template>
@@ -185,7 +196,7 @@
             <h3>
               Controlled ({{ player.Boardstate?.Controlled?.length ?? 0 }})
               <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Controlled')">
-                {{ isStacked(player.Username, 'Controlled') ? 'Tiles' : 'Stack' }}
+                {{ isStacked(player.Username, 'Controlled') ? 'Tiles' : 'Art' }}
               </button>
             </h3>
             <template v-if="!isStacked(player.Username, 'Controlled')">
@@ -197,18 +208,9 @@
               </ul>
             </template>
             <template v-else>
-              <ul class="cards stacks">
-                <li v-for="g in groupByName(player.Boardstate?.Controlled ?? [])" :key="g.name" class="stack-group">
-                  <div class="stack-condensed">
-                    <div class="stack-thumb">
-                      <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                    </div>
-                    <div class="stack-info">
-                      <div class="stack-name">{{ g.name }}</div>
-                      <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                    </div>
-                    <div class="count">{{ g.count }}</div>
-                  </div>
+              <ul class="cards art">
+                <li v-for="card in player.Boardstate?.Controlled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
             </template>
@@ -224,19 +226,16 @@
       <!-- self player is rendered below in the anchored .main-player section -->
 
       <!-- Stack separates opponents from self -->
-      <section class="stack">
+      <section class="stack" :class="{ pulse: stackPulse }">
         <header>
           <h2>Stack</h2>
         </header>
         <ul class="cards tiles">
-          <Card
-            v-for="(card, i) in game.Stack"
-            :key="`${card.ID}-${i}`"
-            :id="card.ID"
-            :name="card.Name"
-            :image-src="getImage(card.Name)"
-            :draggable="false"
-          />
+          <li v-for="(card, i) in game.Stack" :key="`${card.ID}-${i}`" class="card-tile stack-card">
+            <button class="stack-resolve" type="button" @click.stop="resolveStackCard(i)">Resolve</button>
+            <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
+            <span class="label">{{ card.Name }}</span>
+          </li>
         </ul>
       </section>
 
@@ -318,19 +317,23 @@
               </ul>
             </template>
             <template v-else>
-              <ul class="cards stacks">
-                <li v-for="g in groupByName(selfPlayer.Boardstate?.Commander ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Commander', g)" @dragend="onDragEnd">
-                  <div class="stack-condensed">
-                    <div class="stack-thumb">
-                        <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                    </div>
-                    <div class="stack-info">
-                      <div class="stack-name">{{ g.name }}</div>
-                      <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                    </div>
-                    <div class="count">{{ g.count }}</div>
-                  </div>
-                </li>
+              <ul class="cards art">
+                <Card
+                  v-for="(card, idx) in selfPlayer.Boardstate?.Commander ?? []"
+                  :key="card.ID || `${card.Name}-${idx}`"
+                  :id="card.ID"
+                  :name="card.Name"
+                  :image-src="getImage(card.Name)"
+                  :tapped="isCardTapped(card)"
+                  :draggable="true"
+                  :dragging="currentDraggedId === card.ID"
+                  :show-name="false"
+                  size="lg"
+                  @dragstart="() => onDragStart(card, me.Username, 'Commander', idx)"
+                  @dragend="onDragEnd"
+                  @click="() => onCardClick(card, me.Username, 'Commander', idx)"
+                  @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Commander', idx)"
+                />
               </ul>
             </template>
           </div>
@@ -362,40 +365,71 @@
             </ul>
           </template>
           <template v-else>
-            <ul class="cards stacks">
-              <li v-for="g in groupByName(selfPlayer.Boardstate?.Battlefield ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Battlefield', g)" @dragend="onDragEnd">
-                <div class="stack-condensed">
-                  <div class="stack-thumb">
-                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                  </div>
-                  <div class="stack-info">
-                    <div class="stack-name">{{ g.name }}</div>
-                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                  </div>
-                  <div class="count">{{ g.count }}</div>
-                </div>
-              </li>
+            <ul class="cards art">
+              <Card
+                v-for="(card, idx) in selfPlayer.Boardstate?.Battlefield ?? []"
+                :key="card.ID || `${card.Name}-${idx}`"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                :show-name="false"
+                size="lg"
+                @dragstart="() => onDragStart(card, me.Username, 'Battlefield', idx)"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Battlefield', idx)"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Battlefield', idx)"
+              />
             </ul>
           </template>
         </div>
   <div class="zone" :data-zone="'Hand'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Hand') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Hand')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Hand')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Hand')">
-          <h3>Hand ({{ selfPlayer.Boardstate?.Hand?.length ?? 0 }})</h3>
-          <ul class="cards tiles">
-            <Card
-              v-for="(card, idx) in selfPlayer.Boardstate?.Hand ?? []"
-              :key="card.ID || `${card.Name}-${idx}`"
-              :id="card.ID"
-              :name="card.Name"
-              :image-src="getImage(card.Name)"
-              :tapped="isCardTapped(card)"
-              :draggable="true"
-              :dragging="currentDraggedId === card.ID"
-              @dragstart="() => onDragStart(card, me.Username, 'Hand', idx)"
-              @dragend="onDragEnd"
-              @click="() => onCardClick(card, me.Username, 'Hand', idx)"
-              @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Hand', idx)"
-            />
-          </ul>
+          <h3>
+            Hand ({{ selfPlayer.Boardstate?.Hand?.length ?? 0 }})
+            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Hand')">
+              {{ isStacked(selfPlayer.Username, 'Hand') ? 'Tiles' : 'Art' }}
+            </button>
+          </h3>
+          <template v-if="!isStacked(selfPlayer.Username, 'Hand')">
+            <ul class="cards tiles">
+              <Card
+                v-for="(card, idx) in selfPlayer.Boardstate?.Hand ?? []"
+                :key="card.ID || `${card.Name}-${idx}`"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                @dragstart="() => onDragStart(card, me.Username, 'Hand', idx)"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Hand', idx)"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Hand', idx)"
+              />
+            </ul>
+          </template>
+          <template v-else>
+            <ul class="cards art">
+              <Card
+                v-for="(card, idx) in selfPlayer.Boardstate?.Hand ?? []"
+                :key="card.ID || `${card.Name}-${idx}`"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                :show-name="false"
+                size="lg"
+                @dragstart="() => onDragStart(card, me.Username, 'Hand', idx)"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Hand', idx)"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Hand', idx)"
+              />
+            </ul>
+          </template>
         </div>
   <div class="zone" :data-zone="'Graveyard'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Graveyard') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Graveyard')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Graveyard')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Graveyard')">
           <h3>
@@ -423,19 +457,23 @@
             </ul>
           </template>
           <template v-else>
-            <ul class="cards stacks">
-              <li v-for="g in groupByName(selfPlayer.Boardstate?.Graveyard ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Graveyard', g)" @dragend="onDragEnd">
-                <div class="stack-condensed">
-                  <div class="stack-thumb">
-                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                  </div>
-                  <div class="stack-info">
-                    <div class="stack-name">{{ g.name }}</div>
-                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                  </div>
-                  <div class="count">{{ g.count }}</div>
-                </div>
-              </li>
+            <ul class="cards art">
+              <Card
+                v-for="(card, idx) in selfPlayer.Boardstate?.Graveyard ?? []"
+                :key="card.ID || `${card.Name}-${idx}`"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                :show-name="false"
+                size="lg"
+                @dragstart="() => onDragStart(card, me.Username, 'Graveyard', idx)"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Graveyard', idx)"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Graveyard', idx)"
+              />
             </ul>
           </template>
         </div>
@@ -465,19 +503,23 @@
             </ul>
           </template>
           <template v-else>
-            <ul class="cards stacks">
-              <li v-for="g in groupByName(selfPlayer.Boardstate?.Exiled ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Exiled', g)" @dragend="onDragEnd">
-                <div class="stack-condensed">
-                  <div class="stack-thumb">
-                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                  </div>
-                  <div class="stack-info">
-                    <div class="stack-name">{{ g.name }}</div>
-                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                  </div>
-                  <div class="count">{{ g.count }}</div>
-                </div>
-              </li>
+            <ul class="cards art">
+              <Card
+                v-for="(card, idx) in selfPlayer.Boardstate?.Exiled ?? []"
+                :key="card.ID || `${card.Name}-${idx}`"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                :show-name="false"
+                size="lg"
+                @dragstart="() => onDragStart(card, me.Username, 'Exiled', idx)"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Exiled', idx)"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Exiled', idx)"
+              />
             </ul>
           </template>
         </div>
@@ -507,19 +549,23 @@
             </ul>
           </template>
           <template v-else>
-            <ul class="cards stacks">
-              <li v-for="g in groupByName(selfPlayer.Boardstate?.Revealed ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Revealed', g)" @dragend="onDragEnd">
-                <div class="stack-condensed">
-                  <div class="stack-thumb">
-                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                  </div>
-                  <div class="stack-info">
-                    <div class="stack-name">{{ g.name }}</div>
-                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                  </div>
-                  <div class="count">{{ g.count }}</div>
-                </div>
-              </li>
+            <ul class="cards art">
+              <Card
+                v-for="(card, idx) in selfPlayer.Boardstate?.Revealed ?? []"
+                :key="card.ID || `${card.Name}-${idx}`"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                :show-name="false"
+                size="lg"
+                @dragstart="() => onDragStart(card, me.Username, 'Revealed', idx)"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Revealed', idx)"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Revealed', idx)"
+              />
             </ul>
           </template>
         </div>
@@ -549,19 +595,23 @@
             </ul>
           </template>
           <template v-else>
-            <ul class="cards stacks">
-              <li v-for="g in groupByName(selfPlayer.Boardstate?.Controlled ?? [])" :key="g.name" class="stack-group" draggable="true" @dragstart="onStackDragStart(selfPlayer.Username, 'Controlled', g)" @dragend="onDragEnd">
-                <div class="stack-condensed">
-                  <div class="stack-thumb">
-                    <img v-for="(c, idx) in g.sample.slice(0,4)" :key="c.ID || idx" :src="getImage(c.Name)" :alt="c.Name" :style="{ '--i': idx, zIndex: 10 - idx }" />
-                  </div>
-                  <div class="stack-info">
-                    <div class="stack-name">{{ g.name }}</div>
-                    <div class="stack-meta">{{ g.sample[0]?.Types ?? '' }}</div>
-                  </div>
-                  <div class="count">{{ g.count }}</div>
-                </div>
-              </li>
+            <ul class="cards art">
+              <Card
+                v-for="(card, idx) in selfPlayer.Boardstate?.Controlled ?? []"
+                :key="card.ID || `${card.Name}-${idx}`"
+                :id="card.ID"
+                :name="card.Name"
+                :image-src="getImage(card.Name)"
+                :tapped="isCardTapped(card)"
+                :draggable="true"
+                :dragging="currentDraggedId === card.ID"
+                :show-name="false"
+                size="lg"
+                @dragstart="() => onDragStart(card, me.Username, 'Controlled', idx)"
+                @dragend="onDragEnd"
+                @click="() => onCardClick(card, me.Username, 'Controlled', idx)"
+                @dblclick.stop.prevent="() => onCardDblClick(card, me.Username, 'Controlled', idx)"
+              />
             </ul>
           </template>
         </div>
@@ -610,7 +660,7 @@
   </div>
 
   <!-- Toasts -->
-  <div class="toasts">
+  <div class="toasts" :class="{ compact: mainPlayerCollapsed }">
     <div class="toast" v-for="t in toasts" :key="t.id">{{ t.text }}</div>
   </div>
 </template>
@@ -621,10 +671,11 @@ import { useRoute } from 'vue-router';
 import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
 import { apolloClient } from '../services/apollo';
-import { UPDATE_BOARDSTATE_MUTATION } from '../graphql/mutations';
+import { ADVANCE_PHASE_MUTATION, PASS_PRIORITY_MUTATION, UPDATE_BOARDSTATE_MUTATION, UPDATE_GAME_MUTATION } from '../graphql/mutations';
 // Subscriptions are handled centrally in the games store.
 import { fetchScryfallImageByName } from '../services/scryfall';
 import Card from '../components/Card.vue';
+import { isLandCard, moveHandCardToStackState, resolveStackCardToGraveyardState } from '../utils/stack';
 // Dev logging helper: use console.log so messages appear without enabling Verbose level
 function dbg(...args: any[]) { console.log(...args); }
 
@@ -648,9 +699,31 @@ const opponents = computed(() => game.value?.Players.filter(p => p.Username !== 
 const me = computed(() => selfPlayer.value!);
 const selfLibraryCount = computed(() => selfPlayer.value?.Boardstate?.Library?.length ?? null);
 const selfLibraryKnown = computed(() => Array.isArray(selfPlayer.value?.Boardstate?.Library));
+const currentPriority = computed(() => game.value?.Turn?.Priority ?? game.value?.Turn?.Player ?? null);
+const hasPriority = computed(() => {
+  if (!currentPriority.value) return true;
+  return auth.profile?.Username === currentPriority.value;
+});
+const isTurnPlayer = computed(() => auth.profile?.Username === game.value?.Turn?.Player);
+const priorityOnTurn = computed(() => {
+  const turnPlayer = game.value?.Turn?.Player ?? null;
+  return !!turnPlayer && currentPriority.value === turnPlayer;
+});
+const playerNames = computed(() => (game.value?.Players ?? []).map(p => p.Username).filter(Boolean));
+const priorityTarget = ref('');
+const phaseTarget = ref('');
 
 // Simple tile-only view; no display toggles needed
 const MAIN_PLAYER_PREF_KEY = 'vedh:mainPlayerPanel:v1';
+const BOARDSTATE_TOASTS_KEY = 'vedh:boardstateToasts:v1';
+const TOAST_TTL_KEY = 'vedh:toastTtlMs:v1';
+const boardstateToastsEnabled = ref(true);
+const toastDurationMs = ref(2500);
+const settingsOpen = ref(false);
+const stackPulse = ref(false);
+let stackPulseTimer: number | null = null;
+const boardstateToastReady = ref(false);
+const lastBoardstateSnapshots = ref<Record<string, { life: number; zones: Record<Zone, { items: { id: string; name: string }[] }> }>>({});
 const mainPlayerHeight = ref(33);
 const mainPlayerCollapsed = ref(false);
 const mainPlayerHeightCss = computed(() => mainPlayerCollapsed.value ? '0px' : `${mainPlayerHeight.value}vh`);
@@ -658,6 +731,12 @@ const mainPlayerResizing = ref(false);
 const mainPlayerResizeStart = ref({ y: 0, height: 33 });
 const MAIN_PLAYER_MIN_VH = 16;
 const MAIN_PLAYER_MAX_VH = 60;
+const phaseOptions = computed(() => {
+  const base = ['UNTAP', 'UPKEEP', 'DRAW', 'MAIN', 'COMBAT', 'END'];
+  const current = game.value?.Turn?.Phase;
+  if (current && !base.includes(current)) return [current, ...base];
+  return base;
+});
 
 onMounted(() => {
   try {
@@ -673,6 +752,21 @@ onMounted(() => {
       }
     }
   } catch {}
+  try {
+    const rawToast = localStorage.getItem(BOARDSTATE_TOASTS_KEY);
+    if (rawToast !== null) {
+      boardstateToastsEnabled.value = rawToast === 'true';
+    }
+  } catch {}
+  try {
+    const rawTtl = localStorage.getItem(TOAST_TTL_KEY);
+    if (rawTtl) {
+      const parsed = Number(rawTtl);
+      if (!Number.isNaN(parsed)) {
+        toastDurationMs.value = Math.min(10000, Math.max(500, parsed));
+      }
+    }
+  } catch {}
 });
 watch([mainPlayerHeight, mainPlayerCollapsed], () => {
   try {
@@ -680,6 +774,22 @@ watch([mainPlayerHeight, mainPlayerCollapsed], () => {
       height: mainPlayerHeight.value,
       collapsed: mainPlayerCollapsed.value,
     }));
+  } catch {}
+});
+watch(boardstateToastsEnabled, (val) => {
+  try {
+    localStorage.setItem(BOARDSTATE_TOASTS_KEY, String(val));
+  } catch {}
+});
+watch(toastDurationMs, (val) => {
+  if (Number.isNaN(val)) return;
+  const clamped = Math.min(10000, Math.max(500, val));
+  if (clamped !== val) {
+    toastDurationMs.value = clamped;
+    return;
+  }
+  try {
+    localStorage.setItem(TOAST_TTL_KEY, String(clamped));
   } catch {}
 });
 
@@ -699,6 +809,36 @@ function onMainPlayerResizeMove(event: MouseEvent) {
   mainPlayerHeight.value = Math.round(next);
 }
 
+async function passPriority(toPlayer: string) {
+  const g = game.value;
+  if (!g || !toPlayer) return;
+  try {
+    await apolloClient.mutate({
+      mutation: PASS_PRIORITY_MUTATION,
+      variables: { gameID: g.ID, toPlayer },
+    });
+    addToast(`Passed priority to ${toPlayer}`);
+  } catch (e) {
+    console.error('[board] passPriority failed', e);
+    addToast('Failed to pass priority');
+  }
+}
+
+async function advancePhase(phase: string) {
+  const g = game.value;
+  if (!g || !phase) return;
+  try {
+    await apolloClient.mutate({
+      mutation: ADVANCE_PHASE_MUTATION,
+      variables: { gameID: g.ID, phase },
+    });
+    addToast(`Advanced phase to ${phase}`);
+  } catch (e) {
+    console.error('[board] advancePhase failed', e);
+    addToast('Failed to advance phase');
+  }
+}
+
 function stopMainPlayerResize() {
   if (!mainPlayerResizing.value) return;
   mainPlayerResizing.value = false;
@@ -713,6 +853,108 @@ function startMainPlayerResize(event: MouseEvent) {
   document.addEventListener('mousemove', onMainPlayerResizeMove);
   document.addEventListener('mouseup', stopMainPlayerResize);
 }
+
+const PUBLIC_ZONES: Zone[] = ['Commander', 'Battlefield', 'Graveyard', 'Exiled', 'Revealed', 'Controlled'];
+const PRIVATE_ZONES: Zone[] = ['Hand', 'Library'];
+
+function snapshotBoardstate(player: { Username?: string; Boardstate?: any }) {
+  const bs = player.Boardstate ?? {};
+  const zonesSnap: Record<Zone, { items: { id: string; name: string }[] }> = {} as any;
+  for (const z of zones) {
+    const list = Array.isArray(bs[z]) ? bs[z] : [];
+    zonesSnap[z] = {
+      items: list.map((c: any) => ({ id: c?.ID ?? '', name: c?.Name ?? '' })),
+    };
+  }
+  return {
+    life: bs.Life ?? 0,
+    zones: zonesSnap,
+  };
+}
+
+function countByKey(items: { id: string; name: string }[]) {
+  const counts = new Map<string, { count: number; name: string }>();
+  for (const item of items) {
+    const key = item.id || item.name || '';
+    if (!key) continue;
+    const prev = counts.get(key);
+    if (prev) {
+      prev.count += 1;
+    } else {
+      counts.set(key, { count: 1, name: item.name || key });
+    }
+  }
+  return counts;
+}
+
+function describeZoneDelta(
+  username: string,
+  zone: Zone,
+  prevItems: { id: string; name: string }[],
+  nextItems: { id: string; name: string }[],
+) {
+  const prevCount = prevItems.length;
+  const nextCount = nextItems.length;
+  if (prevCount === nextCount) return [] as string[];
+  const delta = nextCount - prevCount;
+  const isPublic = PUBLIC_ZONES.includes(zone);
+  if (!isPublic) {
+    if (zone === 'Hand' && delta === 1) return [`${username} drew a card`];
+    return [`${username} ${delta > 0 ? 'added' : 'removed'} ${Math.abs(delta)} card${Math.abs(delta) === 1 ? '' : 's'} ${delta > 0 ? 'to' : 'from'} ${zone}`];
+  }
+  const prevCounts = countByKey(prevItems);
+  const nextCounts = countByKey(nextItems);
+  const added: { name: string }[] = [];
+  const removed: { name: string }[] = [];
+  for (const [key, { count, name }] of nextCounts.entries()) {
+    const before = prevCounts.get(key)?.count ?? 0;
+    if (count > before) {
+      for (let i = 0; i < count - before; i++) added.push({ name });
+    }
+  }
+  for (const [key, { count, name }] of prevCounts.entries()) {
+    const after = nextCounts.get(key)?.count ?? 0;
+    if (count > after) {
+      for (let i = 0; i < count - after; i++) removed.push({ name });
+    }
+  }
+  if (added.length === 1 && delta === 1) {
+    return [`${username} put ${added[0].name || 'a card'} into ${zone}`];
+  }
+  if (removed.length === 1 && delta === -1) {
+    return [`${username} removed ${removed[0].name || 'a card'} from ${zone}`];
+  }
+  return [`${username} ${delta > 0 ? 'added' : 'removed'} ${Math.abs(delta)} card${Math.abs(delta) === 1 ? '' : 's'} ${delta > 0 ? 'to' : 'from'} ${zone}`];
+}
+
+watch(() => game.value?.Players, (players) => {
+  if (!players) return;
+  const next: Record<string, { life: number; zones: Record<Zone, { items: { id: string; name: string }[] }> }> = {};
+  for (const p of players) {
+    const key = p.Username ?? p.ID ?? 'unknown';
+    next[key] = snapshotBoardstate(p);
+  }
+  if (boardstateToastReady.value && boardstateToastsEnabled.value) {
+    for (const [user, snap] of Object.entries(next)) {
+      const prev = lastBoardstateSnapshots.value[user];
+      if (!prev) continue;
+      if (snap.life !== prev.life) {
+        const delta = snap.life - prev.life;
+        addToast(`${user} ${delta >= 0 ? 'gained' : 'lost'} ${Math.abs(delta)} life`, toastDurationMs.value);
+      }
+      for (const z of zones) {
+        const prevItems = prev.zones[z]?.items ?? [];
+        const nextItems = snap.zones[z]?.items ?? [];
+        const messages = describeZoneDelta(user, z, prevItems, nextItems);
+        for (const msg of messages) addToast(msg, toastDurationMs.value);
+      }
+    }
+  }
+  lastBoardstateSnapshots.value = next;
+  if (!boardstateToastReady.value) {
+    boardstateToastReady.value = true;
+  }
+}, { deep: true });
 
 // Image cache and helpers
 const imageCache = ref<Record<string, string | null>>({});
@@ -754,6 +996,31 @@ watch(() => game.value?.Stack?.length, () => {
   // Prefetch when stack changes to keep tiles updated for all viewers
   prefetchVisibleImages();
 });
+watch(() => game.value?.Stack?.length, (next, prev) => {
+  if (prev === undefined || next === undefined) return;
+  if (next > prev) {
+    stackPulse.value = false;
+    if (stackPulseTimer) window.clearTimeout(stackPulseTimer);
+    // retrigger animation
+    stackPulseTimer = window.setTimeout(() => {
+      stackPulse.value = true;
+      stackPulseTimer = window.setTimeout(() => {
+        stackPulse.value = false;
+      }, 900);
+    }, 0);
+  }
+});
+
+watch([playerNames, currentPriority], ([names, priority]) => {
+  if (!names?.length) return;
+  if (!priorityTarget.value || priorityTarget.value === priority) {
+    priorityTarget.value = names.find(n => n !== priority) ?? names[0] ?? '';
+  }
+});
+
+watch(() => game.value?.Turn?.Phase, (phase) => {
+  if (phase) phaseTarget.value = phase;
+}, { immediate: true });
 
 // Lazy accessor for image src: kicks off fetch on first access
 function getImage(name: string): string {
@@ -783,6 +1050,26 @@ function buildBoardstateInput(
     }
   }
   return input;
+}
+
+function buildGameInputFromGame(
+  g: any,
+  playersOverride?: any[],
+  stackOverride?: any[],
+) {
+  const players = (playersOverride ?? g.Players ?? []).map((p: any) => ({
+    ID: p.ID,
+    Username: p.Username,
+    Boardstate: p.Boardstate ? buildBoardstateInput(p, p.Username, g.ID) : undefined,
+  }));
+  return {
+    ID: g.ID,
+    CreatedAt: g.CreatedAt,
+    Turn: g.Turn,
+    Rules: g.Rules,
+    Players: players,
+    Stack: stackOverride ?? g.Stack ?? [],
+  };
 }
 
 onMounted(async () => {
@@ -817,6 +1104,7 @@ watch([
 onBeforeUnmount(() => {
   games.clearActiveGame();
   stopMainPlayerResize();
+  if (stackPulseTimer) window.clearTimeout(stackPulseTimer);
 });
 
 function isActivePlayer(username: string) {
@@ -1056,6 +1344,92 @@ async function toggleTapped(user: string, zone: Zone, card: any, fromIndex?: num
 // Helper for template typing
 function isCardTapped(card: any): boolean { return !!card?.Tapped; }
 
+async function moveHandCardToStack(card: any, user: string, fromIndex?: number) {
+  const g = game.value;
+  if (!g) return;
+  const player = g.Players.find(p => p.Username === user);
+  if (!player?.Boardstate?.Hand) return;
+
+  const moved = moveHandCardToStackState(
+    player.Boardstate.Hand,
+    g.Stack ?? [],
+    card,
+    user,
+    fromIndex,
+  );
+  if (moved.skippedReason === 'duplicate') {
+    addToast('Card is already on the stack');
+    return;
+  }
+  if (moved.skippedReason === 'not_found' || !moved.movedCard) {
+    addToast('Unable to move card to stack');
+    return;
+  }
+
+  const updatedHand = moved.hand;
+  const updatedStack = moved.stack;
+  const updatedPlayers = g.Players.map(p => {
+    if (p.Username !== user) return p;
+    return { ...p, Boardstate: { ...p.Boardstate, Hand: updatedHand } };
+  });
+
+  const input = buildGameInputFromGame(g, updatedPlayers, updatedStack);
+
+  try {
+    await apolloClient.mutate({
+      mutation: UPDATE_GAME_MUTATION,
+      variables: { input },
+    });
+    games.activeGame = { ...g, Players: updatedPlayers, Stack: updatedStack } as any;
+    addToast(`Put ${moved.movedCard.Name} on stack`);
+  } catch (e) {
+    console.error('[board] moveHandCardToStack failed', e);
+    addToast('Failed to put card on stack');
+  }
+}
+
+async function resolveStackCard(stackIndex: number) {
+  const g = game.value;
+  if (!g) return;
+  const stack = g.Stack ?? [];
+  const card = stack[stackIndex];
+  if (!card) return;
+  const owner = card.CurrentZone;
+  if (!owner) {
+    addToast('Unknown card owner');
+    return;
+  }
+  const ownerPlayer = g.Players.find(p => p.Username === owner);
+  if (!ownerPlayer?.Boardstate) {
+    addToast('Owner not found');
+    return;
+  }
+  const graveyard = ownerPlayer.Boardstate.Graveyard ?? [];
+  const resolved = resolveStackCardToGraveyardState(stack, graveyard, stackIndex);
+  if (resolved.skippedReason || !resolved.movedCard) {
+    addToast('Unable to resolve stack card');
+    return;
+  }
+
+  const updatedPlayers = g.Players.map(p => {
+    if (p.Username !== owner) return p;
+    return { ...p, Boardstate: { ...p.Boardstate, Graveyard: resolved.graveyard } };
+  });
+  const input = buildGameInputFromGame(g, updatedPlayers, resolved.stack);
+
+  try {
+    await apolloClient.mutate({
+      mutation: UPDATE_GAME_MUTATION,
+      variables: { input },
+    });
+    games.activeGame = { ...g, Players: updatedPlayers, Stack: resolved.stack } as any;
+    addToast(`Resolved ${resolved.movedCard.Name}`);
+  } catch (e) {
+    console.error('[board] resolveStackCard failed', e);
+    addToast('Failed to resolve stack card');
+  }
+}
+
 // Click vs dblclick handling to avoid triggering quick-move on double-tap
 const clickTimers = new Map<string, number>();
 function onCardClick(card: any, user: string, zone: Zone, fromIndex?: number) {
@@ -1075,6 +1449,22 @@ function onCardDblClick(card: any, user: string, zone: Zone, fromIndex?: number)
   if (clickTimers.has(key)) {
     window.clearTimeout(clickTimers.get(key)!);
     clickTimers.delete(key);
+  }
+  if (zone === 'Hand') {
+    if (!isSelf(user)) {
+      addToast('Only your hand can be played');
+      return;
+    }
+    if (!hasPriority.value) {
+      addToast(`Only ${currentPriority.value ?? 'the priority player'} can add to the stack`);
+      return;
+    }
+    if (isLandCard(card)) {
+      addToast("Lands can't be put on the stack");
+      return;
+    }
+    moveHandCardToStack(card, user, fromIndex);
+    return;
   }
   if (zone !== 'Battlefield') {
     addToast('Only battlefield cards can be tapped');
@@ -1257,7 +1647,7 @@ function applyLocalBoardstatePatch(username: string, updater: (prev: any) => any
 type Toast = { id: number; text: string };
 const toasts = ref<Toast[]>([]);
 let toastCounter = 0;
-function addToast(text: string, duration = 2500) {
+function addToast(text: string, duration = toastDurationMs.value) {
   const id = ++toastCounter;
   toasts.value.push({ id, text });
   window.setTimeout(() => {
@@ -1265,7 +1655,7 @@ function addToast(text: string, duration = 2500) {
   }, duration);
 }
 
-// Per-player per-zone "stacked" mode: shows grouped names (counts) instead of full tiles
+// Per-player per-zone view toggle (tiles vs art)
 const stackedZones = ref<Record<string, Record<string, boolean>>>({});
 function toggleStack(user: string, zone: string) {
   if (!stackedZones.value[user]) stackedZones.value[user] = {};
@@ -1275,24 +1665,7 @@ function isStacked(user: string, zone: string) {
   return !!(stackedZones.value[user] && stackedZones.value[user][zone]);
 }
 
-function groupByName(list: { ID?: string; Name: string }[] | undefined) {
-  const out: Array<{ name: string; count: number; sample: any[] }> = [];
-  if (!list || list.length === 0) return out;
-  const map: Record<string, { count: number; sample: { ID?: string; Name: string }[] }> = {};
-  for (const c of list) {
-    if (!map[c.Name]) map[c.Name] = { count: 0, sample: [] };
-    map[c.Name].count++;
-    if (map[c.Name].sample.length < 4) map[c.Name].sample.push(c);
-  }
-  for (const name of Object.keys(map)) {
-    out.push({ name, count: map[name].count, sample: map[name].sample });
-  }
-  // sort alphabetically to keep stable order
-  out.sort((a, b) => a.name.localeCompare(b.name));
-  return out;
-}
-
-// Persist stacked view preferences in localStorage (per user+zone)
+// Persist view preferences in localStorage (per user+zone)
 const STACKED_ZONES_KEY = 'vedh:stackedZones:v1';
 onMounted(() => {
   try {
@@ -1311,17 +1684,6 @@ watch(stackedZones, (val) => {
   } catch {}
 }, { deep: true });
 
-// Drag from a stack group: pick one concrete card from the player's zone with this name
-function onStackDragStart(user: string, zone: Zone, group: { name: string; sample: any[] }) {
-  const g = game.value;
-  if (!g) return;
-  const player = g.Players.find(p => p.Username === user);
-  const list: any[] = (player?.Boardstate as any)?.[zone] ?? [];
-  const foundIndex = list.findIndex(c => c?.Name === group.name);
-  if (foundIndex === -1) return;
-  const found = list[foundIndex];
-  onDragStart({ ID: found.ID, Name: found.Name }, user, zone, foundIndex);
-}
 </script>
 
 <style scoped lang="scss">
@@ -1332,6 +1694,7 @@ function onStackDragStart(user: string, zone: Zone, group: { name: string; sampl
   gap: 1rem;
   height: 100vh;
   --main-player-height: 33vh; /* bottom third reserved for player's control center */
+  --turn-accent: #f5b342;
 }
 
 .board-header {
@@ -1342,9 +1705,178 @@ function onStackDragStart(user: string, zone: Zone, group: { name: string; sampl
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
 }
 
-.board-header .title p { margin: 0.25rem 0 0; color: rgba(255,255,255,0.7); }
+.board-header .title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.turn-spotlight {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+
+.turn-spotlight .eyebrow {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+}
+
+.turn-spotlight strong {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.turn-number,
+.turn-phase,
+.turn-priority {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 6rem;
+}
+
+.turn-priority strong {
+  color: var(--turn-accent);
+}
+
+.turn-spotlight.priority-owner {
+  border-color: rgba(245, 179, 66, 0.6);
+  background: linear-gradient(135deg, rgba(245, 179, 66, 0.22), rgba(255, 255, 255, 0.04));
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.35),
+    0 0 18px rgba(245, 179, 66, 0.35),
+    0 0 36px rgba(245, 179, 66, 0.2);
+}
+
+.turn-meta {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.85rem;
+}
+
+.turn-tracker {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.turn-tracker .chip {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.8);
+}
+
+.turn-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.turn-controls .inline-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.75);
+}
+
+.turn-controls select {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #fff;
+  padding: 0.2rem 0.4rem;
+}
+
+.settings {
+  position: relative;
+}
+
+.settings-trigger {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 1rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.settings-drawer {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  background: rgba(18, 18, 18, 0.98);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  min-width: 220px;
+  padding: 0.75rem 0.9rem;
+  display: grid;
+  gap: 0.6rem;
+  z-index: 12;
+}
+
+.settings-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.6);
+}
+
+.toast-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.toast-toggle input {
+  accent-color: rgba(133, 215, 255, 0.9);
+}
+
+.toast-ttl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.75);
+}
+
+.toast-ttl input {
+  width: 90px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #fff;
+  padding: 0.2rem 0.4rem;
+}
+
+.toast-ttl .unit {
+  opacity: 0.7;
+}
 
 .menu { position: relative; }
 .menu-trigger {
@@ -1478,6 +2010,13 @@ function onStackDragStart(user: string, zone: Zone, group: { name: string; sampl
   gap: 0.5rem;
 }
 
+/* Art view (image-only) */
+.cards.art {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+
 /* Allow zone lists to expand vertically to fit their cards */
 .zone ul {
   display: grid; /* keep grid behavior for tiles but let it grow */
@@ -1499,6 +2038,26 @@ function onStackDragStart(user: string, zone: Zone, group: { name: string; sampl
   border-radius: 6px;
 }
 .card-tile .label { font-size: 0.8rem; opacity: 0.9; }
+
+.stack-card {
+  position: relative;
+}
+.stack-resolve {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(20, 20, 20, 0.85);
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.stack-resolve:hover {
+  background: rgba(40, 40, 40, 0.9);
+}
 
 /* Pulsing glow when dragging or on hover */
 @keyframes pulse-glow {
@@ -1602,6 +2161,17 @@ function onStackDragStart(user: string, zone: Zone, group: { name: string; sampl
   z-index: 5;
 }
 
+@keyframes stack-pop {
+  0% { transform: translateY(0); box-shadow: 0 0 0 rgba(133,215,255,0); border-color: rgba(255,255,255,0.08); }
+  20% { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(133,215,255,0.45); border-color: rgba(133,215,255,0.8); }
+  55% { transform: translateY(0); box-shadow: 0 10px 26px rgba(80,180,255,0.3); border-color: rgba(133,215,255,0.45); }
+  100% { transform: translateY(0); box-shadow: 0 0 0 rgba(133,215,255,0); border-color: rgba(255,255,255,0.08); }
+}
+
+.stack.pulse {
+  animation: stack-pop 1600ms ease;
+}
+
 /* Anchor main player to the bottom of the viewport (within the scroll container) */
 .main-player {
   /* Fixed to viewport bottom so it's always visible and takes the lower third */
@@ -1683,6 +2253,10 @@ function onStackDragStart(user: string, zone: Zone, group: { name: string; sampl
 
 .main-player .cards.tiles {
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+}
+
+.main-player .cards.art {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
 }
 
 @media (max-width: 900px) {
@@ -1797,10 +2371,14 @@ header .player-toolbar {
 .toasts {
   position: fixed;
   right: 1rem;
-  bottom: 1rem;
+  bottom: calc(var(--main-player-height) + 1rem);
   display: grid;
   gap: 0.5rem;
   z-index: 10;
+}
+
+.toasts.compact {
+  bottom: 1rem;
 }
 
 .toast {
