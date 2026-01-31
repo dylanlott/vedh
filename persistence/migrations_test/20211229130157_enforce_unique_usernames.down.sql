@@ -1,1 +1,1 @@
-ALTER TABLE users DROP CONSTRAINT username_unique;
+ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS username_unique;
