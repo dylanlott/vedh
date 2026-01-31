@@ -667,11 +667,11 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
 import { apolloClient } from '../services/apollo';
-import { ADVANCE_PHASE_MUTATION, PASS_PRIORITY_MUTATION, UPDATE_BOARDSTATE_MUTATION, UPDATE_GAME_MUTATION } from '../graphql/mutations';
+import { ADVANCE_PHASE_MUTATION, CLAIM_WIN_MUTATION, PASS_PRIORITY_MUTATION, UPDATE_BOARDSTATE_MUTATION, UPDATE_GAME_MUTATION } from '../graphql/mutations';
 // Subscriptions are handled centrally in the games store.
 import { fetchScryfallImageByName } from '../services/scryfall';
 import Card from '../components/Card.vue';
@@ -682,6 +682,7 @@ function dbg(...args: any[]) { console.log(...args); }
 const games = useGamesStore();
 const auth = useAuthStore();
 const route = useRoute();
+const router = useRouter();
 
 // Zone typing shared across helpers
 const zones = ['Commander','Battlefield','Hand','Graveyard','Exiled','Revealed','Library','Controlled'] as const;
@@ -712,6 +713,12 @@ const priorityOnTurn = computed(() => {
 const playerNames = computed(() => (game.value?.Players ?? []).map(p => p.Username).filter(Boolean));
 const priorityTarget = ref('');
 const phaseTarget = ref('');
+const pendingWinClaim = computed(() => game.value?.PendingWinClaim ?? null);
+const pendingWinText = computed(() => {
+  if (!pendingWinClaim.value) return '';
+  const next = pendingWinClaim.value.Remaining?.[0];
+  return next ? `Awaiting ${next}` : 'Awaiting priority';
+});
 
 // Simple tile-only view; no display toggles needed
 const MAIN_PLAYER_PREF_KEY = 'vedh:mainPlayerPanel:v1';
@@ -1021,6 +1028,12 @@ watch([playerNames, currentPriority], ([names, priority]) => {
 watch(() => game.value?.Turn?.Phase, (phase) => {
   if (phase) phaseTarget.value = phase;
 }, { immediate: true });
+
+watch(() => game.value?.Status, (status) => {
+  if (status === 'FINISHED' && game.value?.ID) {
+    router.push({ name: 'game-analysis', params: { id: game.value.ID } });
+  }
+});
 
 // Lazy accessor for image src: kicks off fetch on first access
 function getImage(name: string): string {
