@@ -68,10 +68,22 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 	if row.Err() != nil {
 		return nil, fmt.Errorf("failed to query card %s: %w", name, row.Err())
 	}
-	c := &PGCard{}
-	err := row.Scan(&c.Name, &c.Id, &c.Colors, &c.ManaCost, &c.Types,
-		&c.Power, &c.Toughness, &c.Text, &c.Subtypes, &c.Supertypes,
-		&c.Uuid)
+	var (
+		nameVal    sql.NullString
+		idVal      sql.NullString
+		colors     sql.NullString
+		manaCost   sql.NullString
+		types      sql.NullString
+		power      sql.NullString
+		toughness  sql.NullString
+		text       sql.NullString
+		subtypes   sql.NullString
+		supertypes sql.NullString
+		uuid       sql.NullString
+	)
+	err := row.Scan(&nameVal, &idVal, &colors, &manaCost, &types,
+		&power, &toughness, &text, &subtypes, &supertypes,
+		&uuid)
 	if err != nil {
 		// Fallback 1: If no exact row, retry a case-insensitive search with wildcard pattern
 		if err == sql.ErrNoRows {
@@ -85,9 +97,9 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 				WHERE name ILIKE $1 OR facename ILIKE $1
 				ORDER BY id ASC 
 				LIMIT 1;`, pattern)
-			if err2 := row2.Scan(&c.Name, &c.Id, &c.Colors, &c.ManaCost, &c.Types,
-				&c.Power, &c.Toughness, &c.Text, &c.Subtypes, &c.Supertypes,
-				&c.Uuid); err2 != nil {
+			if err2 := row2.Scan(&nameVal, &idVal, &colors, &manaCost, &types,
+				&power, &toughness, &text, &subtypes, &supertypes,
+				&uuid); err2 != nil {
 				// Fallback 2: try the larger allcards table to at least return a sensible
 				// Card result (tests often only assert Name when IDs are environment-specific).
 				var aname, auuid *string
@@ -108,19 +120,19 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 		}
 	}
 	return &Card{
-		Name: c.Name,
+		Name: nameVal.String,
 		// Use cards.ID as the public ID to match existing expectations/tests
-		ID:         c.Id,
-		Colors:     &c.Colors,
-		Cmc:        &c.ManaCost,
-		Types:      &c.Types,
-		Power:      &c.Power,
-		Toughness:  &c.Toughness,
-		Text:       &c.Text,
-		Subtypes:   &c.Subtypes,
-		Supertypes: &c.Supertypes,
+		ID:         idVal.String,
+		Colors:     nullStringPtr(colors),
+		Cmc:        nullStringPtr(manaCost),
+		Types:      nullStringPtr(types),
+		Power:      nullStringPtr(power),
+		Toughness:  nullStringPtr(toughness),
+		Text:       nullStringPtr(text),
+		Subtypes:   nullStringPtr(subtypes),
+		Supertypes: nullStringPtr(supertypes),
 		// Tcgid and ScryfallID may not exist in allcards schema; leave nil if absent
-		UUID: &c.Uuid,
+		UUID: nullStringPtr(uuid),
 	}, nil
 }
 
