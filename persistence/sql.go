@@ -78,6 +78,35 @@ func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
 	return db, err
 }
 
+// ForceCleanMigrations clears a dirty migration state by forcing the current version.
+// Intended for test setups that reuse a shared local database.
+func ForceCleanMigrations(migdir string, dbURL string) error {
+	slog.Default().Info("opening PostgreSQL database connection")
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		slog.Default().Error("failed to open postgres connection", "err", err)
+		return errs.Wrap(err)
+	}
+	defer db.Close()
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		slog.Default().Error("failed to create postgres migrate instance", "err", err)
+		return err
+	}
+	formattedMigrationsDir := fmt.Sprintf("file://%s", migdir)
+	m, err := migrate.NewWithDatabaseInstance(formattedMigrationsDir, "postgres", driver)
+	if err != nil {
+		slog.Default().Error("failed to create migration instance", "err", err)
+		return errs.Wrap(err)
+	}
+	if err := clearDirtyMigration(m); err != nil {
+		slog.Default().Error("failed to clear dirty migration state", "err", err)
+		return errs.Wrap(err)
+	}
+	return nil
+}
+
 // MigrateDown rolls back all migrations for the given migrations directory.
 // It is intended for test cleanup and will ignore "no change" errors.
 func MigrateDown(migdir string, dbURL string) error {
@@ -100,6 +129,10 @@ func MigrateDown(migdir string, dbURL string) error {
 		slog.Default().Error("failed to create migration instance", "err", err)
 		return errs.Wrap(err)
 	}
+	if err := clearDirtyMigration(m); err != nil {
+		slog.Default().Error("failed to clear dirty migration state", "err", err)
+		return errs.Wrap(err)
+	}
 	if err := m.Down(); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) || err.Error() == "no change" {
 			return nil
@@ -108,4 +141,18 @@ func MigrateDown(migdir string, dbURL string) error {
 		return errs.Wrap(err)
 	}
 	return nil
+}
+
+func clearDirtyMigration(m *migrate.Migrate) error {
+	version, dirty, err := m.Version()
+	if err != nil {
+		if errors.Is(err, migrate.ErrNilVersion) {
+			return nil
+		}
+		return err
+	}
+	if !dirty {
+		return nil
+	}
+	return m.Force(int(version))
 }
