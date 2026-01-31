@@ -9029,13 +9029,20 @@ func (ec *executionContext) marshalNGameLogEvent2ᚖgithubᚗcomᚋopenmtgᚋedh
 }
 
 func (ec *executionContext) unmarshalNGameStatus2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameStatus(ctx context.Context, v any) (GameStatus, error) {
-	var res GameStatus
-	err := res.UnmarshalGQL(v)
+	tmp, err := graphql.UnmarshalString(v)
+	res := GameStatus(tmp)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNGameStatus2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameStatus(ctx context.Context, sel ast.SelectionSet, v GameStatus) graphql.Marshaler {
-	return v
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
@@ -9662,16 +9669,19 @@ func (ec *executionContext) unmarshalOGameResult2ᚖgithubᚗcomᚋopenmtgᚋedh
 	if v == nil {
 		return nil, nil
 	}
-	var res = new(GameResult)
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
+	tmp, err := graphql.UnmarshalString(v)
+	res := GameResult(tmp)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOGameResult2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameResult(ctx context.Context, sel ast.SelectionSet, v *GameResult) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
-	return v
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(string(*v))
+	return res
 }
 
 func (ec *executionContext) unmarshalOInputBoardState2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputBoardState(ctx context.Context, v any) (*InputBoardState, error) {

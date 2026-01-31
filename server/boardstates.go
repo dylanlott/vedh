@@ -45,7 +45,8 @@ func (s *graphQLServer) UpdateBoardState(
 	ctx context.Context,
 	input InputBoardState,
 ) (*BoardState, error) {
-	if _, err := requireMatchingUser(ctx, input.UserID, input.User); err != nil {
+	authUser, err := requireMatchingUser(ctx, input.UserID, input.User)
+	if err != nil {
 		return nil, err
 	}
 	if input.User == "" {
@@ -63,10 +64,20 @@ func (s *graphQLServer) UpdateBoardState(
 		return nil, fmt.Errorf("failed to get game from the database: %w", err)
 	}
 	s.logger.Debug("fetched game for boardstate update", "game_id", game.ID)
+	ensureGameDefaults(game)
+	if game.Status == GameStatusFinished {
+		return nil, fmt.Errorf("game already finished")
+	}
+
+	if game.PendingWinClaim != nil {
+		s.cancelPendingWinClaim(ctx, game, authUser.Username, "boardstate updated")
+	}
 
 	// update matching username's boardstate
+	var prevBoardstate *BoardState
 	for index, player := range game.Players {
 		if player.Username == bs.User {
+			prevBoardstate = cloneBoardState(player.Boardstate)
 			game.Players[index].Boardstate = bs
 			s.logger.Debug("updated boardstate", "user", bs.User, "game_id", bs.GameID)
 			// break early
@@ -74,6 +85,16 @@ func (s *graphQLServer) UpdateBoardState(
 		}
 	}
 	s.logger.Debug("updated boardstate for user", "user", bs.User, "game_id", bs.GameID)
+
+	if game.Status != GameStatusFinished {
+		alive := alivePlayerNames(game)
+		switch len(alive) {
+		case 0:
+			finalizeGame(game, GameResultDraw, nil, nil)
+		case 1:
+			finalizeGame(game, GameResultWin, []string{alive[0]}, nil)
+		}
+	}
 
 	// Persist the updated game first to ensure all consumers eventually see
 	// the same state in case they refetch after subscription delivery.
@@ -87,6 +108,24 @@ func (s *graphQLServer) UpdateBoardState(
 	// Also publish the full game so clients subscribed at the game level
 	// receive the updated snapshot.
 	go s.publishGame(game.ID, game)
+	if prevBoardstate != nil {
+		s.logBoardstateChanges(ctx, game.ID, authUser.Username, prevBoardstate, bs)
+	}
+	if game.Status == GameStatusFinished {
+		result := GameResultDraw
+		if game.Result != nil {
+			result = *game.Result
+		}
+		s.logEvent(ctx, Event{
+			GameID: game.ID,
+			Type:   EventTypeGameFinished,
+			Actor:  authUser.Username,
+			Payload: map[string]interface{}{
+				"result":    result,
+				"winnerIDs": game.WinnerIDs,
+			},
+		})
+	}
 
 	return bs, nil
 }
