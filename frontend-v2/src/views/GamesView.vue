@@ -35,7 +35,10 @@
     <div v-else class="table-container">
       <div v-if="!filteredGames.length" class="empty" role="status">
         <p v-if="searchQuery">No games match “{{ searchQuery }}”.</p>
-        <p v-else>No games to show yet.</p>
+        <template v-else>
+          <p>No games to show yet.</p>
+          <p v-if="hasOtherGames" class="hint">Games exist, but none include your user yet.</p>
+        </template>
       </div>
       <table class="games-table">
         <thead>
@@ -97,24 +100,30 @@ const games = computed(() => gamesStore.games);
 const showCreateModal = ref(false);
 const searchQuery = ref('');
 
-const filteredGames = computed(() => {
+const userGames = computed(() => {
   const list = games.value ?? [];
   const profile = auth.profile;
-  const username = profile?.Username?.toLowerCase();
+  const username = profile?.Username?.toLowerCase().trim();
   const userId = profile?.ID;
 
   // Only show games the current authenticated user is in.
-  const userGames = (!userId && !username)
+  return (!userId && !username)
     ? list
     : list.filter((g) => (g.Players ?? []).some((p) => {
       if (userId && p?.ID && p.ID === userId) return true;
       if (username && p?.Username) return p.Username.toLowerCase() === username;
       return false;
     }));
+});
+
+const hasOtherGames = computed(() => (games.value ?? []).length > 0 && userGames.value.length === 0);
+
+const filteredGames = computed(() => {
+  const list = userGames.value;
 
   const q = searchQuery.value.trim().toLowerCase();
-  if (!q) return userGames;
-  return userGames.filter((g) => {
+  if (!q) return list;
+  return list.filter((g) => {
     const title = formatGameTitle(g).toLowerCase();
     return title.includes(q) || g.ID.toLowerCase().includes(q);
   });
@@ -213,6 +222,12 @@ function formatDate(iso?: string) {
 .empty {
   padding: 1rem;
   opacity: 0.8;
+}
+
+.empty .hint {
+  margin-top: 0.25rem;
+  font-size: 0.95rem;
+  opacity: 0.7;
 }
 
 .games-table {

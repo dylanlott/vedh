@@ -15,6 +15,7 @@ interface TurnSummary {
   Player?: string;
   Phase?: string;
   Number?: number;
+  Priority?: string;
 }
 
 interface GameSummary {
@@ -29,6 +30,7 @@ interface BoardStateZoneCard {
   ID: string;
   Name: string;
   Types?: string; // optional, used for battlefield grouping
+  CurrentZone?: string; // used to track stack owner
 }
 
 interface PlayerBoardState extends PlayerSummary {

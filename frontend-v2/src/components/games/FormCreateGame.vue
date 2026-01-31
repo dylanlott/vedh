@@ -261,15 +261,15 @@ async function handleSubmit() {
   const newId = crypto.randomUUID();
   const payload = {
     ID: newId,
-    Turn: { Player: auth.profile?.Username ?? 'Unknown', Phase: 'MAIN', Number: 1 },
+    Turn: { Player: auth.profile?.Username ?? 'Unknown', Phase: 'MAIN', Number: 1, Priority: auth.profile?.Username ?? 'Unknown' },
     Players: [
       {
         UserID: auth.profile?.ID ?? '',
         User: auth.profile?.Username ?? '',
         GameID: newId,
         Life: 40,
-  Decklist: decklist.value,
-  Commander: selectedCommanders.value.map(c => ({ ID: c.ID, Name: c.Name })),
+        Decklist: decklist.value,
+        Commander: selectedCommanders.value.map(c => ({ ID: c.ID, Name: c.Name })),
         Library: [],
         Graveyard: [],
         Exiled: [],

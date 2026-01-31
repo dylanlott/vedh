@@ -33,6 +33,7 @@ export const CREATE_GAME_MUTATION = gql`
         Player
         Phase
         Number
+        Priority
       }
     }
   }
@@ -58,10 +59,40 @@ export const UPDATE_GAME_MUTATION = gql`
         Player
         Phase
         Number
+        Priority
       }
       Stack {
         ID
         Name
+        CurrentZone
+      }
+    }
+  }
+`;
+
+export const PASS_PRIORITY_MUTATION = gql`
+  mutation PassPriority($gameID: String!, $toPlayer: String!) {
+    passPriority(gameID: $gameID, toPlayer: $toPlayer) {
+      ID
+      Turn {
+        Player
+        Phase
+        Number
+        Priority
+      }
+    }
+  }
+`;
+
+export const ADVANCE_PHASE_MUTATION = gql`
+  mutation AdvancePhase($gameID: String!, $phase: String!, $number: Int) {
+    advancePhase(gameID: $gameID, phase: $phase, number: $number) {
+      ID
+      Turn {
+        Player
+        Phase
+        Number
+        Priority
       }
     }
   }
