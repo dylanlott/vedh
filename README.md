@@ -25,10 +25,10 @@ Prerequisites:
 
 ### Server
 
-You will need to configure `.edhgo.env` and `.pg.env` environment files at your project root.
+You will need to configure `.vedh.env` and `.pg.env` environment files at your project root.
 
 ```sh
-# .edhgo.env example
+# .vedh.env example
 # Database connection URI
 DATABASE_URL=""
 # Authentication secret
