@@ -98,26 +98,50 @@ type ComplexityRoot struct {
 	}
 
 	Game struct {
-		CreatedAt func(childComplexity int) int
+		CreatedAt       func(childComplexity int) int
+		ID              func(childComplexity int) int
+		PendingWinClaim func(childComplexity int) int
+		Players         func(childComplexity int) int
+		Result          func(childComplexity int) int
+		Rules           func(childComplexity int) int
+		Stack           func(childComplexity int) int
+		Status          func(childComplexity int) int
+		Turn            func(childComplexity int) int
+		WinCondition    func(childComplexity int) int
+		WinnerIDs       func(childComplexity int) int
+	}
+
+	GameLogEvent struct {
+		Actor     func(childComplexity int) int
+		EventTime func(childComplexity int) int
+		GameID    func(childComplexity int) int
 		ID        func(childComplexity int) int
-		Players   func(childComplexity int) int
-		Rules     func(childComplexity int) int
-		Stack     func(childComplexity int) int
-		Turn      func(childComplexity int) int
+		Payload   func(childComplexity int) int
+		Type      func(childComplexity int) int
 	}
 
 	Mutation struct {
+		AdvancePhase     func(childComplexity int, gameID string, phase string, number *int) int
+		ClaimWin         func(childComplexity int, gameID string, condition *string) int
 		CreateGame       func(childComplexity int, input InputCreateGame) int
 		JoinGame         func(childComplexity int, input *InputJoinGame) int
 		Login            func(childComplexity int, username string, password string) int
+		PassPriority     func(childComplexity int, gameID string, toPlayer string) int
 		Signup           func(childComplexity int, username string, password string) int
 		UpdateBoardState func(childComplexity int, input InputBoardState) int
 		UpdateGame       func(childComplexity int, input InputGame) int
 	}
 
+	PendingWinClaim struct {
+		ClaimedBy func(childComplexity int) int
+		Condition func(childComplexity int) int
+		Remaining func(childComplexity int) int
+	}
+
 	Query struct {
 		Card      func(childComplexity int, name string, id *string) int
 		Cards     func(childComplexity int, list []string) int
+		GameLogs  func(childComplexity int, gameID string, offset int, limit int) int
 		Games     func(childComplexity int, offset int, limit int) int
 		GetGame   func(childComplexity int, gameID string) int
 		Search    func(childComplexity int, name *string, colors []*string, colorIdentity []*string, keywords []*string) int
@@ -136,9 +160,10 @@ type ComplexityRoot struct {
 	}
 
 	Turn struct {
-		Number func(childComplexity int) int
-		Phase  func(childComplexity int) int
-		Player func(childComplexity int) int
+		Number   func(childComplexity int) int
+		Phase    func(childComplexity int) int
+		Player   func(childComplexity int) int
+		Priority func(childComplexity int) int
 	}
 
 	User struct {
@@ -156,12 +181,16 @@ type MutationResolver interface {
 	CreateGame(ctx context.Context, input InputCreateGame) (*Game, error)
 	JoinGame(ctx context.Context, input *InputJoinGame) (*Game, error)
 	UpdateGame(ctx context.Context, input InputGame) (*Game, error)
+	PassPriority(ctx context.Context, gameID string, toPlayer string) (*Game, error)
+	AdvancePhase(ctx context.Context, gameID string, phase string, number *int) (*Game, error)
 	UpdateBoardState(ctx context.Context, input InputBoardState) (*BoardState, error)
+	ClaimWin(ctx context.Context, gameID string, condition *string) (*Game, error)
 }
 type QueryResolver interface {
 	Users(ctx context.Context, userID *string) ([]string, error)
 	Games(ctx context.Context, offset int, limit int) ([]*Game, error)
 	GetGame(ctx context.Context, gameID string) (*Game, error)
+	GameLogs(ctx context.Context, gameID string, offset int, limit int) ([]*GameLogEvent, error)
 	Card(ctx context.Context, name string, id *string) (*Card, error)
 	Cards(ctx context.Context, list []string) ([]*Card, error)
 	Search(ctx context.Context, name *string, colors []*string, colorIdentity []*string, keywords []*string) ([]*Card, error)
@@ -446,12 +475,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Game.ID(childComplexity), true
+	case "Game.PendingWinClaim":
+		if e.complexity.Game.PendingWinClaim == nil {
+			break
+		}
+
+		return e.complexity.Game.PendingWinClaim(childComplexity), true
 	case "Game.Players":
 		if e.complexity.Game.Players == nil {
 			break
 		}
 
 		return e.complexity.Game.Players(childComplexity), true
+	case "Game.Result":
+		if e.complexity.Game.Result == nil {
+			break
+		}
+
+		return e.complexity.Game.Result(childComplexity), true
 	case "Game.Rules":
 		if e.complexity.Game.Rules == nil {
 			break
@@ -464,13 +505,90 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Game.Stack(childComplexity), true
+	case "Game.Status":
+		if e.complexity.Game.Status == nil {
+			break
+		}
+
+		return e.complexity.Game.Status(childComplexity), true
 	case "Game.Turn":
 		if e.complexity.Game.Turn == nil {
 			break
 		}
 
 		return e.complexity.Game.Turn(childComplexity), true
+	case "Game.WinCondition":
+		if e.complexity.Game.WinCondition == nil {
+			break
+		}
 
+		return e.complexity.Game.WinCondition(childComplexity), true
+	case "Game.WinnerIDs":
+		if e.complexity.Game.WinnerIDs == nil {
+			break
+		}
+
+		return e.complexity.Game.WinnerIDs(childComplexity), true
+
+	case "GameLogEvent.Actor":
+		if e.complexity.GameLogEvent.Actor == nil {
+			break
+		}
+
+		return e.complexity.GameLogEvent.Actor(childComplexity), true
+	case "GameLogEvent.EventTime":
+		if e.complexity.GameLogEvent.EventTime == nil {
+			break
+		}
+
+		return e.complexity.GameLogEvent.EventTime(childComplexity), true
+	case "GameLogEvent.GameID":
+		if e.complexity.GameLogEvent.GameID == nil {
+			break
+		}
+
+		return e.complexity.GameLogEvent.GameID(childComplexity), true
+	case "GameLogEvent.ID":
+		if e.complexity.GameLogEvent.ID == nil {
+			break
+		}
+
+		return e.complexity.GameLogEvent.ID(childComplexity), true
+	case "GameLogEvent.Payload":
+		if e.complexity.GameLogEvent.Payload == nil {
+			break
+		}
+
+		return e.complexity.GameLogEvent.Payload(childComplexity), true
+	case "GameLogEvent.Type":
+		if e.complexity.GameLogEvent.Type == nil {
+			break
+		}
+
+		return e.complexity.GameLogEvent.Type(childComplexity), true
+
+	case "Mutation.advancePhase":
+		if e.complexity.Mutation.AdvancePhase == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_advancePhase_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AdvancePhase(childComplexity, args["gameID"].(string), args["phase"].(string), args["number"].(*int)), true
+	case "Mutation.claimWin":
+		if e.complexity.Mutation.ClaimWin == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_claimWin_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ClaimWin(childComplexity, args["gameID"].(string), args["condition"].(*string)), true
 	case "Mutation.createGame":
 		if e.complexity.Mutation.CreateGame == nil {
 			break
@@ -504,6 +622,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.Login(childComplexity, args["username"].(string), args["password"].(string)), true
+	case "Mutation.passPriority":
+		if e.complexity.Mutation.PassPriority == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_passPriority_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.PassPriority(childComplexity, args["gameID"].(string), args["toPlayer"].(string)), true
 	case "Mutation.signup":
 		if e.complexity.Mutation.Signup == nil {
 			break
@@ -538,6 +667,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.UpdateGame(childComplexity, args["input"].(InputGame)), true
 
+	case "PendingWinClaim.ClaimedBy":
+		if e.complexity.PendingWinClaim.ClaimedBy == nil {
+			break
+		}
+
+		return e.complexity.PendingWinClaim.ClaimedBy(childComplexity), true
+	case "PendingWinClaim.Condition":
+		if e.complexity.PendingWinClaim.Condition == nil {
+			break
+		}
+
+		return e.complexity.PendingWinClaim.Condition(childComplexity), true
+	case "PendingWinClaim.Remaining":
+		if e.complexity.PendingWinClaim.Remaining == nil {
+			break
+		}
+
+		return e.complexity.PendingWinClaim.Remaining(childComplexity), true
+
 	case "Query.card":
 		if e.complexity.Query.Card == nil {
 			break
@@ -560,6 +708,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Cards(childComplexity, args["list"].([]string)), true
+	case "Query.gameLogs":
+		if e.complexity.Query.GameLogs == nil {
+			break
+		}
+
+		args, err := ec.field_Query_gameLogs_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GameLogs(childComplexity, args["gameID"].(string), args["offset"].(int), args["limit"].(int)), true
 	case "Query.games":
 		if e.complexity.Query.Games == nil {
 			break
@@ -670,6 +829,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Turn.Player(childComplexity), true
+	case "Turn.Priority":
+		if e.complexity.Turn.Priority == nil {
+			break
+		}
+
+		return e.complexity.Turn.Priority(childComplexity), true
 
 	case "User.Boardstate":
 		if e.complexity.User.Boardstate == nil {
@@ -855,6 +1020,43 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_advancePhase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "gameID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["gameID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "phase", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["phase"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "number", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["number"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_claimWin_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "gameID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["gameID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "condition", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["condition"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createGame_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -890,6 +1092,22 @@ func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawAr
 		return nil, err
 	}
 	args["password"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_passPriority_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "gameID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["gameID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "toPlayer", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["toPlayer"] = arg1
 	return args, nil
 }
 
@@ -966,6 +1184,27 @@ func (ec *executionContext) field_Query_cards_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["list"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_gameLogs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "gameID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["gameID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg2
 	return args, nil
 }
 
@@ -2854,6 +3093,8 @@ func (ec *executionContext) fieldContext_Game_Turn(_ context.Context, field grap
 				return ec.fieldContext_Turn_Phase(ctx, field)
 			case "Number":
 				return ec.fieldContext_Turn_Number(ctx, field)
+			case "Priority":
+				return ec.fieldContext_Turn_Priority(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Turn", field.Name)
 		},
@@ -2978,6 +3219,333 @@ func (ec *executionContext) fieldContext_Game_Stack(_ context.Context, field gra
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Game_Status(ctx context.Context, field graphql.CollectedField, obj *Game) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Game_Status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNGameStatus2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Game_Status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Game",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type GameStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Game_Result(ctx context.Context, field graphql.CollectedField, obj *Game) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Game_Result,
+		func(ctx context.Context) (any, error) {
+			return obj.Result, nil
+		},
+		nil,
+		ec.marshalOGameResult2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameResult,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Game_Result(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Game",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type GameResult does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Game_WinnerIDs(ctx context.Context, field graphql.CollectedField, obj *Game) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Game_WinnerIDs,
+		func(ctx context.Context) (any, error) {
+			return obj.WinnerIDs, nil
+		},
+		nil,
+		ec.marshalOString2ᚕstringᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Game_WinnerIDs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Game",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Game_WinCondition(ctx context.Context, field graphql.CollectedField, obj *Game) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Game_WinCondition,
+		func(ctx context.Context) (any, error) {
+			return obj.WinCondition, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Game_WinCondition(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Game",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Game_PendingWinClaim(ctx context.Context, field graphql.CollectedField, obj *Game) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Game_PendingWinClaim,
+		func(ctx context.Context) (any, error) {
+			return obj.PendingWinClaim, nil
+		},
+		nil,
+		ec.marshalOPendingWinClaim2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐPendingWinClaim,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Game_PendingWinClaim(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Game",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ClaimedBy":
+				return ec.fieldContext_PendingWinClaim_ClaimedBy(ctx, field)
+			case "Condition":
+				return ec.fieldContext_PendingWinClaim_Condition(ctx, field)
+			case "Remaining":
+				return ec.fieldContext_PendingWinClaim_Remaining(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PendingWinClaim", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameLogEvent_ID(ctx context.Context, field graphql.CollectedField, obj *GameLogEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameLogEvent_ID,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameLogEvent_ID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameLogEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameLogEvent_GameID(ctx context.Context, field graphql.CollectedField, obj *GameLogEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameLogEvent_GameID,
+		func(ctx context.Context) (any, error) {
+			return obj.GameID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameLogEvent_GameID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameLogEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameLogEvent_EventTime(ctx context.Context, field graphql.CollectedField, obj *GameLogEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameLogEvent_EventTime,
+		func(ctx context.Context) (any, error) {
+			return obj.EventTime, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameLogEvent_EventTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameLogEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameLogEvent_Type(ctx context.Context, field graphql.CollectedField, obj *GameLogEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameLogEvent_Type,
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameLogEvent_Type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameLogEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameLogEvent_Actor(ctx context.Context, field graphql.CollectedField, obj *GameLogEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameLogEvent_Actor,
+		func(ctx context.Context) (any, error) {
+			return obj.Actor, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameLogEvent_Actor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameLogEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameLogEvent_Payload(ctx context.Context, field graphql.CollectedField, obj *GameLogEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameLogEvent_Payload,
+		func(ctx context.Context) (any, error) {
+			return obj.Payload, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameLogEvent_Payload(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameLogEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -3126,6 +3694,16 @@ func (ec *executionContext) fieldContext_Mutation_createGame(ctx context.Context
 				return ec.fieldContext_Game_Players(ctx, field)
 			case "Stack":
 				return ec.fieldContext_Game_Stack(ctx, field)
+			case "Status":
+				return ec.fieldContext_Game_Status(ctx, field)
+			case "Result":
+				return ec.fieldContext_Game_Result(ctx, field)
+			case "WinnerIDs":
+				return ec.fieldContext_Game_WinnerIDs(ctx, field)
+			case "WinCondition":
+				return ec.fieldContext_Game_WinCondition(ctx, field)
+			case "PendingWinClaim":
+				return ec.fieldContext_Game_PendingWinClaim(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3181,6 +3759,16 @@ func (ec *executionContext) fieldContext_Mutation_joinGame(ctx context.Context, 
 				return ec.fieldContext_Game_Players(ctx, field)
 			case "Stack":
 				return ec.fieldContext_Game_Stack(ctx, field)
+			case "Status":
+				return ec.fieldContext_Game_Status(ctx, field)
+			case "Result":
+				return ec.fieldContext_Game_Result(ctx, field)
+			case "WinnerIDs":
+				return ec.fieldContext_Game_WinnerIDs(ctx, field)
+			case "WinCondition":
+				return ec.fieldContext_Game_WinCondition(ctx, field)
+			case "PendingWinClaim":
+				return ec.fieldContext_Game_PendingWinClaim(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3236,6 +3824,16 @@ func (ec *executionContext) fieldContext_Mutation_updateGame(ctx context.Context
 				return ec.fieldContext_Game_Players(ctx, field)
 			case "Stack":
 				return ec.fieldContext_Game_Stack(ctx, field)
+			case "Status":
+				return ec.fieldContext_Game_Status(ctx, field)
+			case "Result":
+				return ec.fieldContext_Game_Result(ctx, field)
+			case "WinnerIDs":
+				return ec.fieldContext_Game_WinnerIDs(ctx, field)
+			case "WinCondition":
+				return ec.fieldContext_Game_WinCondition(ctx, field)
+			case "PendingWinClaim":
+				return ec.fieldContext_Game_PendingWinClaim(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3248,6 +3846,136 @@ func (ec *executionContext) fieldContext_Mutation_updateGame(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateGame_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_passPriority(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_passPriority,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().PassPriority(ctx, fc.Args["gameID"].(string), fc.Args["toPlayer"].(string))
+		},
+		nil,
+		ec.marshalNGame2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGame,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_passPriority(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ID":
+				return ec.fieldContext_Game_ID(ctx, field)
+			case "CreatedAt":
+				return ec.fieldContext_Game_CreatedAt(ctx, field)
+			case "Rules":
+				return ec.fieldContext_Game_Rules(ctx, field)
+			case "Turn":
+				return ec.fieldContext_Game_Turn(ctx, field)
+			case "Players":
+				return ec.fieldContext_Game_Players(ctx, field)
+			case "Stack":
+				return ec.fieldContext_Game_Stack(ctx, field)
+			case "Status":
+				return ec.fieldContext_Game_Status(ctx, field)
+			case "Result":
+				return ec.fieldContext_Game_Result(ctx, field)
+			case "WinnerIDs":
+				return ec.fieldContext_Game_WinnerIDs(ctx, field)
+			case "WinCondition":
+				return ec.fieldContext_Game_WinCondition(ctx, field)
+			case "PendingWinClaim":
+				return ec.fieldContext_Game_PendingWinClaim(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_passPriority_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_advancePhase(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_advancePhase,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().AdvancePhase(ctx, fc.Args["gameID"].(string), fc.Args["phase"].(string), fc.Args["number"].(*int))
+		},
+		nil,
+		ec.marshalNGame2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGame,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_advancePhase(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ID":
+				return ec.fieldContext_Game_ID(ctx, field)
+			case "CreatedAt":
+				return ec.fieldContext_Game_CreatedAt(ctx, field)
+			case "Rules":
+				return ec.fieldContext_Game_Rules(ctx, field)
+			case "Turn":
+				return ec.fieldContext_Game_Turn(ctx, field)
+			case "Players":
+				return ec.fieldContext_Game_Players(ctx, field)
+			case "Stack":
+				return ec.fieldContext_Game_Stack(ctx, field)
+			case "Status":
+				return ec.fieldContext_Game_Status(ctx, field)
+			case "Result":
+				return ec.fieldContext_Game_Result(ctx, field)
+			case "WinnerIDs":
+				return ec.fieldContext_Game_WinnerIDs(ctx, field)
+			case "WinCondition":
+				return ec.fieldContext_Game_WinCondition(ctx, field)
+			case "PendingWinClaim":
+				return ec.fieldContext_Game_PendingWinClaim(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_advancePhase_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -3319,6 +4047,158 @@ func (ec *executionContext) fieldContext_Mutation_updateBoardState(ctx context.C
 	if fc.Args, err = ec.field_Mutation_updateBoardState_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_claimWin(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_claimWin,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ClaimWin(ctx, fc.Args["gameID"].(string), fc.Args["condition"].(*string))
+		},
+		nil,
+		ec.marshalNGame2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGame,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_claimWin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ID":
+				return ec.fieldContext_Game_ID(ctx, field)
+			case "CreatedAt":
+				return ec.fieldContext_Game_CreatedAt(ctx, field)
+			case "Rules":
+				return ec.fieldContext_Game_Rules(ctx, field)
+			case "Turn":
+				return ec.fieldContext_Game_Turn(ctx, field)
+			case "Players":
+				return ec.fieldContext_Game_Players(ctx, field)
+			case "Stack":
+				return ec.fieldContext_Game_Stack(ctx, field)
+			case "Status":
+				return ec.fieldContext_Game_Status(ctx, field)
+			case "Result":
+				return ec.fieldContext_Game_Result(ctx, field)
+			case "WinnerIDs":
+				return ec.fieldContext_Game_WinnerIDs(ctx, field)
+			case "WinCondition":
+				return ec.fieldContext_Game_WinCondition(ctx, field)
+			case "PendingWinClaim":
+				return ec.fieldContext_Game_PendingWinClaim(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_claimWin_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PendingWinClaim_ClaimedBy(ctx context.Context, field graphql.CollectedField, obj *PendingWinClaim) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PendingWinClaim_ClaimedBy,
+		func(ctx context.Context) (any, error) {
+			return obj.ClaimedBy, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PendingWinClaim_ClaimedBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PendingWinClaim",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PendingWinClaim_Condition(ctx context.Context, field graphql.CollectedField, obj *PendingWinClaim) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PendingWinClaim_Condition,
+		func(ctx context.Context) (any, error) {
+			return obj.Condition, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_PendingWinClaim_Condition(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PendingWinClaim",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PendingWinClaim_Remaining(ctx context.Context, field graphql.CollectedField, obj *PendingWinClaim) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PendingWinClaim_Remaining,
+		func(ctx context.Context) (any, error) {
+			return obj.Remaining, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PendingWinClaim_Remaining(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PendingWinClaim",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -3401,6 +4281,16 @@ func (ec *executionContext) fieldContext_Query_games(ctx context.Context, field 
 				return ec.fieldContext_Game_Players(ctx, field)
 			case "Stack":
 				return ec.fieldContext_Game_Stack(ctx, field)
+			case "Status":
+				return ec.fieldContext_Game_Status(ctx, field)
+			case "Result":
+				return ec.fieldContext_Game_Result(ctx, field)
+			case "WinnerIDs":
+				return ec.fieldContext_Game_WinnerIDs(ctx, field)
+			case "WinCondition":
+				return ec.fieldContext_Game_WinCondition(ctx, field)
+			case "PendingWinClaim":
+				return ec.fieldContext_Game_PendingWinClaim(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3456,6 +4346,16 @@ func (ec *executionContext) fieldContext_Query_getGame(ctx context.Context, fiel
 				return ec.fieldContext_Game_Players(ctx, field)
 			case "Stack":
 				return ec.fieldContext_Game_Stack(ctx, field)
+			case "Status":
+				return ec.fieldContext_Game_Status(ctx, field)
+			case "Result":
+				return ec.fieldContext_Game_Result(ctx, field)
+			case "WinnerIDs":
+				return ec.fieldContext_Game_WinnerIDs(ctx, field)
+			case "WinCondition":
+				return ec.fieldContext_Game_WinCondition(ctx, field)
+			case "PendingWinClaim":
+				return ec.fieldContext_Game_PendingWinClaim(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -3468,6 +4368,61 @@ func (ec *executionContext) fieldContext_Query_getGame(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getGame_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_gameLogs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_gameLogs,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().GameLogs(ctx, fc.Args["gameID"].(string), fc.Args["offset"].(int), fc.Args["limit"].(int))
+		},
+		nil,
+		ec.marshalNGameLogEvent2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameLogEventᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_gameLogs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ID":
+				return ec.fieldContext_GameLogEvent_ID(ctx, field)
+			case "GameID":
+				return ec.fieldContext_GameLogEvent_GameID(ctx, field)
+			case "EventTime":
+				return ec.fieldContext_GameLogEvent_EventTime(ctx, field)
+			case "Type":
+				return ec.fieldContext_GameLogEvent_Type(ctx, field)
+			case "Actor":
+				return ec.fieldContext_GameLogEvent_Actor(ctx, field)
+			case "Payload":
+				return ec.fieldContext_GameLogEvent_Payload(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GameLogEvent", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_gameLogs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4049,6 +5004,16 @@ func (ec *executionContext) fieldContext_Subscription_gameUpdated(ctx context.Co
 				return ec.fieldContext_Game_Players(ctx, field)
 			case "Stack":
 				return ec.fieldContext_Game_Stack(ctx, field)
+			case "Status":
+				return ec.fieldContext_Game_Status(ctx, field)
+			case "Result":
+				return ec.fieldContext_Game_Result(ctx, field)
+			case "WinnerIDs":
+				return ec.fieldContext_Game_WinnerIDs(ctx, field)
+			case "WinCondition":
+				return ec.fieldContext_Game_WinCondition(ctx, field)
+			case "PendingWinClaim":
+				return ec.fieldContext_Game_PendingWinClaim(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Game", field.Name)
 		},
@@ -4218,6 +5183,35 @@ func (ec *executionContext) fieldContext_Turn_Number(_ context.Context, field gr
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Turn_Priority(ctx context.Context, field graphql.CollectedField, obj *Turn) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Turn_Priority,
+		func(ctx context.Context) (any, error) {
+			return obj.Priority, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Turn_Priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Turn",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -6518,7 +7512,7 @@ func (ec *executionContext) unmarshalInputInputTurn(ctx context.Context, obj any
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"Player", "Phase", "Number"}
+	fieldsInOrder := [...]string{"Player", "Phase", "Number", "Priority"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6546,6 +7540,13 @@ func (ec *executionContext) unmarshalInputInputTurn(ctx context.Context, obj any
 				return it, err
 			}
 			it.Number = data
+		case "Priority":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Priority"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Priority = data
 		}
 	}
 
@@ -6860,6 +7861,77 @@ func (ec *executionContext) _Game(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._Game_Players(ctx, field, obj)
 		case "Stack":
 			out.Values[i] = ec._Game_Stack(ctx, field, obj)
+		case "Status":
+			out.Values[i] = ec._Game_Status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Result":
+			out.Values[i] = ec._Game_Result(ctx, field, obj)
+		case "WinnerIDs":
+			out.Values[i] = ec._Game_WinnerIDs(ctx, field, obj)
+		case "WinCondition":
+			out.Values[i] = ec._Game_WinCondition(ctx, field, obj)
+		case "PendingWinClaim":
+			out.Values[i] = ec._Game_PendingWinClaim(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var gameLogEventImplementors = []string{"GameLogEvent"}
+
+func (ec *executionContext) _GameLogEvent(ctx context.Context, sel ast.SelectionSet, obj *GameLogEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, gameLogEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GameLogEvent")
+		case "ID":
+			out.Values[i] = ec._GameLogEvent_ID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "GameID":
+			out.Values[i] = ec._GameLogEvent_GameID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "EventTime":
+			out.Values[i] = ec._GameLogEvent_EventTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Type":
+			out.Values[i] = ec._GameLogEvent_Type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Actor":
+			out.Values[i] = ec._GameLogEvent_Actor(ctx, field, obj)
+		case "Payload":
+			out.Values[i] = ec._GameLogEvent_Payload(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6937,10 +8009,77 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "passPriority":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_passPriority(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "advancePhase":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_advancePhase(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "updateBoardState":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateBoardState(ctx, field)
 			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "claimWin":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_claimWin(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var pendingWinClaimImplementors = []string{"PendingWinClaim"}
+
+func (ec *executionContext) _PendingWinClaim(ctx context.Context, sel ast.SelectionSet, obj *PendingWinClaim) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, pendingWinClaimImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PendingWinClaim")
+		case "ClaimedBy":
+			out.Values[i] = ec._PendingWinClaim_ClaimedBy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Condition":
+			out.Values[i] = ec._PendingWinClaim_Condition(ctx, field, obj)
+		case "Remaining":
+			out.Values[i] = ec._PendingWinClaim_Remaining(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -7040,6 +8179,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getGame(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "gameLogs":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_gameLogs(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -7251,6 +8412,11 @@ func (ec *executionContext) _Turn(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "Number":
 			out.Values[i] = ec._Turn_Number(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Priority":
+			out.Values[i] = ec._Turn_Priority(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -7806,6 +8972,86 @@ func (ec *executionContext) marshalNGame2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋ
 		return graphql.Null
 	}
 	return ec._Game(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGameLogEvent2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameLogEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*GameLogEvent) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGameLogEvent2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameLogEvent(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGameLogEvent2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameLogEvent(ctx context.Context, sel ast.SelectionSet, v *GameLogEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GameLogEvent(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNGameStatus2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameStatus(ctx context.Context, v any) (GameStatus, error) {
+	var res GameStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNGameStatus2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameStatus(ctx context.Context, sel ast.SelectionSet, v GameStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
+	res, err := graphql.UnmarshalID(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalID(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) unmarshalNInputBoardState2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputBoardState(ctx context.Context, v any) (InputBoardState, error) {
@@ -8412,6 +9658,22 @@ func (ec *executionContext) marshalOGame2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋ
 	return ec._Game(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalOGameResult2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameResult(ctx context.Context, v any) (*GameResult, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(GameResult)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOGameResult2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameResult(ctx context.Context, sel ast.SelectionSet, v *GameResult) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) unmarshalOInputBoardState2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputBoardState(ctx context.Context, v any) (*InputBoardState, error) {
 	if v == nil {
 		return nil, nil
@@ -8548,6 +9810,13 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	_ = ctx
 	res := graphql.MarshalInt(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOPendingWinClaim2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐPendingWinClaim(ctx context.Context, sel ast.SelectionSet, v *PendingWinClaim) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._PendingWinClaim(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalORule2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐRuleᚄ(ctx context.Context, sel ast.SelectionSet, v []*Rule) graphql.Marshaler {

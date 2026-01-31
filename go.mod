@@ -7,14 +7,15 @@ toolchain go1.24.2
 
 require (
 	github.com/99designs/gqlgen v0.17.81
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-redis/redis/v7 v7.4.1
 	github.com/gocarina/gocsv v0.0.0-20210516172204-ca9e8a8ddea8
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/lib/pq v1.8.0
 	github.com/matryer/is v1.4.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.7.0
@@ -36,7 +37,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
-	github.com/lib/pq v1.8.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect

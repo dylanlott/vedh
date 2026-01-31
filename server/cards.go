@@ -3,15 +3,12 @@ package server
 import (
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/lib/pq"
 	"github.com/zeebo/errs"
 )
 
@@ -104,11 +101,6 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 					}
 					return &Card{Name: *aname, ID: idVal}, nil
 				}
-				// Fallback 3: As a last resort (common in test envs without seeded 'cards'),
-				// look up the record from the local CSV and return a synthesized Card.
-				if cardFromCSV, csvErr := loadCardFromCSV(qname); csvErr == nil && cardFromCSV != nil {
-					return cardFromCSV, nil
-				}
 				return nil, fmt.Errorf("failed to scan card %s: %w", name, err2)
 			}
 		} else {
@@ -132,121 +124,115 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 	}, nil
 }
 
-// loadCardFromCSV attempts to locate a card by name (or facename) in the local
-// cards.csv (checked into the repo root). It prefers exact Name match; if not
-// found, it tries FaceName. When multiple matches exist, it chooses the lowest
-// numeric ID for determinism. Only a minimal subset of columns are used to
-// satisfy tests (Name and ID).
-func loadCardFromCSV(qname string) (*Card, error) {
-	// Determine path to repo-root cards.csv when running from the server package.
-	// go test executes from the package directory, so ../cards.csv should resolve.
-	candidates := []string{
-		"../cards.csv",                         // running tests from server/
-		"./cards.csv",                          // running from repo root
-		filepath.Join("..", "..", "cards.csv"), // nested run contexts
-	}
-
-	var path string
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
-			path = p
-			break
-		}
-	}
-	if path == "" {
-		return nil, fmt.Errorf("cards.csv not found for CSV fallback")
-	}
-
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open cards.csv: %w", err)
-	}
-	defer f.Close()
-
-	r := csv.NewReader(f)
-	r.FieldsPerRecord = -1
-	r.LazyQuotes = true
-
-	rows, err := r.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read cards.csv: %w", err)
-	}
-	if len(rows) == 0 {
-		return nil, fmt.Errorf("cards.csv is empty")
-	}
-
-	// Map headers we care about
-	header := rows[0]
-	idx := func(col string) int {
-		for i, h := range header {
-			if strings.EqualFold(h, col) {
-				return i
-			}
-		}
-		return -1
-	}
-
-	nameIdx := idx("name")
-	faceIdx := idx("faceName")
-	idIdx := idx("id")
-	if nameIdx == -1 || idIdx == -1 {
-		return nil, fmt.Errorf("cards.csv missing required headers")
-	}
-
-	// Collect potential matches and pick the one with smallest numeric ID
-	type rec struct {
-		name string
-		id   string
-	}
-	matches := []rec{}
-	for _, row := range rows[1:] {
-		if nameIdx >= len(row) || idIdx >= len(row) {
-			continue
-		}
-		n := row[nameIdx]
-		i := row[idIdx]
-		if n == qname {
-			matches = append(matches, rec{name: n, id: i})
-			continue
-		}
-		if faceIdx != -1 && faceIdx < len(row) && row[faceIdx] == qname {
-			matches = append(matches, rec{name: n, id: i})
-		}
-	}
-
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("no CSV match for %q", qname)
-	}
-
-	// Sort by numeric ID asc (fall back to string compare if parse fails)
-	sort.Slice(matches, func(a, b int) bool {
-		ia, ea := strconv.Atoi(matches[a].id)
-		ib, eb := strconv.Atoi(matches[b].id)
-		if ea == nil && eb == nil {
-			return ia < ib
-		}
-		return matches[a].id < matches[b].id
-	})
-
-	best := matches[0]
-	return &Card{
-		Name: best.name,
-		ID:   best.id,
-	}, nil
-}
-
 // Cards optimizes for batched lookups or parameterized searches.
 func (s *graphQLServer) Cards(ctx context.Context, list []string) ([]*Card, error) {
-	combined := []error{}
-	cards := []*Card{}
-	for _, card := range list {
-		c, err := s.Card(ctx, card, nil)
-		if err != nil {
-			combined = append(combined, err)
+	trimmed := make([]string, 0, len(list))
+	seen := map[string]struct{}{}
+	for _, name := range list {
+		n := strings.TrimSpace(name)
+		if n == "" {
+			continue
 		}
-		cards = append(cards, c)
+		key := strings.ToLower(n)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		trimmed = append(trimmed, n)
 	}
-	return cards, errs.Combine(combined...)
+	if len(trimmed) == 0 {
+		return []*Card{}, nil
+	}
+
+	found := map[string]*Card{}
+	var combinedErr error
+
+	rows, err := s.db.Query(
+		`SELECT name, id, colors, convertedmanacost, types, power, toughness, text, subtypes, supertypes, uuid, facename
+		FROM cards
+		WHERE name = ANY($1) OR facename = ANY($1);`,
+		pq.Array(trimmed),
+	)
+	if err != nil {
+		if !isMissingRelation(err, "cards") {
+			combinedErr = errs.Combine(combinedErr, err)
+		}
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				nameVal    sql.NullString
+				idVal      sql.NullString
+				colors     sql.NullString
+				cmc        sql.NullString
+				types      sql.NullString
+				power      sql.NullString
+				toughness  sql.NullString
+				text       sql.NullString
+				subtypes   sql.NullString
+				supertypes sql.NullString
+				uuid       sql.NullString
+				facename   sql.NullString
+			)
+			if err := rows.Scan(
+				&nameVal,
+				&idVal,
+				&colors,
+				&cmc,
+				&types,
+				&power,
+				&toughness,
+				&text,
+				&subtypes,
+				&supertypes,
+				&uuid,
+				&facename,
+			); err != nil {
+				combinedErr = errs.Combine(combinedErr, err)
+				continue
+			}
+			card := &Card{
+				Name:       nameVal.String,
+				ID:         idVal.String,
+				Colors:     nullStringPtr(colors),
+				Cmc:        nullStringPtr(cmc),
+				Types:      nullStringPtr(types),
+				Power:      nullStringPtr(power),
+				Toughness:  nullStringPtr(toughness),
+				Text:       nullStringPtr(text),
+				Subtypes:   nullStringPtr(subtypes),
+				Supertypes: nullStringPtr(supertypes),
+				UUID:       nullStringPtr(uuid),
+			}
+			if nameVal.Valid {
+				key := strings.ToLower(nameVal.String)
+				found[key] = preferCard(found[key], card)
+			}
+			if facename.Valid && facename.String != "" {
+				key := strings.ToLower(facename.String)
+				found[key] = preferCard(found[key], card)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			combinedErr = errs.Combine(combinedErr, err)
+		}
+	}
+
+	results := make([]*Card, 0, len(list))
+	for _, name := range list {
+		key := strings.ToLower(strings.TrimSpace(name))
+		if key == "" {
+			results = append(results, &Card{Name: name})
+			continue
+		}
+		if card, ok := found[key]; ok && card != nil {
+			results = append(results, card)
+			continue
+		}
+		results = append(results, &Card{Name: name})
+	}
+
+	return results, combinedErr
 }
 
 // Search will search for card names in the database.
@@ -390,6 +376,14 @@ func (s *graphQLServer) SearchAll(
 	return cards, nil
 }
 
+func isMissingRelation(err error, table string) bool {
+	if err == nil {
+		return false
+	}
+	msg := fmt.Sprintf("relation \"%s\" does not exist", table)
+	return strings.Contains(err.Error(), msg)
+}
+
 //
 // Shuffle functions
 //
@@ -411,4 +405,35 @@ func stringOrEmpty(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func nullStringPtr(s sql.NullString) *string {
+	if !s.Valid {
+		return nil
+	}
+	return &s.String
+}
+
+func preferCard(existing *Card, candidate *Card) *Card {
+	if candidate == nil {
+		return existing
+	}
+	if existing == nil {
+		return candidate
+	}
+	if existing.ID == "" {
+		return candidate
+	}
+	if candidate.ID == "" {
+		return existing
+	}
+	ai, aerr := strconv.Atoi(candidate.ID)
+	bi, berr := strconv.Atoi(existing.ID)
+	if aerr == nil && berr == nil {
+		if ai < bi {
+			return candidate
+		}
+		return existing
+	}
+	return existing
 }

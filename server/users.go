@@ -4,15 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
+	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/zeebo/errs"
 	"golang.org/x/crypto/bcrypt"
 )
-
-var jwtSecret []byte = []byte(os.Getenv("JWT_SECRET"))
 
 func (s *graphQLServer) Signup(ctx context.Context, username string, password string) (*User, error) {
 	if password == "" {
@@ -78,13 +75,7 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	}
 
 	// we're valid, so generate a new token and assign it to the user
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": user.Username,
-		"password": password,
-	})
-
-	// and attempt to sign that token with our server's jwtSecret
-	t, err := token.SignedString(jwtSecret)
+	t, err := newAuthToken(user, time.Hour*24)
 	if err != nil {
 		return nil, errs.Wrap(err)
 	}
@@ -111,6 +102,11 @@ func checkPasswordHash(password, hash string) bool {
 }
 
 func (s *graphQLServer) Users(ctx context.Context, id *string) ([]string, error) {
+	if !isPublicQuery("users") {
+		if _, err := requireAuth(ctx); err != nil {
+			return nil, err
+		}
+	}
 	limit := 10000
 	offset := 0
 	rows, err := s.db.Query(`select * from users limit $1 offset $2;`, limit, offset)

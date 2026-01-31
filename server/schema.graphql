@@ -6,13 +6,17 @@ type Mutation {
   createGame(input: InputCreateGame!): Game!
   joinGame(input: InputJoinGame): Game!
   updateGame(input: InputGame!): Game!
+  passPriority(gameID: String!, toPlayer: String!): Game!
+  advancePhase(gameID: String!, phase: String!, number: Int): Game!
   updateBoardState(input: InputBoardState!): BoardState!
+  claimWin(gameID: String!, condition: String): Game!
 }
 
 type Query {
   users(userID: String): [String!]!
   games(offset: Int!, limit: Int!): [Game]!
   getGame(gameID: String!): Game!
+  gameLogs(gameID: String!, offset: Int!, limit: Int!): [GameLogEvent!]!
   card(name: String!, id: String): Card
   cards(list: [String!]): [Card!]!
   search(name: String, colors: [String], colorIdentity: [String], keywords: [String]): [Card]
@@ -69,12 +73,43 @@ type Game {
   Turn: Turn
   Players: [User]
   Stack: [Card]
+  Status: GameStatus!
+  Result: GameResult
+  WinnerIDs: [String!]
+  WinCondition: String
+  PendingWinClaim: PendingWinClaim
 }
 
 type Turn {
   Player: String!
   Phase: String!
   Number: Int!
+  Priority: String!
+}
+
+type PendingWinClaim {
+  ClaimedBy: String!
+  Condition: String
+  Remaining: [String!]!
+}
+
+type GameLogEvent {
+  ID: ID!
+  GameID: String!
+  EventTime: Time!
+  Type: String!
+  Actor: String
+  Payload: String
+}
+
+enum GameStatus {
+  IN_PROGRESS
+  FINISHED
+}
+
+enum GameResult {
+  WIN
+  DRAW
 }
 
 type Rule {
@@ -198,6 +233,7 @@ input InputTurn {
   Player: String!
   Phase: String !
   Number: Int!
+  Priority: String!
 }
 
 input InputDeck {

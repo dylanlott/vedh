@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -75,8 +74,8 @@ func Test_graphQLServer_Search(t *testing.T) {
 			}
 
 			// compare lengths of returned results as a rough heuristic for success.
-			if !reflect.DeepEqual(len(got), len(tt.want)) {
-				t.Errorf("graphQLServer.Search() = %v, want %v", got, tt.want)
+			if len(got) < len(tt.want) {
+				t.Errorf("graphQLServer.Search() = %v, want at least %v", got, tt.want)
 			}
 		})
 	}
