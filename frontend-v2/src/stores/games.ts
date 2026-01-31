@@ -24,6 +24,15 @@ interface GameSummary {
   Players: PlayerSummary[];
   Turn?: TurnSummary;
   Rules?: { Name: string; Value: string }[];
+  Status?: string;
+  Result?: string;
+  WinnerIDs?: string[];
+  WinCondition?: string;
+  PendingWinClaim?: {
+    ClaimedBy: string;
+    Condition?: string;
+    Remaining: string[];
+  };
 }
 
 interface BoardStateZoneCard {
