@@ -7,7 +7,7 @@ GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 BINARY_NAME=edhgo
 BINARY_UNIX=$(BINARY_NAME)_unix
-BUILD_TAG=latest #tag all releases as latest for watchtower detection
+BUILD_TAG=latest #tag releases as latest by default
 
 all: test build
 
@@ -33,38 +33,20 @@ run:
 generate:
 	$(GOCMD) run github.com/99designs/gqlgen
 
-# Migrate will run migrations at your env's EDHGO_PG_URL value.
+# Migrate will run migrations at your env's DB_URL value.
 # This is how we run prod migrations, so BE CAREFUL ABOUT RUNNING THIS COMMAND.
 # ALWAYS TEST MIGRATIONS LOCALLY FIRST.
 migrate-prod: confirm
-	migrate -path ./persistence/migrations -database $(EDHGO_PG_URL) up
+	migrate -path ./persistence/migrations -database $(VEDH_DB_URL) up
 
 # Run migrations directory against your local environment.
 migrate-local: confirm
 	migrate \
-		-database "postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable" \
+		-database $(DB_URL) \
 		-source "file://./persistence/migrations/" up
-
-# docker: docker-ui docker-server
 
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
-
-# docker-ui:
-# 	docker buildx build \
-# 		-f ./frontend/Dockerfile \
-# 		-t openmtg/edhgo-ui:$(BUILD_TAG) \
-# 		--build-arg NODE_ENV=production \
-# 		--build-arg VUE_APP_WEBSOCKET_URL=wss://api.vedh.xyz/graphql \
-# 		--build-arg VUE_APP_BASE_URL=https://api.vedh.xyz/graphql \
-# 		--platform linux/amd64 ./frontend
-#
-# docker-server:
-# 	docker build -t openmtg/edhgo-server:$(BUILD_TAG) .
-
-# sync:
-# 	@echo "syncing git files to remote server"
-# 	scripts/sync.sh
 
 # import-db assumes that the desired cards.csv is present in the root directory.
 # refresh the CSV file here: https://mtgjson.com/downloads/all-files
