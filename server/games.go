@@ -451,6 +451,10 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		}
 		return nil, fmt.Errorf("failed to find game: %w", err)
 	}
+	ensureGameDefaults(game)
+	if game.Status == GameStatusFinished {
+		return nil, errors.New("game already finished")
+	}
 
 	if len(game.Players) >= 4 {
 		return nil, errors.New("game is full")
@@ -514,6 +518,15 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	if err := s.upsertGame(game); err != nil {
 		return nil, fmt.Errorf("failed to update game: %w", err)
 	}
+
+	s.logEvent(ctx, Event{
+		GameID: game.ID,
+		Type:   EventTypePlayerJoined,
+		Actor:  authUser.Username,
+		Payload: map[string]interface{}{
+			"user": authUser.Username,
+		},
+	})
 
 	return game, nil
 }
@@ -635,6 +648,26 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	if err := s.upsertGame(g); err != nil {
 		return nil, fmt.Errorf("failed to update game: %w", err)
 	}
+
+	var players []map[string]interface{}
+	for _, p := range g.Players {
+		if p == nil || p.Boardstate == nil {
+			continue
+		}
+		players = append(players, map[string]interface{}{
+			"id":       p.ID,
+			"username": p.Username,
+			"life":     p.Boardstate.Life,
+		})
+	}
+	s.logEvent(ctx, Event{
+		GameID: g.ID,
+		Type:   EventTypeGameCreated,
+		Actor:  authUser.Username,
+		Payload: map[string]interface{}{
+			"players": players,
+		},
+	})
 
 	return g, nil
 }
