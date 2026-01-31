@@ -6,6 +6,8 @@ import (
 )
 
 const (
+	EventTypeGameCreated        = "GAME_CREATED"
+	EventTypePlayerJoined       = "PLAYER_JOINED"
 	EventTypeLifeChanged        = "LIFE_CHANGED"
 	EventTypeCardMoved          = "CARD_MOVED"
 	EventTypeCardTapped         = "CARD_TAPPED"
