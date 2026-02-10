@@ -1,21 +1,18 @@
 .idea/
 vendor/
-persistence/mtgallcards.sqlite
+*.sqlite
 *.sqlite*
 *.sqlc
 .DS_store
 bin/*
 *.env
 *.env*
-.pg.env
-.edhgo.env
 
 # Frontend
 frontend/coverage/
 
 # Import script and temp data
 scripts/*
-*.csv
 allprintings.csv.zip
 .vscode/configurationCache.log
 .vscode/dryrun.log
@@ -28,3 +25,4 @@ scripts/sync.sh
 .git
 All Printings.json
 edhgo
+cards.csv
