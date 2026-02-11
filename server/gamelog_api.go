@@ -14,14 +14,11 @@ type rawLogPayload struct {
 }
 
 func (s *graphQLServer) GameLogs(ctx context.Context, gameID string, offset int, limit int) ([]*GameLogEvent, error) {
-	if _, err := requireAuth(ctx); err != nil {
-		return nil, err
-	}
-	game, err := s.GetGame(ctx, gameID)
+	authUser, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	authUser, err := requireAuth(ctx)
+	game, err := s.GetGame(ctx, gameID)
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +84,9 @@ func (s *graphQLServer) GameLogs(ctx context.Context, gameID string, offset int,
 			event.Type = "UNKNOWN"
 		}
 		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate gamelog rows: %w", err)
 	}
 	return events, nil
 }

@@ -26,6 +26,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/games/:id/analysis',
+    name: 'game-analysis',
+    component: () => import('../views/GameAnalysisView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/games/:id',
     name: 'board',
     component: () => import('../views/BoardView.vue'),

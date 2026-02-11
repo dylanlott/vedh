@@ -109,3 +109,73 @@ func TestUpdateBoardState(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateBoardState_AutoFinishRules(t *testing.T) {
+	t.Run("single-player game does not auto-finish when one player is alive", func(t *testing.T) {
+		s := testAPI(t)
+		created, err := s.CreateGame(authCtx(mastershake), *seedInputGame)
+		assert.NoError(t, err)
+		assert.NotNil(t, created)
+
+		_, err = s.UpdateBoardState(authCtx(mastershake), InputBoardState{
+			GameID: created.ID,
+			UserID: mastershake,
+			User:   mastershake,
+			Life:   39,
+		})
+		assert.NoError(t, err)
+
+		got, err := s.GetGame(authCtx(mastershake), created.ID)
+		assert.NoError(t, err)
+		assert.Equal(t, GameStatusInProgress, got.Status)
+		assert.Nil(t, got.Result)
+	})
+
+	t.Run("multiplayer game auto-finishes when only one player remains alive", func(t *testing.T) {
+		s := testAPI(t)
+		input := InputCreateGame{
+			ID: "xdeadbeefx-autofinish-rules",
+			Players: []*InputBoardState{
+				{
+					GameID:   "xdeadbeefx-autofinish-rules",
+					UserID:   mastershake,
+					User:     mastershake,
+					Life:     40,
+					Decklist: decklist(),
+				},
+				{
+					GameID:   "xdeadbeefx-autofinish-rules",
+					UserID:   carl,
+					User:     carl,
+					Life:     0,
+					Decklist: decklist(),
+				},
+			},
+			Turn: &InputTurn{
+				Player:   mastershake,
+				Phase:    "pregame",
+				Number:   0,
+				Priority: mastershake,
+			},
+		}
+
+		created, err := s.CreateGame(authCtx(mastershake), input)
+		assert.NoError(t, err)
+		assert.NotNil(t, created)
+
+		_, err = s.UpdateBoardState(authCtx(mastershake), InputBoardState{
+			GameID: created.ID,
+			UserID: mastershake,
+			User:   mastershake,
+			Life:   39,
+		})
+		assert.NoError(t, err)
+
+		got, err := s.GetGame(authCtx(mastershake), created.ID)
+		assert.NoError(t, err)
+		assert.Equal(t, GameStatusFinished, got.Status)
+		if assert.NotNil(t, got.Result) {
+			assert.Equal(t, GameResultWin, *got.Result)
+		}
+	})
+}

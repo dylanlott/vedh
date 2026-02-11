@@ -150,6 +150,14 @@ table "cards" {
 }
 table "gamelog" {
   schema = schema.public
+  column "id" {
+    null = false
+    type = bigint
+  }
+  column "game_id" {
+    null = false
+    type = text
+  }
   column "payload" {
     null = true
     type = jsonb
@@ -157,6 +165,9 @@ table "gamelog" {
   column "eventtime" {
     null = true
     type = timestamp
+  }
+  primary_key {
+    columns = [column.id]
   }
 }
 table "games" {

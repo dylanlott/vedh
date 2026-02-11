@@ -10,7 +10,7 @@ import (
 
 // Test_graphQLServer_SearchAll_JaradDeck tests the SearchAll function against a
 // real-world decklist (Jarad, Golgari Lich Lord). It allows a small fraction of
-// misses since the `allcards` table may not have all printings or may use
+// misses since the cards table may not have all printings or may use
 // different naming for some cards.
 func Test_graphQLServer_SearchAll_JaradDeck(t *testing.T) {
 	f, err := os.Open("../test/decklists/jarad.csv")
@@ -60,7 +60,7 @@ func Test_graphQLServer_SearchAll_JaradDeck(t *testing.T) {
 		t.Fatalf("scanner error: %v", err)
 	}
 
-	// Allow a small fraction of misses (10%) since `allcards` may omit some
+	// Allow a small fraction of misses (10%) since `cards` may omit some
 	// tokens/printings or use different naming for some entries.
 	allowedMissing := int(float64(len(rawNames)) * 0.10)
 	if allowedMissing < 1 {

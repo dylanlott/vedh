@@ -88,11 +88,14 @@ func (s *graphQLServer) UpdateBoardState(
 
 	if game.Status != GameStatusFinished {
 		alive := alivePlayerNames(game)
+		totalPlayers := len(game.Players)
 		switch len(alive) {
 		case 0:
 			finalizeGame(game, GameResultDraw, nil, nil)
 		case 1:
-			finalizeGame(game, GameResultWin, []string{alive[0]}, nil)
+			if totalPlayers >= 2 {
+				finalizeGame(game, GameResultWin, []string{alive[0]}, nil)
+			}
 		}
 	}
 

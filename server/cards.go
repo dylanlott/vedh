@@ -103,7 +103,7 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 				// Fallback 2: try the larger allcards table to at least return a sensible
 				// Card result (tests often only assert Name when IDs are environment-specific).
 				var aname, auuid *string
-				row3 := s.db.QueryRow(`SELECT name, uuid FROM allcards WHERE name ILIKE $1 OR facename ILIKE $1 LIMIT 1;`, pattern)
+				row3 := s.db.QueryRow(`SELECT name, uuid FROM cards WHERE name ILIKE $1 OR facename ILIKE $1 LIMIT 1;`, pattern)
 				if err3 := row3.Scan(&aname, &auuid); err3 == nil && aname != nil {
 					idVal := ""
 					if auuid != nil {
@@ -268,9 +268,9 @@ func (s *graphQLServer) Search(
 		pattern = "%" + pattern + "%"
 	}
 
-	// query the db for it (case-insensitive). Align to allcards schema
-	rows, err := s.db.Query(`SELECT name, colors, manacost, types,
-	power, toughness, text, subtypes, supertypes, uuid FROM allcards WHERE name ILIKE $1 OR facename ILIKE $1`, pattern)
+	// query the db for it (case-insensitive). Align to cards schema.
+	rows, err := s.db.Query(`SELECT name, colors, COALESCE(facemanavalue, faceconvertedmanacost, convertedmanacost) AS manacost, types,
+	power, toughness, text, subtypes, supertypes, uuid FROM cards WHERE name ILIKE $1 OR facename ILIKE $1`, pattern)
 	if err != nil {
 		s.loggerFor(ctx).Error("search query failed", "err", err)
 		return nil, errs.New("failed to search db: %s", err)
@@ -324,9 +324,8 @@ func (s *graphQLServer) Search(
 	return cards, nil
 }
 
-// SearchAll queries the larger `allcards` table which contains printings and
-// variants. It mirrors Search but hits the `allcards` table instead of
-// `cards`.
+// SearchAll queries the cards table with the same signature as Search, keeping
+// the integration tests aligned to the main card store.
 func (s *graphQLServer) SearchAll(
 	ctx context.Context,
 	name *string,
@@ -338,7 +337,9 @@ func (s *graphQLServer) SearchAll(
 		return nil, nil
 	}
 
-	rows, err := s.db.Query(`SELECT name, uuid, text, manacost, power, toughness, types, subtypes, supertypes FROM allcards WHERE name LIKE $1`, name)
+	rows, err := s.db.Query(`SELECT name, uuid, text, COALESCE(facemanavalue, faceconvertedmanacost, convertedmanacost) AS manacost, power, toughness, types, subtypes, supertypes
+		FROM cards
+		WHERE name ILIKE $1 OR facename ILIKE $1`, name)
 	if err != nil {
 		s.loggerFor(ctx).Error("searchall query failed", "err", err)
 		return nil, errs.New("failed to search allcards db: %s", err)

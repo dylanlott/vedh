@@ -346,21 +346,68 @@ func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase s
 	if game.Turn.Player != authUser.Username {
 		return nil, errors.New("forbidden: only the turn player can advance the phase")
 	}
-	game.Turn.Phase = phase
+	prevTurn := *game.Turn
+
+	nextTurnNumber := game.Turn.Number
 	if number != nil {
-		game.Turn.Number = *number
+		nextTurnNumber = *number
+	} else if shouldIncrementTurnNumber(prevTurn.Phase, phase) {
+		nextTurnNumber = prevTurn.Number + 1
 	}
+
+	game.Turn.Phase = phase
+	game.Turn.Number = nextTurnNumber
 	if game.Turn.Priority == "" {
 		game.Turn.Priority = game.Turn.Player
 	}
 	if game.PendingWinClaim != nil {
 		s.cancelPendingWinClaim(ctx, game, authUser.Username, "turn advanced")
 	}
+	s.logEvent(ctx, Event{
+		GameID: game.ID,
+		Type:   EventTypeTurnAdvanced,
+		Actor:  authUser.Username,
+		Payload: map[string]interface{}{
+			"from": map[string]interface{}{
+				"player": prevTurn.Player,
+				"phase":  prevTurn.Phase,
+				"number": prevTurn.Number,
+			},
+			"to": map[string]interface{}{
+				"player": game.Turn.Player,
+				"phase":  game.Turn.Phase,
+				"number": game.Turn.Number,
+			},
+		},
+	})
 	go s.publishGame(game.ID, game)
 	if err := s.upsertGame(game); err != nil {
 		return game, err
 	}
 	return game, nil
+}
+
+func normalizePhaseKey(phase string) string {
+	cleaned := strings.ToUpper(strings.Join(strings.Fields(phase), " "))
+	switch cleaned {
+	case "MAIN", "MAIN PHASE", "MAIN1", "MAIN PHASE 1":
+		return "MAIN PHASE 1"
+	case "MAIN2", "MAIN PHASE 2":
+		return "MAIN PHASE 2"
+	case "END", "END STEP":
+		return "END STEP"
+	default:
+		return cleaned
+	}
+}
+
+func shouldIncrementTurnNumber(prevPhase string, nextPhase string) bool {
+	prev := normalizePhaseKey(prevPhase)
+	next := normalizePhaseKey(nextPhase)
+	if next != "UNTAP" {
+		return false
+	}
+	return prev == "END STEP" || prev == "DISCARD" || prev == "CLEANUP"
 }
 
 func playerExists(game *Game, username string) bool {
@@ -478,16 +525,12 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		},
 	}
 
-	// hydrate the library from the provided decklist
-	library, err := s.createLibraryFromDecklist(ctx, *input.Decklist)
+	// hydrate and validate the library from the provided decklist
+	library, err := s.createLibraryFromDecklist(ctx, *input.Decklist, input.BoardState.Commander)
 	if err != nil {
-		// Fail gracefully and still populate basic cards
-		s.loggerFor(ctx).Warn("error creating library from decklist", "err", err, "game_id", input.ID, "user_id", input.BoardState.UserID)
-		user.Boardstate.Library = getBareCard(input.BoardState.Library)
-	} else {
-		// Happy path
-		user.Boardstate.Library = library
+		return nil, fmt.Errorf("invalid decklist: %w", err)
 	}
+	user.Boardstate.Library = library
 
 	// NB: Commented out while we figure out how to handle Commander selection.
 	if len(input.BoardState.Commander) > 0 {
@@ -604,20 +647,16 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 
 		// Set default boardstate, handle library and commander specifically
 		var decklist string
-		if inputGame.Players[0].Decklist != nil {
-			decklist = string(*inputGame.Players[0].Decklist)
+		if player.Decklist != nil {
+			decklist = string(*player.Decklist)
 		}
 
-		// hyrdate the decklist for the player
-		library, err := s.createLibraryFromDecklist(ctx, decklist)
+		// hydrate and validate the decklist for the player
+		library, err := s.createLibraryFromDecklist(ctx, decklist, player.Commander)
 		if err != nil {
-			// Fail gracefully and still populate basic cards
-			s.loggerFor(ctx).Warn("error creating library from decklist", "err", err, "game_id", g.ID, "user_id", player.UserID)
-			user.Boardstate.Library = getBareCard(player.Library)
-		} else {
-			// Happy path
-			user.Boardstate.Library = library
+			return nil, fmt.Errorf("invalid decklist for %s: %w", player.User, err)
 		}
+		user.Boardstate.Library = library
 
 		// handle commander selection
 		if len(player.Commander) > 0 {
@@ -712,7 +751,9 @@ func getBareCard(inputCards []*InputCard) []*Card {
 }
 
 // createLibraryFromDecklist parses the provided decklist string as CSV.
-func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist string) ([]*Card, error) {
+// If commander cards are present in the decklist, one copy of each selected
+// commander is removed from the library count before validating deck size.
+func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist string, commanders []*InputCard) ([]*Card, error) {
 	if decklist == "" {
 		return []*Card{}, fmt.Errorf("must provide cards in decklist to create a library")
 	}
@@ -732,6 +773,20 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 	entries := []deckEntry{}
 	lookupNames := []string{}
 	lookupSeen := map[string]struct{}{}
+	commanderBudget := map[string]int64{}
+	commandersSpecified := int64(0)
+
+	for _, commander := range commanders {
+		if commander == nil {
+			continue
+		}
+		name := strings.TrimSpace(commander.Name)
+		if name == "" {
+			continue
+		}
+		commandersSpecified++
+		commanderBudget[strings.ToLower(name)]++
+	}
 
 	for {
 		record, err := r.Read()
@@ -743,20 +798,57 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 			return nil, fmt.Errorf("failed to parse CSV: %s", err)
 		}
 
-		name := record[1]
+		if len(record) < 2 {
+			return nil, fmt.Errorf("invalid decklist row: expected quantity and card name")
+		}
+		name := strings.TrimSpace(record[1])
 		quantity, err := strconv.ParseInt(record[0], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse quantity: %w", err)
 		}
+		if quantity < 0 {
+			return nil, fmt.Errorf("invalid quantity %d for %q", quantity, name)
+		}
+
+		key := strings.ToLower(name)
+		if removeCount := commanderBudget[key]; removeCount > 0 && quantity > 0 {
+			if removeCount >= quantity {
+				commanderBudget[key] = removeCount - quantity
+				quantity = 0
+			} else {
+				quantity -= removeCount
+				commanderBudget[key] = 0
+			}
+		}
+		if quantity == 0 {
+			continue
+		}
 
 		entries = append(entries, deckEntry{name: name, qty: quantity})
-		key := strings.ToLower(strings.TrimSpace(name))
 		if key != "" {
 			if _, ok := lookupSeen[key]; !ok {
 				lookupSeen[key] = struct{}{}
 				lookupNames = append(lookupNames, name)
 			}
 		}
+	}
+
+	maxLibraryCards := int64(100) - commandersSpecified
+	if maxLibraryCards < 0 {
+		return nil, fmt.Errorf("invalid commander count: %d", commandersSpecified)
+	}
+
+	var libraryCount int64
+	for _, entry := range entries {
+		libraryCount += entry.qty
+	}
+	if libraryCount > maxLibraryCards {
+		return nil, fmt.Errorf(
+			"deck too large: library has %d cards but maximum is %d for %d commander(s)",
+			libraryCount,
+			maxLibraryCards,
+			commandersSpecified,
+		)
 	}
 
 	lookup := map[string]*Card{}
