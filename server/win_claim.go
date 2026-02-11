@@ -21,6 +21,9 @@ func (s *graphQLServer) ClaimWin(ctx context.Context, gameID string, condition *
 	if !isUserInGame(game, authUser) {
 		return nil, errors.New("forbidden: not a participant in this game")
 	}
+	if game.PendingWinClaim != nil {
+		return nil, errors.New("a win claim is already pending")
+	}
 	if game.Turn == nil {
 		return nil, errors.New("game has no turn state")
 	}

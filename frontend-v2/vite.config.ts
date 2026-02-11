@@ -9,10 +9,8 @@ export default defineConfig(({ mode }) => {
     plugins: [vue()],
     server: {
       port: devPort,
-      strictPort: true,
-      hmr: {
-        clientPort: devPort,
-      },
+      // Allow automatic fallback (e.g. 5174) when the preferred port is busy.
+      strictPort: false,
       watch: {
         usePolling: true,
         interval: 100,

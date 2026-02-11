@@ -23,23 +23,11 @@
           <span class="chip">Turn {{ game.Turn?.Number ?? '—' }}</span>
           <span class="chip">Phase: {{ game.Turn?.Phase ?? '—' }}</span>
           <div class="turn-controls">
-            <label class="inline-control">
-              <span>Pass to</span>
-              <select v-model="priorityTarget" :disabled="!hasPriority">
-                <option v-for="name in playerNames" :key="name" :value="name">{{ name }}</option>
-              </select>
-            </label>
-            <button class="tool" type="button" :disabled="!hasPriority || !priorityTarget" @click="passPriority(priorityTarget)">
+            <button class="tool" type="button" :disabled="!hasPriority || !nextPriorityPlayer" @click="passPriority">
               Pass priority
             </button>
-            <label class="inline-control">
-              <span>Phase</span>
-              <select v-model="phaseTarget" :disabled="!isTurnPlayer">
-                <option v-for="p in phaseOptions" :key="p" :value="p">{{ p }}</option>
-              </select>
-            </label>
-            <button class="tool" type="button" :disabled="!isTurnPlayer || !phaseTarget" @click="advancePhase(phaseTarget)">
-              Advance
+            <button class="tool" type="button" :disabled="!isTurnPlayer || !nextPhase" @click="advancePhase(nextPhase)">
+              Advance to {{ nextPhaseLabel }}
             </button>
             <button class="tool" type="button" :disabled="!hasPriority" @click="claimWin">
               Claim win
@@ -717,9 +705,14 @@ const priorityOnTurn = computed(() => {
   const turnPlayer = game.value?.Turn?.Player ?? null;
   return !!turnPlayer && currentPriority.value === turnPlayer;
 });
-const playerNames = computed(() => (game.value?.Players ?? []).map(p => p.Username).filter(Boolean));
-const priorityTarget = ref('');
-const phaseTarget = ref('');
+const nextPriorityPlayer = computed(() => {
+  const players = (game.value?.Players ?? []).map(p => p.Username).filter(Boolean);
+  if (!players.length) return '';
+  const holder = currentPriority.value ?? game.value?.Turn?.Player ?? '';
+  const holderIdx = players.findIndex(name => name === holder);
+  if (holderIdx === -1) return players[0] ?? '';
+  return players[(holderIdx + 1) % players.length] ?? '';
+});
 const pendingWinClaim = computed(() => game.value?.PendingWinClaim ?? null);
 const pendingWinText = computed(() => {
   if (!pendingWinClaim.value) return '';
@@ -745,11 +738,49 @@ const mainPlayerResizing = ref(false);
 const mainPlayerResizeStart = ref({ y: 0, height: 33 });
 const MAIN_PLAYER_MIN_VH = 16;
 const MAIN_PLAYER_MAX_VH = 60;
-const phaseOptions = computed(() => {
-  const base = ['UNTAP', 'UPKEEP', 'DRAW', 'MAIN', 'COMBAT', 'END'];
-  const current = game.value?.Turn?.Phase;
-  if (current && !base.includes(current)) return [current, ...base];
-  return base;
+const PHASE_ORDER = [
+  { key: 'UNTAP', label: 'Untap' },
+  { key: 'UPKEEP', label: 'Upkeep' },
+  { key: 'DRAW', label: 'Draw' },
+  { key: 'MAIN PHASE 1', label: 'Main Phase 1' },
+  { key: 'COMBAT', label: 'Combat' },
+  { key: 'MAIN PHASE 2', label: 'Main Phase 2' },
+  { key: 'END STEP', label: 'End Step' },
+  { key: 'DISCARD', label: 'Discard' },
+];
+
+const normalizedPhaseKey = (phase: string | null | undefined) => {
+  if (!phase) return null;
+  const cleaned = phase.toUpperCase().replace(/\s+/g, ' ').trim();
+  switch (cleaned) {
+    case 'MAIN':
+    case 'MAIN PHASE':
+    case 'MAIN1':
+    case 'MAIN PHASE 1':
+      return 'MAIN PHASE 1';
+    case 'MAIN2':
+    case 'MAIN PHASE 2':
+      return 'MAIN PHASE 2';
+    case 'END':
+    case 'END STEP':
+      return 'END STEP';
+    default:
+      return cleaned;
+  }
+};
+
+const nextPhase = computed(() => {
+  const currentKey = normalizedPhaseKey(game.value?.Turn?.Phase);
+  const idx = PHASE_ORDER.findIndex(p => p.key === currentKey);
+  const next = PHASE_ORDER[idx + 1] ?? PHASE_ORDER[0];
+  return next?.key ?? null;
+});
+
+const nextPhaseLabel = computed(() => {
+  const currentKey = normalizedPhaseKey(game.value?.Turn?.Phase);
+  const idx = PHASE_ORDER.findIndex(p => p.key === currentKey);
+  const next = PHASE_ORDER[idx + 1] ?? PHASE_ORDER[0];
+  return next?.label ?? 'Next phase';
 });
 
 onMounted(() => {
@@ -823,8 +854,9 @@ function onMainPlayerResizeMove(event: MouseEvent) {
   mainPlayerHeight.value = Math.round(next);
 }
 
-async function passPriority(toPlayer: string) {
+async function passPriority() {
   const g = game.value;
+  const toPlayer = nextPriorityPlayer.value;
   if (!g || !toPlayer) return;
   try {
     await apolloClient.mutate({
@@ -1043,17 +1075,6 @@ watch(() => game.value?.Stack?.length, (next, prev) => {
   }
 });
 
-watch([playerNames, currentPriority], ([names, priority]) => {
-  if (!names?.length) return;
-  if (!priorityTarget.value || priorityTarget.value === priority) {
-    priorityTarget.value = names.find(n => n !== priority) ?? names[0] ?? '';
-  }
-});
-
-watch(() => game.value?.Turn?.Phase, (phase) => {
-  if (phase) phaseTarget.value = phase;
-}, { immediate: true });
-
 watch(() => game.value?.Status, (status) => {
   if (status === 'FINISHED' && game.value?.ID) {
     router.push({ name: 'game-analysis', params: { id: game.value.ID } });
@@ -1224,6 +1245,7 @@ type MoveCardArgs = {
   fromZone: Zone;
   toZone: Zone;
   fromIndex?: number;
+  toIndex?: number;
 };
 
 const PERSISTED_ZONES: Zone[] = ['Library', 'Hand', 'Graveyard', 'Revealed', 'Controlled'];
@@ -1301,7 +1323,10 @@ async function moveCard(args: MoveCardArgs) {
     if (args.toZone !== 'Battlefield' && nextCard && 'Tapped' in nextCard) {
       nextCard.Tapped = false;
     }
-    destList.push(nextCard);
+    const targetIndex = typeof args.toIndex === 'number'
+      ? Math.max(0, Math.min(args.toIndex, destList.length))
+      : 0;
+    destList.splice(targetIndex, 0, nextCard);
   }
   current[args.toZone as Zone] = destList;
 
@@ -1831,20 +1856,17 @@ watch(stackedZones, (val) => {
   align-items: center;
 }
 
-.turn-controls .inline-control {
+.win-claim {
   display: inline-flex;
+  gap: 0.6rem;
   align-items: center;
-  gap: 0.35rem;
+  margin-top: 0.35rem;
   font-size: 0.75rem;
-  color: rgba(255,255,255,0.75);
+  color: rgba(255,255,255,0.8);
 }
 
-.turn-controls select {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 8px;
-  color: #fff;
-  padding: 0.2rem 0.4rem;
+.win-claim .muted {
+  color: rgba(255,255,255,0.6);
 }
 
 .settings {
@@ -1957,19 +1979,12 @@ watch(stackedZones, (val) => {
   gap: 0.75rem;
 }
 
-/* Make each opponent card area responsive: zones should wrap horizontally and vertically
-   and expand based on contained cards. */
 .players article {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(140px, 1fr));
   gap: 0.75rem;
   align-items: flex-start;
-}
-
-.players article .zone {
-  /* Each zone can grow/shrink and will wrap to the next row when needed */
-  flex: 1 1 220px;
-  min-width: 160px;
+  overflow-x: auto;
 }
 
 .players article {
@@ -1983,6 +1998,29 @@ watch(stackedZones, (val) => {
   border-color: rgba(133, 215, 255, 0.6);
   box-shadow: 0 0 0 1px rgba(133, 215, 255, 0.15);
 }
+
+.players article > header {
+  grid-column: 1 / -1;
+}
+
+.players article .zone {
+  min-width: 140px;
+}
+
+.players article .zone[data-zone='Battlefield'] {
+  grid-column: 1 / -1;
+}
+
+.players article .zone[data-zone='Hand'] {
+  grid-column: 1 / -1;
+}
+
+.players article .zone[data-zone='Commander'] { grid-column: 1; }
+.players article .zone[data-zone='Graveyard'] { grid-column: 2; }
+.players article .zone[data-zone='Exiled'] { grid-column: 3; }
+.players article .zone[data-zone='Revealed'] { grid-column: 4; }
+.players article .zone[data-zone='Controlled'] { grid-column: 5; }
+.players article .zone[data-zone='Library'] { grid-column: 6; }
 
 .zone {
   margin-top: 0.5rem;
@@ -2053,6 +2091,39 @@ watch(stackedZones, (val) => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 0.6rem;
+}
+
+/* Prioritize battlefield + hand as horizontal rows */
+.zone[data-zone='Battlefield'] .cards.tiles,
+.zone[data-zone='Hand'] .cards.tiles,
+.zone[data-zone='Battlefield'] .cards.art,
+.zone[data-zone='Hand'] .cards.art,
+.zone[data-zone='Hand'] .hand {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.6rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.25rem;
+}
+
+.zone[data-zone='Battlefield'] .cards.tiles > *,
+.zone[data-zone='Hand'] .cards.tiles > *,
+.zone[data-zone='Battlefield'] .cards.art > *,
+.zone[data-zone='Hand'] .cards.art > * {
+  flex: 0 0 120px;
+}
+
+.zone[data-zone='Battlefield'] .cards.art > *,
+.zone[data-zone='Hand'] .cards.art > * {
+  flex-basis: 140px;
+}
+
+/* Keep secondary zones in a row with vertical card stacks */
+.zone:not([data-zone='Battlefield']):not([data-zone='Hand']) .cards.tiles,
+.zone:not([data-zone='Battlefield']):not([data-zone='Hand']) .cards.art {
+  grid-template-columns: 1fr;
 }
 
 /* Allow zone lists to expand vertically to fit their cards */
@@ -2221,11 +2292,10 @@ watch(stackedZones, (val) => {
   height: var(--main-player-height);
   background: linear-gradient(180deg, rgba(24,24,24,0.98) 0%, rgba(12,12,12,0.98) 100%);
   border-top: 4px solid rgba(255,255,255,0.06); /* sharp dividing line */
-  padding: 0.5rem 0; /* remove side padding so it spans edge-to-edge visually */
+  padding: 0;
   border-radius: 0 0 0 0;
   box-shadow: 0 -14px 40px rgba(0,0,0,0.55);
-  overflow: auto; /* allow scrolling inside the control center */
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden; /* keep resize handle pinned while content scrolls beneath it */
 }
 
 /* Drag handle / sharper divider */
@@ -2242,15 +2312,17 @@ watch(stackedZones, (val) => {
 /* Constrain inner content so it lines up with the rest of the app while the background spans full width */
 .main-player > article {
   max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+  margin: 10px auto 0;
+  padding: 0.5rem 1rem 0;
   display: grid;
   grid-template-columns: minmax(220px, 220px) 1fr;
   grid-auto-rows: min-content;
   gap: 0.75rem;
   align-items: start;
-  height: 100%;
+  height: calc(100% - 10px);
   box-sizing: border-box;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .main-player-left {
@@ -2274,15 +2346,35 @@ watch(stackedZones, (val) => {
 
 .main-player-right {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(6, minmax(130px, 1fr));
   gap: 0.75rem;
   align-items: start;
+  overflow-x: auto;
 }
+
+.main-player-right .zone[data-zone='Battlefield'] {
+  grid-column: 1 / -1;
+}
+
+.main-player-right .zone[data-zone='Hand'] {
+  grid-column: 1 / -1;
+}
+
+.main-player-right .zone[data-zone='Graveyard'] { grid-column: 1; }
+.main-player-right .zone[data-zone='Exiled'] { grid-column: 2; }
+.main-player-right .zone[data-zone='Revealed'] { grid-column: 3; }
+.main-player-right .zone[data-zone='Controlled'] { grid-column: 4; }
+.main-player-right .zone[data-zone='Library'] { grid-column: 5; }
 
 /* Footer zones should behave like opponent zones */
 .main-player .zone {
   max-height: calc(var(--main-player-height) - 64px);
   overflow: auto; /* allow zone-level scrolling when content overflows vertically */
+}
+
+.main-player .zone[data-zone='Battlefield'],
+.main-player .zone[data-zone='Hand'] {
+  max-height: none;
 }
 
 .main-player-left .zone {

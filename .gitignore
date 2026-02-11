@@ -22,7 +22,6 @@ atlas.hcl
 all-printings.sql
 importer
 scripts/sync.sh
-.git
+.git/
 All Printings.json
-edhgo
 cards.csv

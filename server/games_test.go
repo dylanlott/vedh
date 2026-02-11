@@ -98,7 +98,7 @@ func TestCreateGame(t *testing.T) {
 					{
 						User:     "shakezula",
 						Life:     40,
-						Decklist: decklist(),
+						Decklist: decklistTwoCommanders(),
 						Commander: []*InputCard{
 							{
 								Name: "Gavi, Nest Warden",
@@ -180,32 +180,32 @@ func TestCreateGame(t *testing.T) {
 		},
 	}
 
-		for _, tt := range cases {
-			t.Run(tt.name, func(t *testing.T) {
-				s := testAPI(t)
-				result, err := s.CreateGame(authCtx("shakezula"), *tt.input)
-				if (err != nil) != tt.wantErr {
-					t.Errorf("s.CreateGame() error = %+v - wanted: %+v", err, tt.wantErr)
-				}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			s := testAPI(t)
+			result, err := s.CreateGame(authCtx("shakezula"), *tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("s.CreateGame() error = %+v - wanted: %+v", err, tt.wantErr)
+			}
 
-				// check results of want
-				diff := cmp.Diff(tt.want, result, cmpopts.IgnoreFields(
-					Game{},
-					"CreatedAt",
-					"Stack",
-				), cmpopts.IgnoreFields(
-					Turn{},
-					"Priority",
-				), cmpopts.IgnoreFields(
-					User{},
-					"ID",
-					"Boardstate",
-					"Password",
-					"Token",
-				))
-				if diff != "" {
-					t.Errorf("failed to create game: %s", diff)
-				}
+			// check results of want
+			diff := cmp.Diff(tt.want, result, cmpopts.IgnoreFields(
+				Game{},
+				"CreatedAt",
+				"Stack",
+			), cmpopts.IgnoreFields(
+				Turn{},
+				"Priority",
+			), cmpopts.IgnoreFields(
+				User{},
+				"ID",
+				"Boardstate",
+				"Password",
+				"Token",
+			))
+			if diff != "" {
+				t.Errorf("failed to create game: %s", diff)
+			}
 		})
 	}
 }
@@ -245,9 +245,9 @@ func TestJoinGame(t *testing.T) {
 					{Name: "deck_size", Value: "99"},
 				},
 				Turn: &Turn{
-					Phase:  "pregame",
-					Number: 0,
-					Player: mastershake,
+					Phase:    "pregame",
+					Number:   0,
+					Player:   mastershake,
 					Priority: mastershake,
 				},
 				Players: []*User{
@@ -319,11 +319,11 @@ func TestUpdateGame(t *testing.T) {
 		want    *Game
 		wantErr bool
 	}{
-			{
-				name: "should update game and alert gameChannels",
-				args: args{
-					ctx: authCtx(mastershake),
-					new: InputGame{
+		{
+			name: "should update game and alert gameChannels",
+			args: args{
+				ctx: authCtx(mastershake),
+				new: InputGame{
 					ID:        seedGameID,
 					CreatedAt: &time.Time{},
 					Players: []*InputUser{
@@ -339,9 +339,9 @@ func TestUpdateGame(t *testing.T) {
 						{Name: "deck_size", Value: "99"},
 					},
 					Turn: &InputTurn{
-						Number: 3,
-						Phase:  "the after party",
-						Player: "meatwad",
+						Number:   3,
+						Phase:    "the after party",
+						Player:   "meatwad",
 						Priority: "meatwad",
 					},
 				},
@@ -364,28 +364,28 @@ func TestUpdateGame(t *testing.T) {
 					{Name: "deck_size", Value: "99"},
 				},
 				Turn: &Turn{
-					Number: 3,
-					Phase:  "the after party",
-					Player: "meatwad",
+					Number:   3,
+					Phase:    "the after party",
+					Player:   "meatwad",
 					Priority: "meatwad",
 				},
 				Status: GameStatusInProgress,
 			},
 		},
 	}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				s := testAPI(t)
-				g, err := s.CreateGame(tt.args.ctx, *seedInputGame)
-				if err != nil {
-					t.Errorf("failed to create test host")
-				}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := testAPI(t)
+			g, err := s.CreateGame(tt.args.ctx, *seedInputGame)
+			if err != nil {
+				t.Errorf("failed to create test host")
+			}
 
 			// register the channel for our tests
-				gameChannel, err := s.GameUpdated(tt.args.ctx, g.ID, g.Players[0].ID)
-				if err != nil {
-					t.Errorf("failed to get game subscription: %s", err)
-				}
+			gameChannel, err := s.GameUpdated(tt.args.ctx, g.ID, g.Players[0].ID)
+			if err != nil {
+				t.Errorf("failed to get game subscription: %s", err)
+			}
 			log.Printf("gameChannel: %+v", gameChannel)
 
 			// fire off our UpdateGame function
@@ -397,7 +397,24 @@ func TestUpdateGame(t *testing.T) {
 			t.Logf("update Game got: %+v", got)
 
 			// assert on the returns
-				diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(
+			diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(
+				Game{},
+				"CreatedAt",
+				"Stack",
+			), cmpopts.IgnoreFields(
+				Turn{},
+				"Priority",
+			))
+			if diff != "" {
+				log.Printf("diff: %s", diff)
+				t.Errorf("UpdateGame wanted: %+v - got %+v", tt.want, got)
+			}
+
+			// assert on the game that was emitted from our subscription
+			select {
+			case emitted := <-gameChannel:
+				t.Logf("emitted game: %+v", emitted)
+				diff2 := cmp.Diff(emitted, tt.want, cmpopts.IgnoreFields(
 					Game{},
 					"CreatedAt",
 					"Stack",
@@ -405,32 +422,15 @@ func TestUpdateGame(t *testing.T) {
 					Turn{},
 					"Priority",
 				))
-				if diff != "" {
-					log.Printf("diff: %s", diff)
-					t.Errorf("UpdateGame wanted: %+v - got %+v", tt.want, got)
+				if diff2 != "" {
+					t.Errorf("failed to emit game on channels correctly: diff %+v", diff2)
 				}
-
-				// assert on the game that was emitted from our subscription
-				select {
-				case emitted := <-gameChannel:
-					t.Logf("emitted game: %+v", emitted)
-					diff2 := cmp.Diff(emitted, tt.want, cmpopts.IgnoreFields(
-						Game{},
-						"CreatedAt",
-						"Stack",
-					), cmpopts.IgnoreFields(
-						Turn{},
-						"Priority",
-					))
-					if diff2 != "" {
-						t.Errorf("failed to emit game on channels correctly: diff %+v", diff2)
-					}
-				case <-time.After(time.Second):
-					t.Errorf("timed out waiting for game update")
-				}
-			})
-		}
+			case <-time.After(time.Second):
+				t.Errorf("timed out waiting for game update")
+			}
+		})
 	}
+}
 
 func TestMultipleSubscriptions(t *testing.T) {
 	s := testAPI(t)
@@ -599,6 +599,21 @@ func TestAdvancePhase(t *testing.T) {
 	assert.Equal(t, nextNumber, updated.Turn.Number)
 	assert.Equal(t, mastershake, updated.Turn.Priority)
 
+	updated, err = s.AdvancePhase(authCtx(mastershake), gameID, "END STEP", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, "END STEP", updated.Turn.Phase)
+	assert.Equal(t, nextNumber, updated.Turn.Number)
+
+	updated, err = s.AdvancePhase(authCtx(mastershake), gameID, "DISCARD", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, "DISCARD", updated.Turn.Phase)
+	assert.Equal(t, nextNumber, updated.Turn.Number)
+
+	updated, err = s.AdvancePhase(authCtx(mastershake), gameID, "UNTAP", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, "UNTAP", updated.Turn.Phase)
+	assert.Equal(t, nextNumber+1, updated.Turn.Number)
+
 	_, err = s.AdvancePhase(authCtx(carl), gameID, "END", nil)
 	assert.Error(t, err)
 }
@@ -674,123 +689,60 @@ func TestCreateLibraryFromDecklist(t *testing.T) {
 	s := testAPI(t)
 	d := decklist()
 	ctx := context.Background()
-	got, err := s.createLibraryFromDecklist(ctx, *d)
+	got, err := s.createLibraryFromDecklist(ctx, *d, []*InputCard{{Name: "Gavi, Nest Warden"}})
 	is.NoErr(err)
-	is.Equal(len(got), 112)
+	is.Equal(len(got), 99)
 	// assert that we get card data back as well
 	card := got[0]
 	is.True(card != nil)
 	is.True(card.Name != "")
 }
 
-// returns a csv formatted string using a premade decklist that tests up to the
-// Theros set
+func TestCreateLibraryFromDecklist_RejectsTooLargeDeck(t *testing.T) {
+	is := is.New(t)
+	s := testAPI(t)
+	ctx := context.Background()
+	d := func() *string {
+		v := "100,Island"
+		return &v
+	}()
+
+	_, err := s.createLibraryFromDecklist(ctx, *d, []*InputCard{
+		{Name: "Gavi, Nest Warden"},
+		{Name: "Jarad, Golgari Lich Lord"},
+	})
+	is.True(err != nil)
+}
+
+func TestCreateLibraryFromDecklist_RemovesSelectedCommanders(t *testing.T) {
+	is := is.New(t)
+	s := testAPI(t)
+	ctx := context.Background()
+	d := func() *string {
+		v := "1,\"Gavi, Nest Warden\"\n1,\"Jarad, Golgari Lich Lord\""
+		return &v
+	}()
+
+	got, err := s.createLibraryFromDecklist(ctx, *d, []*InputCard{
+		{Name: "Gavi, Nest Warden"},
+		{Name: "Jarad, Golgari Lich Lord"},
+	})
+	is.NoErr(err)
+	is.Equal(len(got), 0)
+}
+
 func decklist() *string {
-	var deck = string(`1,Floodwaters
-	1,Astral Slide
-	1,Possibility Storm
-	1,Braid of Fire
-	1,Complicate
-	1,Miscalculation
-	1,Glint-Horn Buccaneer
-	1,Alhammarret's Archive
-	1,Soothsaying
-	1,Drannith Stinger
-	1,"Vadrok, Apex of Thunder"
-	1,Raugrin Crystal
-	1,Flourishing Fox
-	1,Neutralize
-	1,Reconnaissance Mission
-	1,Boon of the Wish-Giver
-	1,"Yidaro, Wandering Monster"
-	1,Arcane Signet
-	1,Shark Typhoon
-	1,"Rielle, the Everwise"
-	1,Rooting Moloch
-	1,Ominous Seas
-	1,"Shabraz, the Skyshark"
-	1,"Brallin, Skyshark Rider"
-	1,Spellpyre Phoenix
-	1,Crystalline Resonance
-	1,Herald of the Forgotten
-	1,Dismantling Wave
-	1,Astral Drift
-	1,Eternal Dragon
-	1,Fluctuator
-	1,Surly Badgersaur
-	1,Savai Thundermane
-	1,Lightning Rift
-	1,Splendor Mare
-	1,Decree of Justice
-	1,Akroma's Vengeance
-	1,Smoldering Crater
-	1,Skycloud Expanse
-	1,Secluded Steppe
-	1,Remote Isle
-	1,Prairie Stream
-	1,Reliquary Tower
-	1,Myriad Landscape
-	1,Mystic Monastery
-	1,Lonely Sandbar
-	1,Izzet Boilerworks
-	1,Exotic Orchard
-	1,Forgotten Cave
-	1,Drifting Meadow
-	1,Azorius Chancery
-	1,Psychosis Crawler
-	1,Izzet Signet
-	1,Azorius Signet
-	1,Boros Signet
-	1,Migratory Route
-	1,"Niv-Mizzet, the Firemind"
-	1,Starstorm
-	1,Slice and Dice
-	1,"Chandra, Flamecaller"
-	1,Windfall
-	1,Zenith Flare
-	1,Sanctuary Smasher
-	1,Unpredictable Cyclone
-	1,Raugrin Triome
-	1,Imposing Vantasaur
-	1,Teferi's Ageless Insight
-	1,Thriving Isle
-	1,Ash Barrens
-	1,"Gavi, Nest Warden"
-	1,Forsake the Worldly
-	1,Hieroglyphic Illumination
-	1,Drake Haven
-	1,Countervailing Winds
-	1,Curator of Mysteries
-	1,Irrigated Farmland
-	1,Desert of the Fervent
-	1,Desert of the Mindful
-	1,Desert of the True
-	1,Abandoned Sarcophagus
-	1,The Locust God
-	1,Sol Ring
-	1,Command Tower
-	3,Mountain
-	4,Island
-	3,Plains
-	1,Swords to Plowshares
-	1,Hallowed Fountain
-	1,Shivan Reef
-	1,Steam Vents
-	1,Cloud of Faeries
-	1,Nimble Obstructionist
-	1,Sun Titan
-	1,Valiant Rescuer
-	1,Vizier of Tumbling Sands
-	1,"Ephara, God of the Polis"
-	1,Talisman of Creativity
-	1,Commander's Sphere
-	1,Radiant's Judgment
-	1,Idyllic Tutor
-	1,Cast Out
-	1,New Perspectives
-	1,Tectonic Reformation
-	1,Decree of Silence
-	1,Fierce Guardianship`)
+	var deck = string(`1,"Gavi, Nest Warden"
+98,Island
+1,Mountain`)
+
+	return &deck
+}
+
+func decklistTwoCommanders() *string {
+	var deck = string(`1,"Gavi, Nest Warden"
+1,"Jarad, Golgari Lich Lord"
+97,Island`)
 
 	return &deck
 }
