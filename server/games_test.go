@@ -442,6 +442,31 @@ func TestMultipleSubscriptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, ch1)
 
+	deck := decklist()
+	_, err = s.JoinGame(authCtxWithID(carl, carl), &InputJoinGame{
+		ID:       created.ID,
+		Decklist: deck,
+		BoardState: &InputBoardState{
+			UserID: carl,
+			User:   carl,
+			GameID: created.ID,
+			Life:   40,
+		},
+	})
+	assert.NoError(t, err)
+
+	_, err = s.JoinGame(authCtxWithID(meatwad, meatwad), &InputJoinGame{
+		ID:       created.ID,
+		Decklist: deck,
+		BoardState: &InputBoardState{
+			UserID: meatwad,
+			User:   meatwad,
+			GameID: created.ID,
+			Life:   40,
+		},
+	})
+	assert.NoError(t, err)
+
 	ch2, err := s.GameUpdated(authCtx(carl), created.ID, carl)
 	assert.NoError(t, err)
 	assert.NotNil(t, ch2)
@@ -449,6 +474,17 @@ func TestMultipleSubscriptions(t *testing.T) {
 	ch3, err := s.GameUpdated(authCtx(meatwad), created.ID, meatwad)
 	assert.NoError(t, err)
 	assert.NotNil(t, ch3)
+
+	// ch1 may have buffered join-game updates from when only mastershake was subscribed.
+	// Drain any queued events so all subscribers compare the same post-update payload.
+drainCh1:
+	for {
+		select {
+		case <-ch1:
+		default:
+			break drainCh1
+		}
+	}
 
 	updated, err := s.UpdateGame(authCtx(mastershake), InputGame{
 		ID: created.ID,
@@ -509,6 +545,28 @@ func TestMultipleSubscriptions(t *testing.T) {
 	assert.Equal(t, first, second)
 	assert.Equal(t, first, third)
 	assert.Equal(t, second, third)
+}
+
+func TestGetGame_RejectsNonParticipant(t *testing.T) {
+	s := testAPI(t)
+	created, err := s.CreateGame(authCtx(mastershake), *seedInputGame)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	_, err = s.GetGame(authCtx(carl), created.ID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "forbidden")
+}
+
+func TestGameUpdated_RejectsNonParticipant(t *testing.T) {
+	s := testAPI(t)
+	created, err := s.CreateGame(authCtx(mastershake), *seedInputGame)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	_, err = s.GameUpdated(authCtx(carl), created.ID, carl)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "forbidden")
 }
 
 func TestPassPriority(t *testing.T) {

@@ -35,10 +35,9 @@ type FullGame struct {
 // Games returns a list of Games that are unmarshaled from the payload column of the
 // games table.
 func (s *graphQLServer) Games(ctx context.Context, offset int, limit int) ([]*Game, error) {
-	if !isPublicQuery("games") {
-		if _, err := requireAuth(ctx); err != nil {
-			return nil, err
-		}
+	authUser, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
 	}
 	// Basic pagination: order by id for stability and apply limit/offset.
 	// If you add created_at to the table, prefer ordering by that.
@@ -59,18 +58,16 @@ func (s *graphQLServer) Games(ctx context.Context, offset int, limit int) ([]*Ga
 		if err := json.Unmarshal(pbz, &game); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal game %s: %w", id, err)
 		}
+		ensureGameDefaults(game)
+		if !isUserInGame(game, authUser) {
+			continue
+		}
 		games = append(games, game)
 	}
 	return games, nil
 }
 
-// GetGame returns a single game from the
-func (s *graphQLServer) GetGame(ctx context.Context, gameID string) (*Game, error) {
-	if !isPublicQuery("getGame") {
-		if _, err := requireAuth(ctx); err != nil {
-			return nil, err
-		}
-	}
+func (s *graphQLServer) loadGameByID(gameID string) (*Game, error) {
 	var payload []byte
 	query := `SELECT payload FROM games WHERE id = $1`
 	err := s.db.QueryRow(query, gameID).Scan(&payload)
@@ -84,14 +81,38 @@ func (s *graphQLServer) GetGame(ctx context.Context, gameID string) (*Game, erro
 		return nil, err
 	}
 	ensureGameDefaults(game)
-	s.logger.Debug("deserialized game", "game", game)
+	return game, nil
+}
+
+// GetGame returns a single game from the database if the authenticated user is a participant.
+func (s *graphQLServer) GetGame(ctx context.Context, gameID string) (*Game, error) {
+	authUser, err := requireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	game, err := s.loadGameByID(gameID)
+	if err != nil {
+		return nil, err
+	}
+	if !isUserInGame(game, authUser) {
+		return nil, errors.New("forbidden: not a participant in this game")
+	}
 	return game, nil
 }
 
 // GameUpdated returns a channel for a game or an error.
 func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID string) (<-chan *Game, error) {
-	if _, err := requireMatchingUser(ctx, userID, ""); err != nil {
+	authUser, err := requireMatchingUser(ctx, userID, "")
+	if err != nil {
 		return nil, err
+	}
+	game, err := s.loadGameByID(gameID)
+	if err != nil {
+		return nil, err
+	}
+	if !isUserInGame(game, authUser) {
+		return nil, errors.New("forbidden: not a participant in this game")
 	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -491,7 +512,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	}
 
 	// get the game and verify itself
-	game, err := s.GetGame(ctx, input.ID)
+	game, err := s.loadGameByID(input.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("game does not exist: %w", err)
