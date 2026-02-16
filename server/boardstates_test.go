@@ -24,11 +24,11 @@ func TestUpdateBoardState(t *testing.T) {
 		{
 			name: "should update boardstate and notify listeners",
 			args: args{
-				ctx: authCtx("shakezula"),
+				ctx: authCtx(mastershake),
 				input: InputBoardState{
 					GameID: seedGameID,
-					UserID: "shakezula",
-					User:   "shakezula",
+					UserID: mastershake,
+					User:   mastershake,
 					Life:   38,
 					Commander: []*InputCard{
 						{Name: "Gavi, Nest Warden"},
@@ -38,8 +38,8 @@ func TestUpdateBoardState(t *testing.T) {
 			wantErr: false,
 			want: &BoardState{
 				GameID: seedGameID,
-				UserID: "shakezula",
-				User:   "shakezula",
+				UserID: mastershake,
+				User:   mastershake,
 				Life:   38,
 				Commander: []*Card{
 					{Name: "Gavi, Nest Warden"},
