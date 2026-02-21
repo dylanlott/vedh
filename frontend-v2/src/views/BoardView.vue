@@ -241,17 +241,24 @@
 
     <!-- Main: current player's board (anchored to bottom) -->
     <section class="main-player" v-if="selfPlayer && !mainPlayerCollapsed">
-      <div class="main-player-resize-handle" @dblclick="toggleMainPlayerCollapsed" @mousedown="startMainPlayerResize" />
+      <div class="main-player-resize-handle" @dblclick="toggleMainPlayerCollapsed" @mousedown="startMainPlayerResize" @touchstart.prevent="startMainPlayerResize" />
       <article :class="{ active: isActivePlayer(selfPlayer.Username) }">
         <div class="main-player-left">
           <header class="main-player-header">
             <h2>{{ selfPlayer.Username }}</h2>
             <div class="life-row">
-              <span class="life">{{ selfPlayer.Boardstate?.Life ?? '—' }} life</span>
+              <span class="life life-pill" :class="lifePulseClass">{{ selfPlayer.Boardstate?.Life ?? '—' }} life</span>
               <div class="life-tools inline">
                 <button class="tool" title="Lose 1 life" @click="changeLife(selfPlayer.Username, -1)">−1</button>
                 <button class="tool" title="Gain 1 life" @click="changeLife(selfPlayer.Username, 1)">+1</button>
               </div>
+            </div>
+            <div class="player-status-strip">
+              <span class="status-chip" :class="{ hot: hasPriority }">Priority: {{ hasPriority ? 'You' : (currentPriority ?? '—') }}</span>
+              <span class="status-chip" :class="{ hot: isZonePulsing('Battlefield') }">Battlefield {{ selfPlayer.Boardstate?.Battlefield?.length ?? 0 }}</span>
+              <span class="status-chip" :class="{ hot: isZonePulsing('Hand') }">Hand {{ selfPlayer.Boardstate?.Hand?.length ?? 0 }}</span>
+              <span class="status-chip" :class="{ hot: isZonePulsing('Library') }">Library {{ selfLibraryKnown ? selfLibraryCount : '—' }}</span>
+              <span class="status-chip" :class="{ hot: isZonePulsing('Graveyard') }">GY {{ selfPlayer.Boardstate?.Graveyard?.length ?? 0 }}</span>
             </div>
             <nav class="player-toolbar">
               <button
@@ -286,7 +293,7 @@
               >🔀 Shuffle</button>
             </nav>
           </header>
-          <div class="zone commander" :data-zone="'Commander'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Commander') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Commander')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Commander')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Commander')">
+          <div class="zone commander" :data-zone="'Commander'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Commander'), 'zone-hit': isZonePulsing('Commander') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Commander')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Commander')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Commander')">
             <h3>
               Commander
               <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Commander')">
@@ -334,7 +341,7 @@
           </div>
         </div>
         <div class="main-player-right">
-  <div class="zone" :data-zone="'Battlefield'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Battlefield') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Battlefield')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Battlefield')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Battlefield')">
+  <div class="zone" :data-zone="'Battlefield'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Battlefield'), 'zone-hit': isZonePulsing('Battlefield') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Battlefield')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Battlefield')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Battlefield')">
           <h3>
             Battlefield
             <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Battlefield')">
@@ -380,7 +387,7 @@
             </ul>
           </template>
         </div>
-  <div class="zone" :data-zone="'Hand'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Hand') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Hand')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Hand')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Hand')">
+  <div class="zone" :data-zone="'Hand'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Hand'), 'zone-hit': isZonePulsing('Hand') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Hand')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Hand')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Hand')">
           <h3>
             Hand ({{ selfPlayer.Boardstate?.Hand?.length ?? 0 }})
             <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Hand')">
@@ -426,7 +433,7 @@
             </ul>
           </template>
         </div>
-  <div class="zone" :data-zone="'Graveyard'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Graveyard') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Graveyard')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Graveyard')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Graveyard')">
+  <div class="zone" :data-zone="'Graveyard'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Graveyard'), 'zone-hit': isZonePulsing('Graveyard') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Graveyard')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Graveyard')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Graveyard')">
           <h3>
             Graveyard ({{ selfPlayer.Boardstate?.Graveyard?.length ?? 0 }})
             <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Graveyard')">
@@ -472,7 +479,7 @@
             </ul>
           </template>
         </div>
-  <div class="zone" :data-zone="'Exiled'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Exiled') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Exiled')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Exiled')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Exiled')">
+  <div class="zone" :data-zone="'Exiled'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Exiled'), 'zone-hit': isZonePulsing('Exiled') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Exiled')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Exiled')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Exiled')">
           <h3>
             Exiled ({{ selfPlayer.Boardstate?.Exiled?.length ?? 0 }})
             <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Exiled')">
@@ -518,7 +525,7 @@
             </ul>
           </template>
         </div>
-  <div class="zone" :data-zone="'Revealed'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Revealed') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Revealed')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Revealed')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Revealed')">
+  <div class="zone" :data-zone="'Revealed'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Revealed'), 'zone-hit': isZonePulsing('Revealed') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Revealed')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Revealed')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Revealed')">
           <h3>
             Revealed ({{ selfPlayer.Boardstate?.Revealed?.length ?? 0 }})
             <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Revealed')">
@@ -564,7 +571,7 @@
             </ul>
           </template>
         </div>
-  <div class="zone" :data-zone="'Controlled'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Controlled') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Controlled')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Controlled')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Controlled')">
+  <div class="zone" :data-zone="'Controlled'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Controlled'), 'zone-hit': isZonePulsing('Controlled') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Controlled')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Controlled')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Controlled')">
           <h3>
             Controlled ({{ selfPlayer.Boardstate?.Controlled?.length ?? 0 }})
             <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Controlled')">
@@ -610,7 +617,7 @@
             </ul>
           </template>
         </div>
-  <div class="zone" :data-zone="'Library'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Library') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Library')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Library')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Library')">
+  <div class="zone" :data-zone="'Library'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Library'), 'zone-hit': isZonePulsing('Library') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Library')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Library')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Library')">
           <h3>
             Library ({{ selfLibraryKnown ? selfLibraryCount : '—' }})
           </h3>
@@ -736,6 +743,13 @@ const mainPlayerCollapsed = ref(false);
 const mainPlayerHeightCss = computed(() => mainPlayerCollapsed.value ? '0px' : `${mainPlayerHeight.value}vh`);
 const mainPlayerResizing = ref(false);
 const mainPlayerResizeStart = ref({ y: 0, height: 33 });
+const lifePulseClass = ref('');
+let lifePulseTimer: number | null = null;
+const zonePulseState = ref<Record<Zone, boolean>>(zones.reduce((acc, zone) => {
+  acc[zone] = false;
+  return acc;
+}, {} as Record<Zone, boolean>));
+const zonePulseTimers = new Map<Zone, number>();
 const MAIN_PLAYER_MIN_VH = 16;
 const MAIN_PLAYER_MAX_VH = 60;
 const PHASE_ORDER = [
@@ -782,6 +796,32 @@ const nextPhaseLabel = computed(() => {
   const next = PHASE_ORDER[idx + 1] ?? PHASE_ORDER[0];
   return next?.label ?? 'Next phase';
 });
+
+function pulseLife(delta: number) {
+  lifePulseClass.value = delta >= 0 ? 'gain' : 'loss';
+  if (lifePulseTimer) window.clearTimeout(lifePulseTimer);
+  lifePulseTimer = window.setTimeout(() => {
+    lifePulseClass.value = '';
+  }, 520);
+}
+
+function pulseZone(zone: Zone) {
+  zonePulseState.value[zone] = false;
+  const existing = zonePulseTimers.get(zone);
+  if (existing) window.clearTimeout(existing);
+  window.setTimeout(() => {
+    zonePulseState.value[zone] = true;
+  }, 0);
+  const timer = window.setTimeout(() => {
+    zonePulseState.value[zone] = false;
+    zonePulseTimers.delete(zone);
+  }, 700);
+  zonePulseTimers.set(zone, timer);
+}
+
+function isZonePulsing(zone: Zone) {
+  return !!zonePulseState.value[zone];
+}
 
 onMounted(() => {
   try {
@@ -837,15 +877,29 @@ watch(toastDurationMs, (val) => {
     localStorage.setItem(TOAST_TTL_KEY, String(clamped));
   } catch {}
 });
+watch(() => selfPlayer.value?.Boardstate?.Life, (next, prev) => {
+  if (typeof next !== 'number' || typeof prev !== 'number' || next === prev) return;
+  pulseLife(next - prev);
+});
 
 function toggleMainPlayerCollapsed() {
   mainPlayerCollapsed.value = !mainPlayerCollapsed.value;
 }
 
-function onMainPlayerResizeMove(event: MouseEvent) {
+function getClientY(event: MouseEvent | TouchEvent) {
+  if (event instanceof TouchEvent) {
+    return event.touches[0]?.clientY ?? event.changedTouches[0]?.clientY ?? 0;
+  }
+  return event.clientY;
+}
+
+function onMainPlayerResizeMove(event: MouseEvent | TouchEvent) {
   if (!mainPlayerResizing.value) return;
-  const viewportHeight = window.innerHeight || 1;
-  const delta = mainPlayerResizeStart.value.y - event.clientY;
+  if (event instanceof TouchEvent) {
+    event.preventDefault();
+  }
+  const viewportHeight = window.visualViewport?.height || window.innerHeight || 1;
+  const delta = mainPlayerResizeStart.value.y - getClientY(event);
   const deltaVh = (delta / viewportHeight) * 100;
   const next = Math.min(
     MAIN_PLAYER_MAX_VH,
@@ -908,14 +962,20 @@ function stopMainPlayerResize() {
   mainPlayerResizing.value = false;
   document.removeEventListener('mousemove', onMainPlayerResizeMove);
   document.removeEventListener('mouseup', stopMainPlayerResize);
+  document.removeEventListener('touchmove', onMainPlayerResizeMove);
+  document.removeEventListener('touchend', stopMainPlayerResize);
+  document.removeEventListener('touchcancel', stopMainPlayerResize);
 }
 
-function startMainPlayerResize(event: MouseEvent) {
+function startMainPlayerResize(event: MouseEvent | TouchEvent) {
   if (mainPlayerCollapsed.value) return;
   mainPlayerResizing.value = true;
-  mainPlayerResizeStart.value = { y: event.clientY, height: mainPlayerHeight.value };
+  mainPlayerResizeStart.value = { y: getClientY(event), height: mainPlayerHeight.value };
   document.addEventListener('mousemove', onMainPlayerResizeMove);
   document.addEventListener('mouseup', stopMainPlayerResize);
+  document.addEventListener('touchmove', onMainPlayerResizeMove, { passive: false });
+  document.addEventListener('touchend', stopMainPlayerResize);
+  document.addEventListener('touchcancel', stopMainPlayerResize);
 }
 
 const PUBLIC_ZONES: Zone[] = ['Commander', 'Battlefield', 'Graveyard', 'Exiled', 'Revealed', 'Controlled'];
@@ -1164,6 +1224,11 @@ onBeforeUnmount(() => {
   games.clearActiveGame();
   stopMainPlayerResize();
   if (stackPulseTimer) window.clearTimeout(stackPulseTimer);
+  if (lifePulseTimer) window.clearTimeout(lifePulseTimer);
+  for (const timer of zonePulseTimers.values()) {
+    window.clearTimeout(timer);
+  }
+  zonePulseTimers.clear();
 });
 
 function isActivePlayer(username: string) {
@@ -1350,6 +1415,12 @@ async function moveCard(args: MoveCardArgs) {
         [args.fromZone]: (draft[args.fromZone] ?? []).filter((c: { ID: string }) => c.ID !== args.cardID),
       }));
     }
+    if (args.user === auth.profile?.Username) {
+      pulseZone(args.toZone);
+      if (args.fromUser === args.user) {
+        pulseZone(args.fromZone);
+      }
+    }
   } catch (e) {
     console.error('[board] moveCard failed', e);
   }
@@ -1399,6 +1470,9 @@ async function toggleTapped(user: string, zone: Zone, card: any, fromIndex?: num
       ...current,
       Life: player.Boardstate!.Life,
     }));
+    if (user === auth.profile?.Username) {
+      pulseZone(zone);
+    }
   } catch (e) {
     console.error('[board] toggleTapped failed', e);
   }
@@ -1445,6 +1519,9 @@ async function moveHandCardToStack(card: any, user: string, fromIndex?: number) 
     });
     games.activeGame = { ...g, Players: updatedPlayers, Stack: updatedStack } as any;
     addToast(`Put ${moved.movedCard.Name} on stack`);
+    if (user === auth.profile?.Username) {
+      pulseZone('Hand');
+    }
   } catch (e) {
     console.error('[board] moveHandCardToStack failed', e);
     addToast('Failed to put card on stack');
@@ -1487,6 +1564,9 @@ async function resolveStackCard(stackIndex: number) {
     });
     games.activeGame = { ...g, Players: updatedPlayers, Stack: resolved.stack } as any;
     addToast(`Resolved ${resolved.movedCard.Name}`);
+    if (owner === auth.profile?.Username) {
+      pulseZone('Graveyard');
+    }
   } catch (e) {
     console.error('[board] resolveStackCard failed', e);
     addToast('Failed to resolve stack card');
@@ -1619,6 +1699,9 @@ async function shuffleLibrary(username: string) {
       ...prev,
       ...input,
     }));
+    if (username === auth.profile?.Username) {
+      pulseZone('Library');
+    }
   } catch (e) {
     console.error('[board] shuffleLibrary failed', e);
   }
@@ -1661,6 +1744,9 @@ function scryOne(username: string) {
 function scryKeepTop() {
   if (!scry.value) return;
   addToast(`Kept ${scry.value.card?.Name} on top`);
+  if (scry.value.username === auth.profile?.Username) {
+    pulseZone('Library');
+  }
   scry.value = null;
 }
 
@@ -1685,6 +1771,9 @@ async function scryPutBottom() {
     });
     addToast(`Put ${s.card?.Name} on bottom`);
     applyLocalBoardstatePatch(s.username, (prev) => ({ ...prev, ...input }));
+    if (s.username === auth.profile?.Username) {
+      pulseZone('Library');
+    }
   } catch (e) {
     console.error('[board] scryPutBottom failed', e);
   } finally {
@@ -1755,7 +1844,7 @@ watch(stackedZones, (val) => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  height: 100vh;
+  height: 100dvh;
   --main-player-height: 33vh; /* bottom third reserved for player's control center */
   --turn-accent: #f5b342;
 }
@@ -2055,6 +2144,10 @@ watch(stackedZones, (val) => {
   box-shadow: 0 12px 36px rgba(6,20,30,0.6);
 }
 
+.zone.zone-hit {
+  animation: zone-hit 650ms ease;
+}
+
 .zone h3 {
   margin: 0 0 0.25rem;
   font-size: 0.8rem;
@@ -2173,6 +2266,21 @@ watch(stackedZones, (val) => {
   0% { box-shadow: 0 6px 18px rgba(133,215,255,0.0); }
   50% { box-shadow: 0 10px 30px rgba(133,215,255,0.25); }
   100% { box-shadow: 0 6px 18px rgba(133,215,255,0.0); }
+}
+
+@keyframes zone-hit {
+  0% {
+    box-shadow: 0 0 0 rgba(133,215,255,0);
+    border-color: rgba(255,255,255,0.08);
+  }
+  35% {
+    box-shadow: 0 0 0 1px rgba(133,215,255,0.35), 0 0 28px rgba(133,215,255,0.34);
+    border-color: rgba(133,215,255,0.78);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(133,215,255,0);
+    border-color: rgba(255,255,255,0.08);
+  }
 }
 .card-tile { position: relative; transition: transform 140ms ease, box-shadow 160ms ease; }
 .card-tile.dragging {
@@ -2304,9 +2412,10 @@ watch(stackedZones, (val) => {
   left: 0;
   right: 0;
   top: 0;
-  height: 10px;
+  height: 12px;
   cursor: ns-resize;
   background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  touch-action: none;
 }
 
 /* Constrain inner content so it lines up with the rest of the app while the background spans full width */
@@ -2342,6 +2451,51 @@ watch(stackedZones, (val) => {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.main-player-header .life-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: box-shadow 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.main-player-header .life-pill.gain {
+  border-color: rgba(110, 220, 140, 0.85);
+  box-shadow: 0 0 0 1px rgba(110, 220, 140, 0.35), 0 0 22px rgba(110, 220, 140, 0.28);
+  transform: translateY(-1px);
+}
+
+.main-player-header .life-pill.loss {
+  border-color: rgba(255, 120, 120, 0.85);
+  box-shadow: 0 0 0 1px rgba(255, 120, 120, 0.35), 0 0 22px rgba(255, 120, 120, 0.25);
+  transform: translateY(-1px);
+}
+
+.player-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.status-chip {
+  border-radius: 999px;
+  padding: 0.18rem 0.52rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.82);
+  transition: border-color 130ms ease, box-shadow 150ms ease, transform 120ms ease;
+}
+
+.status-chip.hot {
+  border-color: rgba(133, 215, 255, 0.75);
+  box-shadow: 0 0 0 1px rgba(133, 215, 255, 0.22), 0 0 18px rgba(133, 215, 255, 0.3);
+  transform: translateY(-1px);
 }
 
 .main-player-right {
@@ -2393,6 +2547,26 @@ watch(stackedZones, (val) => {
   .main-player > article {
     grid-template-columns: 1fr;
   }
+
+  .main-player-resize-handle {
+    height: 18px;
+  }
+
+  .main-player .zone.commander .cards.tiles > *,
+  .main-player .zone.commander .cards.art > * {
+    flex-basis: 96px;
+    max-width: 96px;
+  }
+
+  .zone[data-zone='Commander'] .cards.tiles > *,
+  .zone[data-zone='Commander'] .cards.art > * {
+    flex-basis: 92px;
+    max-width: 92px;
+  }
+
+  .main-player .zone.commander .card-tile .label {
+    font-size: 0.72rem;
+  }
 }
 
 .main-player-collapsed-toggle {
@@ -2441,6 +2615,17 @@ header .player-toolbar {
   font-size: 0.8rem;
   padding: 0.25rem 0.5rem;
   border-radius: 999px;
+}
+
+.board button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(133, 215, 255, 0.3);
+  transition: transform 80ms ease, filter 100ms ease, background-color 120ms ease;
+}
+
+.board button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(1.15);
 }
 
 .player-toolbar .life-tools {

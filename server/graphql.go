@@ -22,6 +22,14 @@ import (
 	"github.com/rs/cors"
 )
 
+const (
+	readHeaderTimeout = 5 * time.Second
+	readTimeout       = 15 * time.Second
+	writeTimeout      = 30 * time.Second
+	idleTimeout       = 60 * time.Second
+	maxHeaderBytes    = 1 << 20 // 1 MiB
+)
+
 // Conf takes configuration values and loads them from the environment into our struct.
 type Conf struct {
 	PostgresURL string `envconfig:"DATABASE_URL" default:"postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable"`
@@ -187,7 +195,20 @@ func (s *graphQLServer) Serve(route string, port int) error {
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
 	mux.Handle("/prometheus", promhttp.Handler())
 	s.logger.Info("serving graphiql", "url", fmt.Sprintf("http://localhost:%d/playground", port))
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), h)
+	server := newHTTPServer(port, h)
+	return server.ListenAndServe()
+}
+
+func newHTTPServer(port int, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           handler,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
+		MaxHeaderBytes:    maxHeaderBytes,
+	}
 }
 
 // withAuthContext validates bearer tokens (if present) and attaches the user to the request context.
