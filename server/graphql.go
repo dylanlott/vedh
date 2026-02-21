@@ -5,6 +5,7 @@ package server
 import (
 	"bufio"
 	"context"
+	"crypto/subtle"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -37,6 +38,8 @@ type Conf struct {
 	PostgresURL    string `envconfig:"DATABASE_URL" default:"postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable"`
 	DefaultPort    int    `envconfig:"PORT" default:"8080"`
 	AllowedOrigins string `envconfig:"ALLOWED_ORIGINS" default:"http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080"`
+	MetricsEnabled bool   `envconfig:"METRICS_ENABLED" default:"false"`
+	MetricsToken   string `envconfig:"METRICS_TOKEN" default:""`
 }
 
 // var userCtxKey = &contextKey{"user"}
@@ -229,6 +232,31 @@ func (s *graphQLServer) isAllowedWebSocketOrigin(r *http.Request) bool {
 	return false
 }
 
+func (s *graphQLServer) shouldExposeMetrics() bool {
+	return s != nil && s.cfg.MetricsEnabled
+}
+
+func (s *graphQLServer) withMetricsAuth(next http.Handler) http.Handler {
+	token := strings.TrimSpace(s.cfg.MetricsToken)
+	if token == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		const prefix = "Bearer "
+		raw := strings.TrimSpace(r.Header.Get("Authorization"))
+		if !strings.HasPrefix(raw, prefix) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		presented := strings.TrimSpace(strings.TrimPrefix(raw, prefix))
+		if subtle.ConstantTimeCompare([]byte(presented), []byte(token)) != 1 {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Serve is a blocking function that runs the server until anything returns an error.
 // It sets up the muxed routing, exposes the prometheus endpoint, and serves the
 // GraphQL playground and API at the given route and port.
@@ -263,7 +291,11 @@ func (s *graphQLServer) Serve(route string, port int) error {
 	h = s.withRequestLogging(h)
 	h = s.withRequestID(h)
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
-	mux.Handle("/prometheus", promhttp.Handler())
+	if s.shouldExposeMetrics() {
+		mux.Handle("/prometheus", s.withMetricsAuth(promhttp.Handler()))
+	} else {
+		s.logger.Info("prometheus metrics disabled; set METRICS_ENABLED=true to expose /prometheus")
+	}
 	s.logger.Info("serving graphiql", "url", fmt.Sprintf("http://localhost:%d/playground", port))
 	server := newHTTPServer(port, h)
 	return server.ListenAndServe()
