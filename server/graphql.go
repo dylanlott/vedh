@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,8 +34,9 @@ const (
 
 // Conf takes configuration values and loads them from the environment into our struct.
 type Conf struct {
-	PostgresURL string `envconfig:"DATABASE_URL" default:"postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable"`
-	DefaultPort int    `envconfig:"PORT" default:"8080"`
+	PostgresURL    string `envconfig:"DATABASE_URL" default:"postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable"`
+	DefaultPort    int    `envconfig:"PORT" default:"8080"`
+	AllowedOrigins string `envconfig:"ALLOWED_ORIGINS" default:"http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080"`
 }
 
 // var userCtxKey = &contextKey{"user"}
@@ -46,6 +49,7 @@ type graphQLServer struct {
 	mutex sync.RWMutex
 
 	logger *slog.Logger
+	cfg    Conf
 
 	// Persistence layers
 	db *sql.DB
@@ -56,6 +60,9 @@ type graphQLServer struct {
 
 	// boards holds references to *FullBoards which track BoardObservers
 	boards map[string]*FullBoardstate
+
+	// allowedOrigins holds normalized origins permitted for CORS and websocket checks.
+	allowedOrigins map[string]struct{}
 }
 
 // NewGraphQLServer creates a new server to attach the database, game engine,
@@ -69,12 +76,44 @@ func NewGraphQLServer(
 		logger = slog.Default()
 	}
 	return &graphQLServer{
-		mutex:  sync.RWMutex{},
-		logger: logger,
-		db:     db,
-		games:  map[string]*FullGame{},
-		boards: map[string]*FullBoardstate{},
+		mutex:          sync.RWMutex{},
+		logger:         logger,
+		cfg:            cfg,
+		db:             db,
+		games:          map[string]*FullGame{},
+		boards:         map[string]*FullBoardstate{},
+		allowedOrigins: parseAllowedOrigins(cfg.AllowedOrigins),
 	}, nil
+}
+
+func parseAllowedOrigins(raw string) map[string]struct{} {
+	allowed := make(map[string]struct{})
+	for _, part := range strings.Split(raw, ",") {
+		origin := strings.TrimSpace(part)
+		if origin == "" {
+			continue
+		}
+		normalized, ok := normalizeOrigin(origin)
+		if !ok {
+			continue
+		}
+		allowed[normalized] = struct{}{}
+	}
+	return allowed
+}
+
+func normalizeOrigin(origin string) (string, bool) {
+	u, err := url.Parse(strings.TrimSpace(origin))
+	if err != nil || u == nil {
+		return "", false
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", false
+	}
+	if u.Host == "" {
+		return "", false
+	}
+	return u.Scheme + "://" + u.Host, true
 }
 
 type requestIDContextKey struct{}
@@ -165,6 +204,31 @@ func (s *graphQLServer) withRequestLogging(next http.Handler) http.Handler {
 	})
 }
 
+func (s *graphQLServer) isAllowedOrigin(origin string) bool {
+	normalized, ok := normalizeOrigin(origin)
+	if !ok {
+		return false
+	}
+	_, found := s.allowedOrigins[normalized]
+	return found
+}
+
+func (s *graphQLServer) isAllowedWebSocketOrigin(r *http.Request) bool {
+	origin := ""
+	if r != nil {
+		origin = strings.TrimSpace(r.Header.Get("Origin"))
+	}
+	// Non-browser clients may not send Origin; keep these flows possible.
+	if origin == "" {
+		return true
+	}
+	if s.isAllowedOrigin(origin) {
+		return true
+	}
+	s.loggerFor(context.Background()).Warn("websocket origin denied", "origin", origin)
+	return false
+}
+
 // Serve is a blocking function that runs the server until anything returns an error.
 // It sets up the muxed routing, exposes the prometheus endpoint, and serves the
 // GraphQL playground and API at the given route and port.
@@ -172,9 +236,7 @@ func (s *graphQLServer) Serve(route string, port int) error {
 	mux := http.NewServeMux()
 	gqlHandler := handler.GraphQL(NewExecutableSchema(Config{Resolvers: s}),
 		handler.WebsocketUpgrader(websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			},
+			CheckOrigin: s.isAllowedWebSocketOrigin,
 		}),
 		handler.WebsocketInitFunc(func(ctx context.Context, initPayload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
 			user, err := parseAuthFromInitPayload(initPayload)
@@ -189,7 +251,15 @@ func (s *graphQLServer) Serve(route string, port int) error {
 		route,
 		gqlHandler,
 	)
-	h := cors.AllowAll().Handler(s.withAuthContext(mux))
+	corsMiddleware := cors.New(cors.Options{
+		AllowOriginFunc:  s.isAllowedOrigin,
+		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodOptions},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "X-Request-Id"},
+		ExposedHeaders:   []string{"X-Request-Id"},
+		AllowCredentials: false,
+		MaxAge:           600,
+	})
+	h := corsMiddleware.Handler(s.withAuthContext(mux))
 	h = s.withRequestLogging(h)
 	h = s.withRequestID(h)
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
