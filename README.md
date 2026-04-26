@@ -86,7 +86,7 @@ To run the Vue app:
 
 #### V2 Frontend
 
-The v2 frontend exists in frontend-v2/ and is in active development.
+The v2 frontend exists in app/ and is in active development.
 
 `npm run dev` to run the dev server.
 `npm test` to run all the tests.
@@ -138,6 +138,19 @@ LOG_LEVEL=debug make run
 
 The current production deploys use Dokku on `dokku@192.241.142.53`.
 
+If the frontend still exists on the Dokku server as `frontend-v2`, rename it before the next UI deploy:
+
+```sh
+ssh dokku@192.241.142.53 apps:rename frontend-v2 app
+```
+
+Update your local Git remote after the rename so future pushes target the new app name:
+
+```sh
+git remote remove dokku-app 2>/dev/null || true
+git remote add dokku-app dokku@192.241.142.53:app
+```
+
 ### vedh-api (server)
 
 ```sh
@@ -146,12 +159,12 @@ git commit -m "server changes"
 git push dokku main
 ```
 
-### frontend-v2 (Vite/Vue)
+### app (Vite/Vue)
 
 ```sh
 git add $CHANGES
-git commit -m "frontend-v2 changes"
-git subtree push --prefix frontend-v2 dokku@192.241.142.53:frontend-v2 main
+git commit -m "app changes"
+git subtree push --prefix app dokku-app main
 ```
 
 ## Documentation & Resources
@@ -166,8 +179,8 @@ Deployments are run using `vtec2/watchtower` to watch for container updates to D
 
 ## Environments
 
-`frontend/.env.local` sets local environemnt variables and is used when `yarn start` is run.
-`frontend/.env.production` sets production environment variables and it used for `yarn build`.
+`app/.env.local` sets local environemnt variables and is used when `yarn start` is run.
+`app/.env.production` sets production environment variables and it used for `yarn build`.
 
 A copy of the frontend environment file for development is included in this repository.
 
