@@ -57,7 +57,7 @@ This review found **6 security issues** in the current Go + Vue stack: **2 High*
 ### [SBP-005] Auth bearer token is persisted in `localStorage`
 - Rule ID: `VUE-AUTH-001`
 - Severity: Medium
-- Location: `frontend-v2/src/stores/auth.ts:16`, `frontend-v2/src/stores/auth.ts:37`, `frontend-v2/src/services/apollo.ts:50`, `frontend-v2/src/services/apollo.ts:95`
+- Location: `app/src/stores/auth.ts:16`, `app/src/stores/auth.ts:37`, `app/src/services/apollo.ts:50`, `app/src/services/apollo.ts:95`
 - Evidence:
   - Auth profile (including `Token`) is read/written from `localStorage` and attached to `Authorization` headers.
 - Impact: Any successful XSS can exfiltrate long-lived tokens and enable account takeover.

@@ -1,8 +1,8 @@
 services:
   web:
     build:
-      dockerfile: ./frontend-v2/Dockerfile
-      context: ./frontend-v2
+      dockerfile: ./app/Dockerfile
+      context: ./app
     links:
       - server:server
     ports:

@@ -9,7 +9,7 @@ bin/*
 *.env*
 
 # Frontend
-frontend/coverage/
+app/coverage/
 
 # Import script and temp data
 scripts/*
