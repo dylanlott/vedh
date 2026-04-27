@@ -76,20 +76,20 @@ A copy of the server environment file for development is included in this reposi
 
 The front end is a Vue & Apollo GraphQL application that is statically served in production.
 
-To run the Vue app:
+To run the current web app:
 
 ```sh
-> cd ./frontend
-> yarn install
-> yarn start
+> cd ./app
+> npm install
+> npm run dev
 ```
 
-#### V2 Frontend
+#### App Frontend
 
-The v2 frontend exists in app/ and is in active development.
+The current frontend lives in `app/`.
 
-`npm run dev` to run the dev server.
-`npm test` to run all the tests.
+- `npm run dev` to run the dev server
+- `npm test` to run the tests
 
 #### Vue Tests
 
@@ -138,13 +138,9 @@ LOG_LEVEL=debug make run
 
 The current production deploys use Dokku on `dokku@192.241.142.53`.
 
-If the frontend still exists on the Dokku server as `frontend-v2`, rename it before the next UI deploy:
+The frontend Dokku app is `app`.
 
-```sh
-ssh dokku@192.241.142.53 apps:rename frontend-v2 app
-```
-
-Update your local Git remote after the rename so future pushes target the new app name:
+Ensure your local deploy remote targets that app:
 
 ```sh
 git remote remove dokku-app 2>/dev/null || true
