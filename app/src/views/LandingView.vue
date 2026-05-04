@@ -28,12 +28,67 @@
         </div>
       </div>
       <div class="hero-art" aria-hidden="true">
-        <div class="card-stack back"></div>
-        <div class="card-stack mid"></div>
-        <div class="card-stack front">
-          <div class="chip">+2</div>
-          <div class="chip">Shield</div>
-          <div class="chip">Energy</div>
+        <div class="hero-orbit orbit-a"></div>
+        <div class="hero-orbit orbit-b"></div>
+        <div class="hero-sigil sigil-top"></div>
+        <div class="hero-sigil sigil-bottom"></div>
+
+        <div class="tcg-card-shadow"></div>
+        <div class="tcg-card-frame">
+          <div class="tcg-card-edge"></div>
+          <div class="tcg-card-header">
+            <div>
+              <span class="tcg-card-kicker">vector table relic</span>
+              <strong>Mythic Junction // Table Nexus</strong>
+            </div>
+            <span class="tcg-card-cost">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </div>
+
+          <div class="tcg-card-artboard">
+            <div class="art-grid"></div>
+            <div class="art-ring ring-outer"></div>
+            <div class="art-ring ring-inner"></div>
+            <div class="art-node node-top"></div>
+            <div class="art-node node-left"></div>
+            <div class="art-node node-right"></div>
+            <div class="art-node node-bottom"></div>
+            <div class="art-glyph glyph-center"></div>
+            <div class="art-glyph glyph-side"></div>
+            <div class="art-ribbon ribbon-a"></div>
+            <div class="art-ribbon ribbon-b"></div>
+          </div>
+
+          <div class="tcg-card-rulebox">
+            <div class="rule-line">
+              <span class="rule-icon diamond"></span>
+              <span>Sync zones across every player board.</span>
+            </div>
+            <div class="rule-line">
+              <span class="rule-icon pulse"></span>
+              <span>Track counters, energy, shields, and momentum.</span>
+            </div>
+            <div class="rule-line">
+              <span class="rule-icon link"></span>
+              <span>Original vector hero card with crisp linework and no borrowed game framing.</span>
+            </div>
+          </div>
+
+          <div class="tcg-card-footer">
+            <div class="footer-badges">
+              <span>zonecraft</span>
+              <span>tempo</span>
+              <span>lobby</span>
+            </div>
+            <div class="footer-stats">
+              <span>07</span>
+              <span>/</span>
+              <span>11</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -183,53 +238,334 @@ function goToLogin() {
 
 .hero-art {
   position: relative;
-  min-height: 320px;
+  min-height: 490px;
   display: grid;
   place-items: center;
 }
 
-.card-stack {
+.hero-orbit,
+.hero-sigil {
   position: absolute;
-  width: min(320px, 70vw);
+  pointer-events: none;
+}
+
+.hero-orbit {
+  width: 420px;
   height: 420px;
-  border-radius: 26px;
-  background: linear-gradient(150deg, rgba(248, 232, 195, 0.12), rgba(255, 255, 255, 0));
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(12px);
-  animation: float 6s ease-in-out infinite;
+  border-radius: 50%;
+  border: 1px solid rgba(247, 247, 242, 0.08);
+  opacity: 0.8;
 }
 
-.card-stack.back {
-  transform: translate(-28px, -30px) rotate(-6deg);
-  background: linear-gradient(140deg, rgba(80, 190, 255, 0.18), rgba(20, 20, 30, 0.2));
+.hero-orbit::before,
+.hero-orbit::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
 }
 
-.card-stack.mid {
-  transform: translate(8px, -10px) rotate(4deg);
-  animation-delay: 0.4s;
+.orbit-a {
+  transform: rotate(18deg);
+  border-style: dashed;
+  border-color: rgba(80, 190, 255, 0.22);
 }
 
-.card-stack.front {
+.orbit-a::before {
+  inset: 34px;
+  border: 1px solid rgba(247, 181, 0, 0.15);
+}
+
+.orbit-b {
+  width: 320px;
+  height: 320px;
+  transform: rotate(-14deg);
+  border-color: rgba(255, 107, 107, 0.22);
+}
+
+.orbit-b::after {
+  inset: 22px;
+  border: 1px dashed rgba(247, 247, 242, 0.12);
+}
+
+.hero-sigil {
+  width: 68px;
+  height: 68px;
+  border: 1px solid rgba(247, 247, 242, 0.16);
+  background: linear-gradient(145deg, rgba(247, 181, 0, 0.16), rgba(80, 190, 255, 0.08));
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.25);
+}
+
+.sigil-top {
+  top: 18px;
+  right: 12%;
+}
+
+.sigil-bottom {
+  bottom: 24px;
+  left: 10%;
+  width: 54px;
+  height: 54px;
+}
+
+.tcg-card-shadow {
+  position: absolute;
+  width: min(350px, 76vw);
+  height: 470px;
+  border-radius: 34px;
+  background: radial-gradient(circle at 50% 50%, rgba(247, 181, 0, 0.2), rgba(10, 12, 18, 0));
+  filter: blur(28px);
+  transform: translateY(24px);
+}
+
+.tcg-card-frame {
   position: relative;
-  display: grid;
-  align-content: center;
-  gap: 0.6rem;
-  padding: 1.5rem;
-  background: linear-gradient(160deg, rgba(247, 181, 0, 0.2), rgba(20, 20, 30, 0.25));
-  animation-delay: 0.8s;
+  width: min(360px, 76vw);
+  min-height: 490px;
+  padding: 1rem;
+  border-radius: 30px;
+  background:
+    linear-gradient(155deg, rgba(250, 244, 227, 0.9), rgba(222, 227, 255, 0.32) 26%, rgba(255, 107, 107, 0.18) 54%, rgba(10, 12, 18, 0.94) 54%),
+    linear-gradient(180deg, rgba(17, 20, 28, 0.94), rgba(10, 12, 18, 0.98));
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.42);
+  overflow: hidden;
+  animation: floatCard 7s ease-in-out infinite;
 }
 
-.chip {
+.tcg-card-edge {
+  position: absolute;
+  inset: 10px;
+  border-radius: 24px;
+  border: 1px solid rgba(247, 247, 242, 0.12);
+  pointer-events: none;
+}
+
+.tcg-card-header,
+.tcg-card-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tcg-card-header {
+  padding: 0.25rem 0.3rem 0.9rem;
+}
+
+.tcg-card-header strong {
+  display: block;
+  font-size: 1.02rem;
+  letter-spacing: 0.04em;
+}
+
+.tcg-card-kicker {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 0.58rem;
+  color: rgba(247, 247, 242, 0.6);
+  margin-bottom: 0.3rem;
+}
+
+.tcg-card-cost {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.tcg-card-cost span,
+.footer-badges span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem 0.8rem;
+}
+
+.tcg-card-cost span {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(247, 247, 242, 0.28);
+  background: linear-gradient(135deg, rgba(247, 181, 0, 0.42), rgba(80, 190, 255, 0.18));
+}
+
+.tcg-card-artboard {
+  position: relative;
+  height: 238px;
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(247, 181, 0, 0.28), transparent 25%),
+    linear-gradient(145deg, rgba(80, 190, 255, 0.24), rgba(8, 10, 16, 0.92) 58%, rgba(255, 107, 107, 0.2));
+  border: 1px solid rgba(247, 247, 242, 0.12);
+}
+
+.art-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(247, 247, 242, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(247, 247, 242, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.8), transparent 100%);
+}
+
+.art-ring,
+.art-node,
+.art-glyph,
+.art-ribbon {
+  position: absolute;
+}
+
+.art-ring {
+  border-radius: 50%;
+  border: 1px solid rgba(247, 247, 242, 0.16);
+}
+
+.ring-outer {
+  inset: 28px 42px;
+}
+
+.ring-inner {
+  inset: 62px 82px;
+  border-color: rgba(247, 181, 0, 0.28);
+}
+
+.art-node {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(247, 181, 0, 0.95), rgba(255, 107, 107, 0.72));
+  box-shadow: 0 0 0 6px rgba(247, 181, 0, 0.08);
+}
+
+.node-top { top: 30px; left: 50%; transform: translateX(-50%); }
+.node-left { left: 36px; top: 50%; transform: translateY(-50%); }
+.node-right { right: 36px; top: 50%; transform: translateY(-50%); }
+.node-bottom { bottom: 28px; left: 50%; transform: translateX(-50%); }
+
+.art-glyph {
+  border: 1px solid rgba(247, 247, 242, 0.16);
+  background: rgba(12, 14, 20, 0.3);
+}
+
+.glyph-center {
+  width: 84px;
+  height: 84px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.glyph-side {
+  width: 42px;
+  height: 42px;
+  right: 54px;
+  top: 38px;
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.art-ribbon {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(247, 247, 242, 0.38), transparent);
+}
+
+.ribbon-a {
+  left: 58px;
+  right: 58px;
+  top: 50%;
+}
+
+.ribbon-b {
+  top: 42px;
+  bottom: 42px;
+  width: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, transparent, rgba(247, 247, 242, 0.38), transparent);
+}
+
+.tcg-card-rulebox {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem 0.25rem 0.9rem;
+}
+
+.rule-line {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 0.7rem;
+  align-items: center;
+  color: rgba(247, 247, 242, 0.84);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.rule-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  position: relative;
+}
+
+.rule-icon.diamond {
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  background: linear-gradient(135deg, rgba(247, 181, 0, 0.95), rgba(80, 190, 255, 0.72));
+}
+
+.rule-icon.pulse::before,
+.rule-icon.link::before,
+.rule-icon.link::after {
+  content: '';
+  position: absolute;
+}
+
+.rule-icon.pulse::before {
+  inset: 3px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 107, 107, 0.86);
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.14);
+}
+
+.rule-icon.link::before,
+.rule-icon.link::after {
+  width: 8px;
+  height: 12px;
+  border: 2px solid rgba(80, 190, 255, 0.82);
   border-radius: 999px;
-  background: rgba(12, 12, 16, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  font-weight: 600;
-  width: fit-content;
+  top: 2px;
+}
+
+.rule-icon.link::before { left: 0; }
+.rule-icon.link::after { right: 0; }
+
+.tcg-card-footer {
+  padding: 0.65rem 0.2rem 0.15rem;
+  border-top: 1px solid rgba(247, 247, 242, 0.08);
+}
+
+.footer-badges {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.footer-badges span {
+  padding: 0.26rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(247, 247, 242, 0.12);
+  background: rgba(247, 247, 242, 0.05);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.55rem;
+}
+
+.footer-stats {
+  display: inline-flex;
+  gap: 0.25rem;
+  color: rgba(247, 247, 242, 0.68);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
 }
 
 h1 {
@@ -353,23 +689,48 @@ h3 {
   }
 }
 
-@keyframes float {
+@keyframes floatCard {
   0%,
   100% {
-    transform: translate(8px, -10px) rotate(4deg);
+    transform: translateY(0) rotate(-1.5deg);
   }
   50% {
-    transform: translate(12px, -18px) rotate(6deg);
+    transform: translateY(-10px) rotate(1deg);
   }
 }
 
 @media (max-width: 720px) {
   .hero-art {
-    min-height: 260px;
+    min-height: 320px;
   }
 
-  .card-stack {
-    height: 340px;
+  .hero-orbit {
+    width: 300px;
+    height: 300px;
+  }
+
+  .orbit-b {
+    width: 240px;
+    height: 240px;
+  }
+
+  .tcg-card-shadow {
+    width: min(280px, 78vw);
+    height: 380px;
+  }
+
+  .tcg-card-frame {
+    width: min(280px, 78vw);
+    min-height: 390px;
+    padding: 0.8rem;
+  }
+
+  .tcg-card-artboard {
+    height: 180px;
+  }
+
+  .rule-line {
+    font-size: 0.8rem;
   }
 
   .cta {
