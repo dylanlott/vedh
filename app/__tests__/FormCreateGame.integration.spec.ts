@@ -19,13 +19,14 @@ import { CREATE_GAME_MUTATION } from '../src/graphql/mutations';
 import { apolloClient } from '../src/services/apollo';
 import { SIGNUP_MUTATION } from '../src/graphql/mutations';
 
-// This integration test actually hits the running backend GraphQL endpoint.
-// Requirements for running this test:
-// - The backend GraphQL server must be running and accessible at http://localhost:8080/graphql
-// - The test will create a temporary user via the signup mutation and then use
-//   that user's auth token to create a game through the UI.
+const runLiveIntegration = process.env.VEDH_RUN_LIVE_INTEGRATION === '1';
+const describeLiveIntegration = runLiveIntegration ? describe : describe.skip;
 
-describe('FormCreateGame (integration)', () => {
+// This integration test actually hits the running backend GraphQL endpoint.
+// It is skipped by default so normal local/unit runs never talk to a real backend.
+// Set VEDH_RUN_LIVE_INTEGRATION=1 to opt in when the backend is intentionally running.
+
+describeLiveIntegration('FormCreateGame (integration)', () => {
   it('signs up a user, mounts the component and creates a game against the backend', async () => {
     // Create a temporary user so we have an auth token to send with requests.
     const username = `testuser_${Date.now()}_${Math.floor(Math.random() * 1000)}`;

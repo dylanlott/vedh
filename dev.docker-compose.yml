@@ -26,9 +26,13 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
   postgres:
-    image: bitnami/postgresql:14
+    image: postgres:14
+    environment:
+      POSTGRES_USER: ${POSTGRESQL_USERNAME:-edhgo}
+      POSTGRES_PASSWORD: ${POSTGRESQL_PASSWORD:-edhgo}
+      POSTGRES_DB: ${POSTGRESQL_DATABASE:-edhgo}
     volumes:
-      - postgres-data:/bitnami/postgresql
+      - postgres-data:/var/lib/postgresql/data
     env_file:
       - ./.pg.env
     ports:
