@@ -33,7 +33,6 @@ func Test_graphQLServer_Signup(t *testing.T) {
 			},
 			want: &User{
 				Username: "shakezula",
-				Token:    nil,
 			},
 			wantErr: false,
 		},
@@ -57,7 +56,7 @@ func Test_graphQLServer_Signup(t *testing.T) {
 			if tt.want != nil && !tt.wantErr {
 				tt.want.Username = username
 			}
-			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(User{}, "ID")); diff != "" {
+			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(User{}, "ID", "Token")); diff != "" {
 				t.Errorf("graphQLServer.Signup: wanted: %+v - got: %+v", tt.want, got)
 			}
 			if (err != nil) != tt.wantErr {
@@ -65,11 +64,14 @@ func Test_graphQLServer_Signup(t *testing.T) {
 				return
 			}
 			if err == nil {
-				if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(User{}, "ID")); diff != "" {
+				if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(User{}, "ID", "Token")); diff != "" {
 					t.Errorf("failed to get correct user back")
 				}
 				if got.ID == "" {
 					t.Errorf("failed to set UUID on user")
+				}
+				if got.Token == nil || *got.Token == "" {
+					t.Errorf("failed to set signup token")
 				}
 			}
 		})

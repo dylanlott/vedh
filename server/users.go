@@ -37,6 +37,12 @@ func (s *graphQLServer) Signup(ctx context.Context, username string, password st
 		}
 	}
 
+	t, err := newAuthToken(user, time.Hour*24)
+	if err != nil {
+		return nil, errs.Wrap(err)
+	}
+	user.Token = &t
+
 	return user, nil
 }
 

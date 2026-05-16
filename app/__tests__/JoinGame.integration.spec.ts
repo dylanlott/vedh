@@ -11,7 +11,14 @@ const dom = new JSDOM('', { url: 'http://localhost' });
 import { apolloClient } from '../src/services/apollo';
 import { SIGNUP_MUTATION, CREATE_GAME_MUTATION, JOIN_GAME_MUTATION } from '../src/graphql/mutations';
 
-describe('JoinGame (integration)', () => {
+const runLiveIntegration = process.env.VEDH_RUN_LIVE_INTEGRATION === '1';
+const describeLiveIntegration = runLiveIntegration ? describe : describe.skip;
+
+// This integration test talks to the live GraphQL backend.
+// It is skipped by default so routine test runs stay local/safe.
+// Set VEDH_RUN_LIVE_INTEGRATION=1 to opt in when you explicitly want live coverage.
+
+describeLiveIntegration('JoinGame (integration)', () => {
   it('creates a game as user A and joins it as user B', async () => {
     // Sign up user A
     const usernameA = `userA_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
