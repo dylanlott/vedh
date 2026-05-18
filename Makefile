@@ -1,4 +1,4 @@
-.PHONY: build dev persistence clean test test-api deploy-ui deploy-server docker-server docker-ui docker
+.PHONY: build dev persistence clean test test-api test-smoke-rust deploy-ui deploy-server docker-server docker-ui docker
 
 GOCMD=go
 GOBUILD=$(GOCMD) build
@@ -18,6 +18,9 @@ test-api:
 	$(GOTEST) -v ./server/... -race
 
 test: test-api
+
+test-smoke-rust:
+	cargo run --manifest-path tools/smoke/Cargo.toml -- --graphql-url $${VEDH_GRAPHQL_URL:-http://127.0.0.1:8080/graphql}
 
 test-unit:
 	$(GOTEST) -v ./pkg/... -race

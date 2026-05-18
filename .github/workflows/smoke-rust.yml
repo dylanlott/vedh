@@ -1,0 +1,75 @@
+name: Rust Smoke
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  smoke-rust:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: edhgo
+          POSTGRES_PASSWORD: edhgo
+          POSTGRES_DB: edhgo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U edhgo -d edhgo"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://edhgo:edhgo@127.0.0.1:5432/edhgo?sslmode=disable
+      JWT_SECRET: ci-smoke-secret
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      LOG_LEVEL: info
+      VEDH_GRAPHQL_URL: http://127.0.0.1:8080/graphql
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Start local vEDH API
+        run: |
+          go run ./main.go > /tmp/vedh-server.log 2>&1 &
+          echo $! > /tmp/vedh-server.pid
+
+      - name: Wait for API readiness
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/playground >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "vEDH API failed to become ready"
+          cat /tmp/vedh-server.log || true
+          exit 1
+
+      - name: Run Rust smoke test
+        run: make test-smoke-rust
+
+      - name: Stop local vEDH API
+        if: always()
+        run: |
+          if [ -f /tmp/vedh-server.pid ]; then
+            kill $(cat /tmp/vedh-server.pid) || true
+          fi
+
+      - name: Dump vEDH server log on failure
+        if: failure()
+        run: cat /tmp/vedh-server.log || true
