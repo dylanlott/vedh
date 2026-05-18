@@ -7,6 +7,13 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
+    css: {
+      preprocessorOptions: {
+        scss: {
+          api: 'modern-compiler',
+        },
+      },
+    },
     server: {
       port: devPort,
       // Allow automatic fallback (e.g. 5174) when the preferred port is busy.

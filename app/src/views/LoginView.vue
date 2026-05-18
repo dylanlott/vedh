@@ -52,9 +52,9 @@ async function handleSubmit() {
   margin: 3rem auto;
   padding: 2.5rem;
   border-radius: 20px;
-  background: rgba(15, 19, 26, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 48px -24px rgba(0, 0, 0, 0.45);
+  background: var(--vedh-panel);
+  border: 1px solid var(--vedh-border);
+  box-shadow: 0 24px 48px -24px rgba(21, 12, 9, 0.42);
 }
 
 h1 {
@@ -75,8 +75,8 @@ label {
 input {
   padding: 0.75rem 1rem;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--vedh-border);
+  background: rgba(255, 244, 237, 0.06);
   color: inherit;
 }
 
@@ -86,8 +86,8 @@ button.primary {
   padding: 0.75rem 1rem;
   font-size: 1rem;
   font-weight: 600;
-  background: linear-gradient(120deg, #85d7ff, #3f8cff);
-  color: #0b1016;
+  background: var(--vedh-primary-gradient);
+  color: var(--vedh-primary-contrast);
   cursor: pointer;
   transition: filter 0.2s ease;
 }
@@ -98,7 +98,7 @@ button.primary:disabled {
 }
 
 .helper {
-  color: #ff9d9d;
+  color: #ffb1cd;
   margin: 0;
 }
 
@@ -107,6 +107,6 @@ button.primary:disabled {
 }
 
 .switcher a {
-  color: #85d7ff;
+  color: var(--vedh-primary);
 }
 </style>

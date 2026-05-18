@@ -275,11 +275,12 @@ function formatDate(iso?: string) {
 }
 
 button.primary {
-  background: linear-gradient(120deg, #85d7ff, #26c2ff);
+  background: var(--vedh-primary-gradient);
   border: none;
   border-radius: 999px;
   padding: 0.65rem 1.4rem;
   font-weight: 600;
+  color: var(--vedh-primary-contrast);
   cursor: pointer;
 }
 
@@ -331,7 +332,7 @@ button.primary {
 button.link {
   background: transparent;
   border: none;
-  color: #85d7ff;
+  color: var(--vedh-primary);
   font-weight: 600;
   cursor: pointer;
 }

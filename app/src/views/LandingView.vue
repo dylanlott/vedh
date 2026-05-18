@@ -158,12 +158,12 @@ function goToLogin() {
 
 <style scoped lang="scss">
 .landing {
-  --ink: #f7f7f2;
-  --muted: rgba(247, 247, 242, 0.7);
-  --accent: #f7b500;
-  --accent-2: #ff6b6b;
-  --panel: rgba(18, 18, 22, 0.75);
-  --panel-border: rgba(247, 247, 242, 0.08);
+  --ink: var(--vedh-text);
+  --muted: var(--vedh-muted);
+  --accent: var(--vedh-primary);
+  --accent-2: var(--vedh-secondary);
+  --panel: rgba(74, 66, 63, 0.78);
+  --panel-border: var(--vedh-border);
   display: grid;
   gap: clamp(2.5rem, 5vw, 5rem);
   padding: clamp(2.5rem, 6vw, 6.5rem) 0;
@@ -186,17 +186,17 @@ function goToLogin() {
 
 .landing::before {
   background:
-    radial-gradient(circle at 15% 20%, rgba(247, 181, 0, 0.22), transparent 60%),
-    radial-gradient(circle at 85% 15%, rgba(255, 107, 107, 0.2), transparent 62%),
-    radial-gradient(circle at 55% 80%, rgba(80, 190, 255, 0.16), transparent 65%),
-    linear-gradient(160deg, rgba(10, 12, 18, 0.95), rgba(10, 12, 18, 0.6));
+    radial-gradient(circle at 15% 20%, rgba(242, 160, 65, 0.24), transparent 60%),
+    radial-gradient(circle at 85% 15%, rgba(240, 8, 118, 0.22), transparent 62%),
+    radial-gradient(circle at 55% 80%, rgba(242, 160, 65, 0.12), transparent 65%),
+    linear-gradient(160deg, rgba(58, 52, 49, 0.96), rgba(58, 52, 49, 0.68));
 }
 
 .landing::after {
   background:
-    radial-gradient(circle at 40% -10%, rgba(8, 8, 12, 0.85), transparent 65%),
-    radial-gradient(circle at 10% 110%, rgba(12, 12, 18, 0.8), transparent 70%),
-    linear-gradient(180deg, rgba(10, 12, 18, 0.92), rgba(10, 12, 18, 0.75));
+    radial-gradient(circle at 40% -10%, rgba(33, 28, 26, 0.8), transparent 65%),
+    radial-gradient(circle at 10% 110%, rgba(28, 24, 22, 0.75), transparent 70%),
+    linear-gradient(180deg, rgba(58, 52, 49, 0.92), rgba(47, 41, 39, 0.78));
   z-index: -3;
 }
 
@@ -267,19 +267,19 @@ function goToLogin() {
 .orbit-a {
   transform: rotate(18deg);
   border-style: dashed;
-  border-color: rgba(80, 190, 255, 0.22);
+  border-color: rgba(242, 160, 65, 0.24);
 }
 
 .orbit-a::before {
   inset: 34px;
-  border: 1px solid rgba(247, 181, 0, 0.15);
+  border: 1px solid rgba(242, 160, 65, 0.16);
 }
 
 .orbit-b {
   width: 320px;
   height: 320px;
   transform: rotate(-14deg);
-  border-color: rgba(255, 107, 107, 0.22);
+  border-color: rgba(240, 8, 118, 0.22);
 }
 
 .orbit-b::after {
@@ -291,7 +291,7 @@ function goToLogin() {
   width: 68px;
   height: 68px;
   border: 1px solid rgba(247, 247, 242, 0.16);
-  background: linear-gradient(145deg, rgba(247, 181, 0, 0.16), rgba(80, 190, 255, 0.08));
+  background: linear-gradient(145deg, rgba(242, 160, 65, 0.18), rgba(240, 8, 118, 0.12));
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.25);
 }
@@ -313,7 +313,7 @@ function goToLogin() {
   width: min(350px, 76vw);
   height: 470px;
   border-radius: 34px;
-  background: radial-gradient(circle at 50% 50%, rgba(247, 181, 0, 0.2), rgba(10, 12, 18, 0));
+  background: radial-gradient(circle at 50% 50%, rgba(242, 160, 65, 0.22), rgba(58, 52, 49, 0));
   filter: blur(28px);
   transform: translateY(24px);
 }
@@ -325,8 +325,8 @@ function goToLogin() {
   padding: 1rem;
   border-radius: 30px;
   background:
-    linear-gradient(155deg, rgba(250, 244, 227, 0.9), rgba(222, 227, 255, 0.32) 26%, rgba(255, 107, 107, 0.18) 54%, rgba(10, 12, 18, 0.94) 54%),
-    linear-gradient(180deg, rgba(17, 20, 28, 0.94), rgba(10, 12, 18, 0.98));
+    linear-gradient(155deg, rgba(255, 240, 225, 0.9), rgba(242, 160, 65, 0.28) 26%, rgba(240, 8, 118, 0.18) 54%, rgba(58, 52, 49, 0.94) 54%),
+    linear-gradient(180deg, rgba(74, 66, 63, 0.94), rgba(47, 41, 39, 0.98));
   box-shadow: 0 32px 90px rgba(0, 0, 0, 0.42);
   overflow: hidden;
   animation: floatCard 7s ease-in-out infinite;
@@ -386,7 +386,7 @@ function goToLogin() {
   height: 18px;
   border-radius: 50%;
   border: 1px solid rgba(247, 247, 242, 0.28);
-  background: linear-gradient(135deg, rgba(247, 181, 0, 0.42), rgba(80, 190, 255, 0.18));
+  background: linear-gradient(135deg, rgba(242, 160, 65, 0.5), rgba(240, 8, 118, 0.22));
 }
 
 .tcg-card-artboard {
@@ -395,8 +395,8 @@ function goToLogin() {
   border-radius: 22px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 46%, rgba(247, 181, 0, 0.28), transparent 25%),
-    linear-gradient(145deg, rgba(80, 190, 255, 0.24), rgba(8, 10, 16, 0.92) 58%, rgba(255, 107, 107, 0.2));
+    radial-gradient(circle at 50% 46%, rgba(242, 160, 65, 0.3), transparent 25%),
+    linear-gradient(145deg, rgba(242, 160, 65, 0.22), rgba(47, 41, 39, 0.92) 58%, rgba(240, 8, 118, 0.22));
   border: 1px solid rgba(247, 247, 242, 0.12);
 }
 
@@ -428,15 +428,15 @@ function goToLogin() {
 
 .ring-inner {
   inset: 62px 82px;
-  border-color: rgba(247, 181, 0, 0.28);
+  border-color: rgba(242, 160, 65, 0.28);
 }
 
 .art-node {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(247, 181, 0, 0.95), rgba(255, 107, 107, 0.72));
-  box-shadow: 0 0 0 6px rgba(247, 181, 0, 0.08);
+  background: linear-gradient(135deg, rgba(242, 160, 65, 0.95), rgba(240, 8, 118, 0.72));
+  box-shadow: 0 0 0 6px rgba(242, 160, 65, 0.08);
 }
 
 .node-top { top: 30px; left: 50%; transform: translateX(-50%); }
@@ -510,7 +510,7 @@ function goToLogin() {
 
 .rule-icon.diamond {
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-  background: linear-gradient(135deg, rgba(247, 181, 0, 0.95), rgba(80, 190, 255, 0.72));
+  background: linear-gradient(135deg, rgba(242, 160, 65, 0.95), rgba(240, 8, 118, 0.72));
 }
 
 .rule-icon.pulse::before,
@@ -523,15 +523,15 @@ function goToLogin() {
 .rule-icon.pulse::before {
   inset: 3px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 107, 107, 0.86);
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.14);
+  border: 2px solid rgba(240, 8, 118, 0.86);
+  box-shadow: 0 0 0 3px rgba(240, 8, 118, 0.14);
 }
 
 .rule-icon.link::before,
 .rule-icon.link::after {
   width: 8px;
   height: 12px;
-  border: 2px solid rgba(80, 190, 255, 0.82);
+  border: 2px solid rgba(242, 160, 65, 0.82);
   border-radius: 999px;
   top: 2px;
 }
@@ -670,7 +670,7 @@ h3 {
   gap: 1.5rem;
   padding: clamp(1.5rem, 4vw, 2.75rem);
   border-radius: 28px;
-  background: linear-gradient(140deg, rgba(247, 181, 0, 0.2), rgba(255, 107, 107, 0.12));
+  background: linear-gradient(140deg, rgba(242, 160, 65, 0.22), rgba(240, 8, 118, 0.14));
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 

@@ -294,8 +294,8 @@ async function handleJoin() {
   margin: 3rem auto;
   padding: 2.5rem;
   border-radius: 20px;
-  background: rgba(15, 19, 26, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--vedh-panel);
+  border: 1px solid var(--vedh-border);
 }
 
 button.primary {
@@ -304,17 +304,17 @@ button.primary {
   padding: 0.75rem 1rem;
   font-size: 1rem;
   font-weight: 600;
-  background: linear-gradient(120deg, #85d7ff, #3f8cff);
-  color: #0b1016;
+  background: var(--vedh-primary-gradient);
+  color: var(--vedh-primary-contrast);
   cursor: pointer;
 }
 
 button.secondary {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--vedh-border);
   border-radius: 10px;
   padding: 0.6rem 0.9rem;
-  background: rgba(255, 255, 255, 0.05);
-  color: #f5f5f5;
+  background: rgba(255, 244, 237, 0.05);
+  color: var(--vedh-text);
   cursor: pointer;
 }
 
@@ -325,7 +325,7 @@ button.secondary {
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(6, 8, 11, 0.7);
+  background: rgba(33, 20, 18, 0.72);
   display: grid;
   place-items: center;
   z-index: 40;
@@ -333,9 +333,9 @@ button.secondary {
 
 .modal {
   width: min(90vw, 420px);
-  background: rgba(18, 21, 28, 0.95);
+  background: var(--vedh-panel-strong);
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--vedh-border);
   padding: 1.5rem;
   display: grid;
   gap: 0.9rem;
@@ -346,8 +346,8 @@ label { display: grid; gap: 0.5rem; }
 input, textarea { 
   padding: 0.7rem 0.9rem; 
   border-radius: 10px; 
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--vedh-border);
+  background: rgba(255,244,237,0.05);
   color: inherit;
 }
 .actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
