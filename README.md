@@ -1,6 +1,6 @@
 # vedh
 
-> A Magic: The Gathering boardstate tracker built with GraphQL, Vue, and Go.
+> a TCG boardstate tracker built with GraphQL, Vue, and Go.
 
 ```text
 ██╗   ██╗███████╗██████╗ ██╗  ██╗
