@@ -4,13 +4,34 @@
 :root {
   color-scheme: dark;
   font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
-  background-color: #14161a;
-  color: #f2f2f7;
+  --vedh-bg: #3a3431;
+  --vedh-bg-rgb: 58, 52, 49;
+  --vedh-surface: #4a423f;
+  --vedh-surface-strong: #544b47;
+  --vedh-panel: rgba(74, 66, 63, 0.88);
+  --vedh-panel-strong: rgba(84, 75, 71, 0.94);
+  --vedh-border: rgba(255, 244, 237, 0.12);
+  --vedh-border-strong: rgba(255, 244, 237, 0.18);
+  --vedh-text: #fff4ed;
+  --vedh-muted: rgba(255, 244, 237, 0.74);
+  --vedh-primary: #f2a041;
+  --vedh-primary-rgb: 242, 160, 65;
+  --vedh-secondary: #f00876;
+  --vedh-secondary-rgb: 240, 8, 118;
+  --vedh-primary-gradient: linear-gradient(120deg, #f2a041, #f00876);
+  --vedh-primary-contrast: #241916;
+  background-color: var(--vedh-bg);
+  color: var(--vedh-text);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(var(--vedh-primary-rgb), 0.18), transparent 30%),
+    radial-gradient(circle at 85% 15%, rgba(var(--vedh-secondary-rgb), 0.16), transparent 28%),
+    linear-gradient(180deg, #443c39 0%, var(--vedh-bg) 48%, #2f2a28 100%);
+  color: var(--vedh-text);
 }
 
 .app-shell {
@@ -22,6 +43,10 @@ body {
 .app-main {
   flex: 1;
   padding: 1.5rem clamp(1rem, 5vw, 3rem);
+}
+
+a {
+  color: var(--vedh-primary);
 }
 
 button {

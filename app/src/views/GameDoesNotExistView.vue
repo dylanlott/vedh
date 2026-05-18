@@ -25,8 +25,8 @@ import { RouterLink } from 'vue-router';
   justify-content: center;
   border-radius: 999px;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(120deg, #85d7ff, #26c2ff);
-  color: #0b1016;
+  background: var(--vedh-primary-gradient);
+  color: var(--vedh-primary-contrast);
   text-decoration: none;
   font-weight: 600;
 }

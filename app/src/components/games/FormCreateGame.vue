@@ -300,9 +300,9 @@ async function handleSubmit() {
 
 .modal {
   width: min(90vw, 420px);
-  background: rgba(18, 21, 28, 0.95);
+  background: var(--vedh-panel-strong);
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--vedh-border);
   padding: 1.75rem;
   display: grid;
   gap: 1.25rem;
@@ -328,8 +328,8 @@ input,
 select {
   padding: 0.7rem 0.9rem;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--vedh-border);
+  background: rgba(255, 244, 237, 0.05);
   color: inherit;
 }
 footer {
@@ -347,8 +347,8 @@ button {
 }
 
 button.primary {
-  background: linear-gradient(120deg, #85d7ff, #26c2ff);
-  color: #0b1016;
+  background: var(--vedh-primary-gradient);
+  color: var(--vedh-primary-contrast);
 }
 
 button.secondary,

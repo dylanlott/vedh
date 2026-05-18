@@ -56,10 +56,11 @@ function logout() {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1.5rem;
-  background: rgba(12, 12, 16, 0.86);
+  background: rgba(var(--vedh-bg-rgb), 0.86);
   backdrop-filter: blur(12px);
-  color: #f5f5f5;
+  color: var(--vedh-text);
   z-index: 20;
+  border-bottom: 1px solid var(--vedh-border);
 }
 
 .brand {
@@ -72,7 +73,7 @@ function logout() {
 .logo {
   font-size: 1.25rem;
   letter-spacing: 0.08em;
-  color: #f7b500;
+  color: var(--vedh-primary);
 }
 
 nav {
@@ -97,7 +98,7 @@ a::after {
   width: 100%;
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(120deg, #f7b500, #ff6b6b);
+  background: var(--vedh-primary-gradient);
   opacity: 0;
   transform: scaleX(0.6);
   transform-origin: left;
@@ -106,7 +107,7 @@ a::after {
 
 a:hover,
 a:focus-visible {
-  color: #f7b500;
+  color: var(--vedh-primary);
 }
 
 a:hover::after,
@@ -116,7 +117,7 @@ a:focus-visible::after {
 }
 
 a.router-link-active {
-  color: #f7b500;
+  color: var(--vedh-primary);
 }
 
 .auth {
@@ -139,13 +140,14 @@ button:hover {
 }
 
 button.primary {
-  background: linear-gradient(120deg, #f7b500, #ff6b6b);
-  color: #111;
+  background: var(--vedh-primary-gradient);
+  color: var(--vedh-primary-contrast);
 }
 
 button.secondary {
-  background: rgba(255, 255, 255, 0.12);
-  color: #f5f5f5;
+  background: rgba(255, 244, 237, 0.1);
+  color: var(--vedh-text);
+  border: 1px solid var(--vedh-border);
 }
 
 button.link {
@@ -158,8 +160,9 @@ button.link {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 244, 237, 0.08);
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
+  border: 1px solid var(--vedh-border);
 }
 </style>
