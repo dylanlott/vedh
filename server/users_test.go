@@ -44,13 +44,28 @@ func Test_graphQLServer_Signup(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "should return a friendly error when username already exists",
+			args: args{
+				username: "shakezula",
+				password: "ohhellyeah",
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := testAPI(t)
 			username := tt.args.username
-			if !tt.wantErr {
+			switch tt.name {
+			case "should create a user and persist it to the appDB.":
 				username = uniqueUsername("user")
+			case "should return a friendly error when username already exists":
+				username = uniqueUsername("dupe")
+				_, err := s.Signup(context.Background(), username, "seedpassword")
+				if err != nil {
+					t.Fatalf("failed to seed duplicate username: %v", err)
+				}
 			}
 			got, err := s.Signup(context.Background(), username, tt.args.password)
 			if tt.want != nil && !tt.wantErr {
@@ -61,6 +76,12 @@ func Test_graphQLServer_Signup(t *testing.T) {
 			}
 			if (err != nil) != tt.wantErr {
 				t.Errorf("graphQLServer.Signup() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.name == "should return a friendly error when username already exists" {
+				if err == nil || err.Error() != "That username is already taken. Try another one." {
+					t.Fatalf("expected friendly duplicate username error, got %v", err)
+				}
 				return
 			}
 			if err == nil {

@@ -121,10 +121,11 @@ type InputCounter struct {
 }
 
 type InputCreateGame struct {
-	ID      string             `json:"ID"`
-	Turn    *InputTurn         `json:"Turn"`
-	Handle  *string            `json:"Handle,omitempty"`
-	Players []*InputBoardState `json:"Players"`
+	ID       string             `json:"ID"`
+	Turn     *InputTurn         `json:"Turn"`
+	Handle   *string            `json:"Handle,omitempty"`
+	FormatID *string            `json:"FormatID,omitempty"`
+	Players  []*InputBoardState `json:"Players"`
 }
 
 type InputDeck struct {

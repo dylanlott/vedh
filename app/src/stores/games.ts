@@ -2,7 +2,8 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { apolloClient } from '../services/apollo';
 import { CREATE_GAME_MUTATION, JOIN_GAME_MUTATION } from '../graphql/mutations';
-import { GAMES_QUERY, GET_GAME_QUERY, GAME_UPDATED_SUBSCRIPTION } from '../graphql/queries';
+import { GAMES_QUERY, GET_GAME_QUERY, GAME_UPDATED_SUBSCRIPTION, FORMATS_QUERY } from '../graphql/queries';
+import { formats as localFormats, lookupFormat, type GameFormat } from '../formats/registry';
 import type { ApolloQueryResult } from '@apollo/client/core';
 import type { FetchResult } from '@apollo/client/link/core';
 
@@ -64,6 +65,7 @@ interface GameDetail extends GameSummary {
 export const useGamesStore = defineStore('games', () => {
   const games = ref<GameSummary[]>([]);
   const activeGame = ref<GameDetail | null>(null);
+  const formats = ref<GameFormat[]>([...localFormats]);
   const loading = ref(false);
   const errorMessage = ref<string | null>(null);
   let activeSubscription: { unsubscribe: () => void } | null = null;
@@ -86,6 +88,22 @@ export const useGamesStore = defineStore('games', () => {
     } finally {
       loading.value = false;
     }
+  }
+
+  async function fetchFormats() {
+	try {
+	  const { data }: ApolloQueryResult<{ formats: GameFormat[] }> = await apolloClient.query({
+	    query: FORMATS_QUERY,
+	    fetchPolicy: 'network-only',
+	  });
+	  formats.value = data?.formats?.length ? data.formats : [...localFormats];
+	} catch {
+	  formats.value = [...localFormats];
+	}
+  }
+
+  function resolveGameFormat(rules?: { Name: string; Value: string }[] | null) {
+	return lookupFormat(rules?.find(rule => rule.Name === 'format')?.Value);
   }
 
   async function loadGame(gameID: string, userID?: string) {
@@ -181,11 +199,14 @@ export const useGamesStore = defineStore('games', () => {
     loading,
     errorMessage,
     hasActiveGame,
+    formats,
     fetchGames,
+    fetchFormats,
     loadGame,
     subscribeToGame,
     createGame,
     joinGame,
     clearActiveGame,
+    resolveGameFormat,
   };
 });

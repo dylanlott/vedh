@@ -15,6 +15,7 @@ type Mutation {
 type Query {
   users(userID: String): [String!]!
   games(offset: Int!, limit: Int!): [Game]!
+  formats: [GameFormat!]!
   getGame(gameID: String!): Game!
   gameLogs(gameID: String!, offset: Int!, limit: Int!): [GameLogEvent!]!
   card(name: String!, id: String): Card
@@ -117,6 +118,24 @@ type Rule {
   Value: String!
 }
 
+type GameFormat {
+  ID: String!
+  Name: String!
+  StartingLife: Int!
+  DefaultDeckSize: Int!
+  CommanderEnabled: Boolean!
+  PhaseSequence: [String!]!
+  Zones: [GameFormatZone!]!
+}
+
+type GameFormatZone {
+  ID: String!
+  Label: String!
+  Visibility: String!
+  Kind: String!
+  SupportsCards: Boolean!
+}
+
 type Counter {
   Name: String!
   Value: String!
@@ -205,6 +224,7 @@ input InputCreateGame {
   ID: String!
   Turn: InputTurn!
   Handle: String
+  FormatID: String
   Players: [InputBoardState!]!
 }
 

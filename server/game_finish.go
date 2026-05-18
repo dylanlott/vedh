@@ -52,6 +52,7 @@ func ensureGameDefaults(game *Game) {
 	if game.Status == "" {
 		game.Status = GameStatusInProgress
 	}
+	ensureFormatRules(game, formatFromRules(game.Rules))
 }
 
 func finalizeGame(game *Game, result GameResult, winnerNames []string, condition *string) {

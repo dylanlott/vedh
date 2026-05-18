@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"testing"
 	"time"
 
@@ -37,6 +38,58 @@ func TestGameGetSet(t *testing.T) {
 	got, err := api.GetGame(ctx, seedInputGame.ID)
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
+}
+
+func TestCreateGame_GenericDuelFormatRoundTrips(t *testing.T) {
+	s := testAPI(t)
+	deck := func() *string { v := "60,Island"; return &v }()
+	formatID := "GENERIC_DUEL"
+	game, err := s.CreateGame(authCtx("shakezula"), InputCreateGame{
+		ID:       "format-generic-duel",
+		FormatID: &formatID,
+		Turn: &InputTurn{Player: "shakezula", Phase: "invalid", Number: 1, Priority: "shakezula"},
+		Players: []*InputBoardState{{UserID: "0xACAB", User: "shakezula", GameID: "format-generic-duel", Life: 0, Decklist: deck}},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "GENERIC_DUEL", findRuleValue(game.Rules, "format"))
+	assert.Equal(t, "draw", game.Turn.Phase)
+	assert.Equal(t, 20, game.Players[0].Boardstate.Life)
+	assert.Equal(t, "60", findRuleValue(game.Rules, "deck_size"))
+	assert.Equal(t, "20", findRuleValue(game.Rules, "starting_life"))
+}
+
+func TestGameFormatDefaults(t *testing.T) {
+	s := testAPI(t)
+	deck := func() *string { v := "1,Island"; return &v }()
+	cases := []struct {
+		name string
+		formatID *string
+		wantFormat string
+		wantDeck int
+		wantLife int
+		wantPhase string
+	}{
+		{name: "default format", formatID: nil, wantFormat: "EDH", wantDeck: 99, wantLife: 40, wantPhase: "pregame"},
+		{name: "edh format", formatID: ptrString("EDH"), wantFormat: "EDH", wantDeck: 99, wantLife: 40, wantPhase: "pregame"},
+		{name: "generic duel format", formatID: ptrString("GENERIC_DUEL"), wantFormat: "GENERIC_DUEL", wantDeck: 60, wantLife: 20, wantPhase: "draw"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			gameID := "fmt-" + tt.wantFormat + "-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+			game, err := s.CreateGame(authCtx("shakezula"), InputCreateGame{
+				ID: gameID,
+				FormatID: tt.formatID,
+				Turn: &InputTurn{Player: "shakezula", Phase: "", Number: 1, Priority: "shakezula"},
+				Players: []*InputBoardState{{UserID: "0xACAB", User: "shakezula", GameID: gameID, Life: 0, Decklist: deck}},
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantFormat, findRuleValue(game.Rules, "format"))
+			assert.Equal(t, strconv.Itoa(tt.wantDeck), findRuleValue(game.Rules, "deck_size"))
+			assert.Equal(t, strconv.Itoa(tt.wantLife), findRuleValue(game.Rules, "starting_life"))
+			assert.Equal(t, tt.wantLife, game.Players[0].Boardstate.Life)
+			assert.Equal(t, tt.wantPhase, game.Turn.Phase)
+		})
+	}
 }
 
 func TestCreateGame(t *testing.T) {
@@ -814,6 +867,8 @@ var (
 )
 
 // seedInputGame is a bare minimum game input that passes validation
+func ptrString(v string) *string { return &v }
+
 var seedInputGame = &InputCreateGame{
 	ID: seedGameID,
 	Players: []*InputBoardState{
