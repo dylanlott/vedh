@@ -111,6 +111,24 @@ type ComplexityRoot struct {
 		WinnerIDs       func(childComplexity int) int
 	}
 
+	GameFormat struct {
+		CommanderEnabled func(childComplexity int) int
+		DefaultDeckSize  func(childComplexity int) int
+		ID               func(childComplexity int) int
+		Name             func(childComplexity int) int
+		PhaseSequence    func(childComplexity int) int
+		StartingLife     func(childComplexity int) int
+		Zones            func(childComplexity int) int
+	}
+
+	GameFormatZone struct {
+		ID            func(childComplexity int) int
+		Kind          func(childComplexity int) int
+		Label         func(childComplexity int) int
+		SupportsCards func(childComplexity int) int
+		Visibility    func(childComplexity int) int
+	}
+
 	GameLogEvent struct {
 		Actor     func(childComplexity int) int
 		EventTime func(childComplexity int) int
@@ -141,6 +159,7 @@ type ComplexityRoot struct {
 	Query struct {
 		Card      func(childComplexity int, name string, id *string) int
 		Cards     func(childComplexity int, list []string) int
+		Formats   func(childComplexity int) int
 		GameLogs  func(childComplexity int, gameID string, offset int, limit int) int
 		Games     func(childComplexity int, offset int, limit int) int
 		GetGame   func(childComplexity int, gameID string) int
@@ -189,6 +208,7 @@ type MutationResolver interface {
 type QueryResolver interface {
 	Users(ctx context.Context, userID *string) ([]string, error)
 	Games(ctx context.Context, offset int, limit int) ([]*Game, error)
+	Formats(ctx context.Context) ([]*GameFormat, error)
 	GetGame(ctx context.Context, gameID string) (*Game, error)
 	GameLogs(ctx context.Context, gameID string, offset int, limit int) ([]*GameLogEvent, error)
 	Card(ctx context.Context, name string, id *string) (*Card, error)
@@ -530,6 +550,80 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Game.WinnerIDs(childComplexity), true
 
+	case "GameFormat.CommanderEnabled":
+		if e.complexity.GameFormat.CommanderEnabled == nil {
+			break
+		}
+
+		return e.complexity.GameFormat.CommanderEnabled(childComplexity), true
+	case "GameFormat.DefaultDeckSize":
+		if e.complexity.GameFormat.DefaultDeckSize == nil {
+			break
+		}
+
+		return e.complexity.GameFormat.DefaultDeckSize(childComplexity), true
+	case "GameFormat.ID":
+		if e.complexity.GameFormat.ID == nil {
+			break
+		}
+
+		return e.complexity.GameFormat.ID(childComplexity), true
+	case "GameFormat.Name":
+		if e.complexity.GameFormat.Name == nil {
+			break
+		}
+
+		return e.complexity.GameFormat.Name(childComplexity), true
+	case "GameFormat.PhaseSequence":
+		if e.complexity.GameFormat.PhaseSequence == nil {
+			break
+		}
+
+		return e.complexity.GameFormat.PhaseSequence(childComplexity), true
+	case "GameFormat.StartingLife":
+		if e.complexity.GameFormat.StartingLife == nil {
+			break
+		}
+
+		return e.complexity.GameFormat.StartingLife(childComplexity), true
+	case "GameFormat.Zones":
+		if e.complexity.GameFormat.Zones == nil {
+			break
+		}
+
+		return e.complexity.GameFormat.Zones(childComplexity), true
+
+	case "GameFormatZone.ID":
+		if e.complexity.GameFormatZone.ID == nil {
+			break
+		}
+
+		return e.complexity.GameFormatZone.ID(childComplexity), true
+	case "GameFormatZone.Kind":
+		if e.complexity.GameFormatZone.Kind == nil {
+			break
+		}
+
+		return e.complexity.GameFormatZone.Kind(childComplexity), true
+	case "GameFormatZone.Label":
+		if e.complexity.GameFormatZone.Label == nil {
+			break
+		}
+
+		return e.complexity.GameFormatZone.Label(childComplexity), true
+	case "GameFormatZone.SupportsCards":
+		if e.complexity.GameFormatZone.SupportsCards == nil {
+			break
+		}
+
+		return e.complexity.GameFormatZone.SupportsCards(childComplexity), true
+	case "GameFormatZone.Visibility":
+		if e.complexity.GameFormatZone.Visibility == nil {
+			break
+		}
+
+		return e.complexity.GameFormatZone.Visibility(childComplexity), true
+
 	case "GameLogEvent.Actor":
 		if e.complexity.GameLogEvent.Actor == nil {
 			break
@@ -708,6 +802,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Cards(childComplexity, args["list"].([]string)), true
+	case "Query.formats":
+		if e.complexity.Query.Formats == nil {
+			break
+		}
+
+		return e.complexity.Query.Formats(childComplexity), true
 	case "Query.gameLogs":
 		if e.complexity.Query.GameLogs == nil {
 			break
@@ -3377,6 +3477,366 @@ func (ec *executionContext) fieldContext_Game_PendingWinClaim(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _GameFormat_ID(ctx context.Context, field graphql.CollectedField, obj *GameFormat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormat_ID,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormat_ID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormat_Name(ctx context.Context, field graphql.CollectedField, obj *GameFormat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormat_Name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormat_Name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormat_StartingLife(ctx context.Context, field graphql.CollectedField, obj *GameFormat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormat_StartingLife,
+		func(ctx context.Context) (any, error) {
+			return obj.StartingLife, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormat_StartingLife(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormat_DefaultDeckSize(ctx context.Context, field graphql.CollectedField, obj *GameFormat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormat_DefaultDeckSize,
+		func(ctx context.Context) (any, error) {
+			return obj.DefaultDeckSize, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormat_DefaultDeckSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormat_CommanderEnabled(ctx context.Context, field graphql.CollectedField, obj *GameFormat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormat_CommanderEnabled,
+		func(ctx context.Context) (any, error) {
+			return obj.CommanderEnabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormat_CommanderEnabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormat_PhaseSequence(ctx context.Context, field graphql.CollectedField, obj *GameFormat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormat_PhaseSequence,
+		func(ctx context.Context) (any, error) {
+			return obj.PhaseSequence, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormat_PhaseSequence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormat_Zones(ctx context.Context, field graphql.CollectedField, obj *GameFormat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormat_Zones,
+		func(ctx context.Context) (any, error) {
+			return obj.Zones, nil
+		},
+		nil,
+		ec.marshalNGameFormatZone2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameFormatZoneᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormat_Zones(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ID":
+				return ec.fieldContext_GameFormatZone_ID(ctx, field)
+			case "Label":
+				return ec.fieldContext_GameFormatZone_Label(ctx, field)
+			case "Visibility":
+				return ec.fieldContext_GameFormatZone_Visibility(ctx, field)
+			case "Kind":
+				return ec.fieldContext_GameFormatZone_Kind(ctx, field)
+			case "SupportsCards":
+				return ec.fieldContext_GameFormatZone_SupportsCards(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GameFormatZone", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormatZone_ID(ctx context.Context, field graphql.CollectedField, obj *GameFormatZone) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormatZone_ID,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormatZone_ID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormatZone",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormatZone_Label(ctx context.Context, field graphql.CollectedField, obj *GameFormatZone) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormatZone_Label,
+		func(ctx context.Context) (any, error) {
+			return obj.Label, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormatZone_Label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormatZone",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormatZone_Visibility(ctx context.Context, field graphql.CollectedField, obj *GameFormatZone) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormatZone_Visibility,
+		func(ctx context.Context) (any, error) {
+			return obj.Visibility, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormatZone_Visibility(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormatZone",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormatZone_Kind(ctx context.Context, field graphql.CollectedField, obj *GameFormatZone) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormatZone_Kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormatZone_Kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormatZone",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameFormatZone_SupportsCards(ctx context.Context, field graphql.CollectedField, obj *GameFormatZone) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameFormatZone_SupportsCards,
+		func(ctx context.Context) (any, error) {
+			return obj.SupportsCards, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameFormatZone_SupportsCards(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameFormatZone",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GameLogEvent_ID(ctx context.Context, field graphql.CollectedField, obj *GameLogEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4305,6 +4765,51 @@ func (ec *executionContext) fieldContext_Query_games(ctx context.Context, field 
 	if fc.Args, err = ec.field_Query_games_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_formats(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_formats,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().Formats(ctx)
+		},
+		nil,
+		ec.marshalNGameFormat2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameFormatᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_formats(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ID":
+				return ec.fieldContext_GameFormat_ID(ctx, field)
+			case "Name":
+				return ec.fieldContext_GameFormat_Name(ctx, field)
+			case "StartingLife":
+				return ec.fieldContext_GameFormat_StartingLife(ctx, field)
+			case "DefaultDeckSize":
+				return ec.fieldContext_GameFormat_DefaultDeckSize(ctx, field)
+			case "CommanderEnabled":
+				return ec.fieldContext_GameFormat_CommanderEnabled(ctx, field)
+			case "PhaseSequence":
+				return ec.fieldContext_GameFormat_PhaseSequence(ctx, field)
+			case "Zones":
+				return ec.fieldContext_GameFormat_Zones(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GameFormat", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -7197,7 +7702,7 @@ func (ec *executionContext) unmarshalInputInputCreateGame(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"ID", "Turn", "Handle", "Players"}
+	fieldsInOrder := [...]string{"ID", "Turn", "Handle", "FormatID", "Players"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -7225,6 +7730,13 @@ func (ec *executionContext) unmarshalInputInputCreateGame(ctx context.Context, o
 				return it, err
 			}
 			it.Handle = data
+		case "FormatID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("FormatID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FormatID = data
 		case "Players":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Players"))
 			data, err := ec.unmarshalNInputBoardState2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputBoardStateᚄ(ctx, v)
@@ -7897,6 +8409,134 @@ func (ec *executionContext) _Game(ctx context.Context, sel ast.SelectionSet, obj
 	return out
 }
 
+var gameFormatImplementors = []string{"GameFormat"}
+
+func (ec *executionContext) _GameFormat(ctx context.Context, sel ast.SelectionSet, obj *GameFormat) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, gameFormatImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GameFormat")
+		case "ID":
+			out.Values[i] = ec._GameFormat_ID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Name":
+			out.Values[i] = ec._GameFormat_Name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "StartingLife":
+			out.Values[i] = ec._GameFormat_StartingLife(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "DefaultDeckSize":
+			out.Values[i] = ec._GameFormat_DefaultDeckSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "CommanderEnabled":
+			out.Values[i] = ec._GameFormat_CommanderEnabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "PhaseSequence":
+			out.Values[i] = ec._GameFormat_PhaseSequence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Zones":
+			out.Values[i] = ec._GameFormat_Zones(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var gameFormatZoneImplementors = []string{"GameFormatZone"}
+
+func (ec *executionContext) _GameFormatZone(ctx context.Context, sel ast.SelectionSet, obj *GameFormatZone) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, gameFormatZoneImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GameFormatZone")
+		case "ID":
+			out.Values[i] = ec._GameFormatZone_ID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Label":
+			out.Values[i] = ec._GameFormatZone_Label(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Visibility":
+			out.Values[i] = ec._GameFormatZone_Visibility(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Kind":
+			out.Values[i] = ec._GameFormatZone_Kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "SupportsCards":
+			out.Values[i] = ec._GameFormatZone_SupportsCards(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var gameLogEventImplementors = []string{"GameLogEvent"}
 
 func (ec *executionContext) _GameLogEvent(ctx context.Context, sel ast.SelectionSet, obj *GameLogEvent) graphql.Marshaler {
@@ -8157,6 +8797,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_games(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "formats":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_formats(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -8972,6 +9634,114 @@ func (ec *executionContext) marshalNGame2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋ
 		return graphql.Null
 	}
 	return ec._Game(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGameFormat2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameFormatᚄ(ctx context.Context, sel ast.SelectionSet, v []*GameFormat) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGameFormat2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameFormat(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGameFormat2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameFormat(ctx context.Context, sel ast.SelectionSet, v *GameFormat) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GameFormat(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGameFormatZone2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameFormatZoneᚄ(ctx context.Context, sel ast.SelectionSet, v []*GameFormatZone) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGameFormatZone2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameFormatZone(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGameFormatZone2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameFormatZone(ctx context.Context, sel ast.SelectionSet, v *GameFormatZone) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GameFormatZone(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNGameLogEvent2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameLogEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*GameLogEvent) graphql.Marshaler {

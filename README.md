@@ -31,8 +31,17 @@ You will need to configure `.vedh.env` and `.pg.env` environment files at your p
 # .vedh.env example
 # Database connection URI
 DATABASE_URL=""
+# Optional listener port
+PORT="8080"
 # Authentication secret
 JWT_SECRET=""
+
+# Allowed browser origins for HTTP + websocket GraphQL traffic
+ALLOWED_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
+
+# Optional Prometheus exposure. Metrics stay disabled unless both are set.
+METRICS_ENABLED="false"
+METRICS_TOKEN=""
 
 # Optional: structured logging
 # Levels: debug, info, warn, error
@@ -89,27 +98,18 @@ To run the current web app:
 The current frontend lives in `app/`.
 
 - `npm run dev` to run the dev server
-- `npm test` to run the tests
-
-#### Vue Tests
-
-`node@14` is required to build the frontend. Later versions are not supported.
-
-`yarn test` executes the boardstate unit tests.
+- `npm test` to run the frontend unit and helper tests
 
 ## Testing
 
-### Prerequisites
+Use the smallest layer that proves the change you made:
 
-- Postgres instance running locally `localhost@5432`
+- **Frontend unit/helper tests** (`cd app && npm test`): proves Vue components, stores, and small browser helpers behave correctly in isolation. Requires Node and frontend deps installed; no server or database.
+- **Backend integration tests** (`make test-api`): proves the Go API works against its real persistence and GraphQL paths. Requires local Postgres on `localhost:5432` and any test fixture/config expected by the current Go tests.
+- **API smoke** (`cd app && npm run test:smoke`): proves a create/join flow works against a running API with minimal end-to-end setup. Requires the frontend deps plus a locally running server configured for the smoke script.
+- **Browser E2E** (`cd app && npm run test:e2e` or `npm run test:e2e:headed`): proves the browser experience works through real UI flows. Requires frontend deps, a running app/API target for Playwright, and browser binaries installed.
 
-To run the API tests
-
-```sh
-> make test-api
-```
-
-Once you have a Postgres instance running locally, you can run your tests. You may need to change the config values in `games_test.go` to start your tests or configure your environment to fit with the provided.
+If you only need fast feedback, start with unit/helper tests. Reach for backend integration, smoke, or browser E2E when you need confidence across process boundaries.
 
 ## Observability
 
@@ -169,10 +169,6 @@ git subtree push --prefix app dokku-app main
 - [How to import an SQL dump into Postgres](https://stackoverflow.com/questions/6842393/import-sql-dump-into-postgresql-database)
 - [Make sure when you rows.Scan() you don't point it at a nil value](https://stackoverflow.com/questions/44670212/scan-sql-null-values-in-golang/46753197)
 
-## Deployment (Docker Hub, legacy)
-
-Deployments are run using `vtec2/watchtower` to watch for container updates to Docker Hub. New builds are tested and then tagged `latest` and pushed to Docker Hub so that Watchtower detects them on the EDH-Go production server.
-
 ## Environments
 
 `app/.env.local` sets local environemnt variables and is used when `yarn start` is run.
@@ -180,14 +176,38 @@ Deployments are run using `vtec2/watchtower` to watch for container updates to D
 
 A copy of the frontend environment file for development is included in this repository.
 
-## Deploying with Make
+## Runtime knobs that exist today
 
-`scripts/sync.sh` must be run before loading any migrations. It syncs the local git ls-files output to the production remote. This allows the server to access migration files at runtime.
+The current Go server reads these env vars in code:
 
-- `make deploy` will deploy a new version of both the server and the UI.
-- `make deploy-ui` and `make deploy-server` will deploy them each individually.
-The Makefile contains a `confirm` script that requires user confirmation before running deployment targets.
+- `DATABASE_URL`
+- `PORT`
+- `ALLOWED_ORIGINS`
+- `METRICS_ENABLED`
+- `METRICS_TOKEN`
+- `LOG_LEVEL`
 
-After running any of the deployment targets, you'll be prompted with a yes / no before proceeding.
+### Metrics hardening note
 
-> Note: Your SSH key must be registered on the production server in order to deploy.
+`/prometheus` is only exposed when **both** of these are set:
+
+- `METRICS_ENABLED=true`
+- `METRICS_TOKEN` is non-empty
+
+Even then, prefer to keep the route behind ingress/network restriction instead of relying on bearer auth alone.
+
+## Lightweight server smoke verification
+
+Full `./server` tests currently expect:
+
+- local Postgres on `localhost:5432`
+- the card import fixture path (`../All Printings.json` by default)
+
+For a fast listener/origin/metrics smoke check that does **not** go through `server/main_test.go`, run:
+
+```sh
+cd /root/.openclaw/workspace/vedh
+/usr/local/go/bin/go test $(find server -maxdepth 1 -name '*.go' ! -name '*_test.go' | sort) server/graphql_metrics_test.go server/graphql_origin_test.go -run 'TestGraphQLServer_|TestParseAllowedOrigins' -v
+```
+
+Use full `make test-api` only when the local DB + card fixture prerequisites are available.

@@ -64,6 +64,11 @@ func (r *queryResolver) Games(ctx context.Context, offset int, limit int) ([]*Ga
 	panic(fmt.Errorf("not implemented: Games - games"))
 }
 
+// Formats is the resolver for the formats field.
+func (r *queryResolver) Formats(ctx context.Context) ([]*GameFormat, error) {
+	panic(fmt.Errorf("not implemented: Formats - formats"))
+}
+
 // GetGame is the resolver for the getGame field.
 func (r *queryResolver) GetGame(ctx context.Context, gameID string) (*Game, error) {
 	panic(fmt.Errorf("not implemented: GetGame - getGame"))

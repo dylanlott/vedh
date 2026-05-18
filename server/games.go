@@ -75,7 +75,7 @@ func (s *graphQLServer) loadGameByID(gameID string) (*Game, error) {
 		s.logger.Debug("game not found", "game_id", gameID)
 		return nil, err
 	}
-	s.logger.Debug("found game in database", "game_id", gameID, "payload", string(payload))
+	s.logger.Debug("found game in database", "game_id", gameID, "payload_bytes", len(payload))
 	game := &Game{}
 	if err := json.Unmarshal(payload, &game); err != nil {
 		return nil, err
@@ -368,6 +368,8 @@ func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase s
 		return nil, errors.New("forbidden: only the turn player can advance the phase")
 	}
 	prevTurn := *game.Turn
+	format := formatFromRules(game.Rules)
+	phase = normalizeTurnPhase(format, phase)
 
 	nextTurnNumber := game.Turn.Number
 	if number != nil {
@@ -425,7 +427,7 @@ func normalizePhaseKey(phase string) string {
 func shouldIncrementTurnNumber(prevPhase string, nextPhase string) bool {
 	prev := normalizePhaseKey(prevPhase)
 	next := normalizePhaseKey(nextPhase)
-	if next != "UNTAP" {
+	if next != "UNTAP" && next != strings.ToUpper(DefaultFormat().PhaseSequence[0]) {
 		return false
 	}
 	return prev == "END STEP" || prev == "DISCARD" || prev == "CLEANUP"
@@ -612,6 +614,15 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		inputGame.ID = uuid.New().String()
 	}
 
+	formatID := ""
+	if inputGame.FormatID != nil {
+		formatID = *inputGame.FormatID
+	}
+	format, ok := LookupFormat(formatID)
+	if !ok {
+		return nil, fmt.Errorf("unknown format %q", formatID)
+	}
+
 	g := &Game{
 		ID:        inputGame.ID,
 		CreatedAt: time.Now(),
@@ -620,7 +631,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		Status:    GameStatusInProgress,
 		Turn: &Turn{
 			Player: inputGame.Turn.Player,
-			Phase:  inputGame.Turn.Phase,
+			Phase:  normalizeTurnPhase(format, inputGame.Turn.Phase),
 			Number: inputGame.Turn.Number,
 			Priority: func() string {
 				if inputGame.Turn.Priority != "" {
@@ -629,18 +640,9 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 				return inputGame.Turn.Player
 			}(),
 		},
-		// NB: We're only supporting EDH at this time. We will add more flexible validation later.
-		Rules: []*Rule{
-			{
-				Name:  "format",
-				Value: "EDH",
-			},
-			{
-				Name:  "deck_size",
-				Value: "99",
-			},
-		},
+		Rules: []*Rule{},
 	}
+	ensureFormatRules(g, format)
 
 	// build player boardstates
 	for _, player := range inputGame.Players {
@@ -664,6 +666,9 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 				Battlefield: getBareCard(player.Battlefield),
 				Controlled:  getBareCard(player.Controlled),
 			},
+		}
+		if user.Boardstate.Life == 0 {
+			user.Boardstate.Life = format.StartingLife
 		}
 
 		// Set default boardstate, handle library and commander specifically

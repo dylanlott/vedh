@@ -12,7 +12,22 @@ export const GAMES_QUERY = gql`
   query Games($offset: Int!, $limit: Int!) {
     games(offset: $offset, limit: $limit) {
       ID
+      Rules { Name Value }
       Players { ID Username }
+    }
+  }
+`;
+
+export const FORMATS_QUERY = gql`
+  query Formats {
+    formats {
+      ID
+      Name
+      StartingLife
+      DefaultDeckSize
+      CommanderEnabled
+      PhaseSequence
+      Zones { ID Label Visibility Kind SupportsCards }
     }
   }
 `;

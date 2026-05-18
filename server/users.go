@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,6 +28,9 @@ func (s *graphQLServer) Signup(ctx context.Context, username string, password st
 	`
 	result, err := s.db.Query(stmt, id, username, hashed)
 	if err != nil {
+		if strings.Contains(err.Error(), "username_unique") || strings.Contains(strings.ToLower(err.Error()), "duplicate key value") {
+			return nil, errs.New("That username is already taken. Try another one.")
+		}
 		return nil, errs.Wrap(err)
 	}
 	defer result.Close()

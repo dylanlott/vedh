@@ -7,13 +7,20 @@ import (
 )
 
 func TestGraphQLServer_ShouldExposeMetrics(t *testing.T) {
-	s := &graphQLServer{cfg: Conf{MetricsEnabled: true}}
+	s := &graphQLServer{cfg: Conf{MetricsEnabled: true, MetricsToken: "secret-token"}}
 	if !s.shouldExposeMetrics() {
 		t.Fatalf("expected metrics to be enabled")
 	}
 	s.cfg.MetricsEnabled = false
 	if s.shouldExposeMetrics() {
 		t.Fatalf("expected metrics to be disabled")
+	}
+}
+
+func TestGraphQLServer_ShouldExposeMetrics_RequiresTokenWhenEnabled(t *testing.T) {
+	s := &graphQLServer{cfg: Conf{MetricsEnabled: true, MetricsToken: ""}}
+	if s.shouldExposeMetrics() {
+		t.Fatalf("expected metrics to stay disabled without a token")
 	}
 }
 

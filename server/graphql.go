@@ -233,7 +233,7 @@ func (s *graphQLServer) isAllowedWebSocketOrigin(r *http.Request) bool {
 }
 
 func (s *graphQLServer) shouldExposeMetrics() bool {
-	return s != nil && s.cfg.MetricsEnabled
+	return s != nil && s.cfg.MetricsEnabled && strings.TrimSpace(s.cfg.MetricsToken) != ""
 }
 
 func (s *graphQLServer) withMetricsAuth(next http.Handler) http.Handler {
@@ -293,6 +293,8 @@ func (s *graphQLServer) Serve(route string, port int) error {
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
 	if s.shouldExposeMetrics() {
 		mux.Handle("/prometheus", s.withMetricsAuth(promhttp.Handler()))
+	} else if s != nil && s.cfg.MetricsEnabled {
+		s.logger.Warn("prometheus metrics disabled because METRICS_TOKEN is empty")
 	} else {
 		s.logger.Info("prometheus metrics disabled; set METRICS_ENABLED=true to expose /prometheus")
 	}
