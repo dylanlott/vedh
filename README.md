@@ -106,10 +106,11 @@ Use the smallest layer that proves the change you made:
 
 - **Frontend unit/helper tests** (`cd app && npm test`): proves Vue components, stores, and small browser helpers behave correctly in isolation. Requires Node and frontend deps installed; no server or database.
 - **Backend integration tests** (`make test-api`): proves the Go API works against its real persistence and GraphQL paths. Requires local Postgres on `localhost:5432` and any test fixture/config expected by the current Go tests.
-- **API smoke** (`cd app && npm run test:smoke`): proves a create/join flow works against a running API with minimal end-to-end setup. Requires the frontend deps plus a locally running server configured for the smoke script.
+- **API smoke (Rust, preferred)** (`make test-smoke-rust` or `cargo run --manifest-path tools/smoke/Cargo.toml --`): proves a create/join flow works against a running GraphQL API with minimal end-to-end setup. Defaults to `http://127.0.0.1:8080/graphql` and respects `VEDH_GRAPHQL_URL` / `VEDH_SMOKE_TIMEOUT_MS`.
+- **API smoke (legacy JS)** (`cd app && npm run test:smoke`): older create/join smoke runner against a running API. Keep only as fallback while the Rust path settles.
 - **Browser E2E** (`cd app && npm run test:e2e` or `npm run test:e2e:headed`): proves the browser experience works through real UI flows. Requires frontend deps, a running app/API target for Playwright, and browser binaries installed.
 
-If you only need fast feedback, start with unit/helper tests. Reach for backend integration, smoke, or browser E2E when you need confidence across process boundaries.
+If you only need fast feedback, start with unit/helper tests. Reach for backend integration, the Rust smoke runner, or browser E2E when you need confidence across process boundaries.
 
 ## Observability
 
