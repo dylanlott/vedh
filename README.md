@@ -63,8 +63,8 @@ The front end also supports an environment file, `.env.local`.
 
 ```sh
 NODE_ENV="development"
-VUE_APP_WEBSOCKET_URL="ws://127.0.0.1:8080/graphql"
-VUE_APP_BASE_URL="http://127.0.0.1:8080/graphql"
+VITE_GRAPHQL_WS="ws://127.0.0.1:8080/graphql"
+VITE_GRAPHQL_HTTP="http://127.0.0.1:8080/graphql"
 ```
 
 ### Persistence
@@ -98,15 +98,16 @@ To run the current web app:
 The current frontend lives in `app/`.
 
 - `npm run dev` to run the dev server
-- `npm test` to run the frontend unit and helper tests
+- `npm test` to run the frontend unit and helper tests once
+- `npm run test:watch` to run Vitest in watch mode
 
 ## Testing
 
 Use the smallest layer that proves the change you made:
 
-- **Frontend unit/helper tests** (`cd app && npm test`): proves Vue components, stores, and small browser helpers behave correctly in isolation. Requires Node and frontend deps installed; no server or database.
+- **Frontend unit/helper tests** (`cd app && npm test`): proves Vue components, stores, and small browser helpers behave correctly in isolation. Runs once and exits cleanly. Requires Node and frontend deps installed; no server or database.
 - **Backend integration tests** (`make test-api`): proves the Go API works against its real persistence and GraphQL paths. Requires local Postgres on `localhost:5432` and any test fixture/config expected by the current Go tests.
-- **API smoke (Rust, preferred)** (`make test-smoke-rust` or `cargo run --manifest-path tools/smoke/Cargo.toml --`): proves a create/join flow works against a running GraphQL API with minimal end-to-end setup. Defaults to `http://127.0.0.1:8080/graphql` and respects `VEDH_GRAPHQL_URL` / `VEDH_SMOKE_TIMEOUT_MS`.
+- **API smoke (Rust, preferred)** (`make test-smoke-rust` or `cargo run --manifest-path tools/smoke/Cargo.toml --`): proves a create/join flow works against a running GraphQL API with minimal end-to-end setup. Defaults to `http://127.0.0.1:8080/graphql` and respects `VEDH_GRAPHQL_URL` / `VEDH_SMOKE_TIMEOUT_MS`. For production, point it at `https://api.vedh.xyz/graphql`.
 - **API smoke (legacy JS)** (`cd app && npm run test:smoke`): older create/join smoke runner against a running API. Keep only as fallback while the Rust path settles.
 - **Browser E2E** (`cd app && npm run test:e2e` or `npm run test:e2e:headed`): proves the browser experience works through real UI flows. Requires frontend deps, a running app/API target for Playwright, and browser binaries installed.
 
@@ -139,9 +140,19 @@ LOG_LEVEL=debug make run
 
 The current production deploys use Dokku on `dokku@192.241.142.53`.
 
-The frontend Dokku app is `app`.
+Production is split across two Dokku apps:
 
-Ensure your local deploy remote targets that app:
+- `app` serves the frontend SPA on `https://vedh.xyz` (also `www.vedh.xyz` / `app.vedh.xyz`)
+- `vedh-api` serves the Go GraphQL API on `https://api.vedh.xyz/graphql`
+
+The frontend is built with these production env vars:
+
+```sh
+VITE_GRAPHQL_HTTP="https://api.vedh.xyz/graphql"
+VITE_GRAPHQL_WS="wss://api.vedh.xyz/graphql"
+```
+
+Ensure your local deploy remote targets the frontend Dokku app when shipping `app/` changes:
 
 ```sh
 git remote remove dokku-app 2>/dev/null || true
@@ -212,3 +223,14 @@ cd /root/.openclaw/workspace/vedh
 ```
 
 Use full `make test-api` only when the local DB + card fixture prerequisites are available.
+
+## Production route sanity notes
+
+A few route expectations that matter when debugging prod:
+
+- `https://vedh.xyz` is the frontend SPA, not the GraphQL API
+- `https://api.vedh.xyz/graphql` is the real live GraphQL endpoint
+- `GET https://api.vedh.xyz/graphql` may return a GraphQL validation error when no operation is supplied; that is expected
+- `POST https://api.vedh.xyz/graphql` is the meaningful API smoke target
+- `https://api.vedh.xyz/playground` should load the GraphQL playground
+- there is currently no dedicated `/health` endpoint in the Go app

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "vitest",
+    "test": "vitest --run",
+    "test:watch": "vitest",
     "test:smoke": "node ./scripts/smoke-create-join.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
@@ -37,6 +38,14 @@
   },
   "vitest": {
     "environment": "jsdom",
-    "globals": true
+    "globals": true,
+    "include": [
+      "__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"
+    ],
+    "exclude": [
+      "e2e/**",
+      "dist/**",
+      "node_modules/**"
+    ]
   }
 }

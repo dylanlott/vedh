@@ -14,6 +14,12 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      include: ['__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+      exclude: ['e2e/**', 'dist/**', 'node_modules/**'],
+    },
     server: {
       port: devPort,
       // Allow automatic fallback (e.g. 5174) when the preferred port is busy.
