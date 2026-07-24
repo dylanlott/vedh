@@ -1,0 +1,41 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - "./prometheus.tmpl.yml:/etc/prometheus/prometheus.tmpl.yml:ro"
+      - "prometheus_data:/prometheus"
+    command:
+      - /bin/sh
+      - -ec
+      - >
+        sed -e "s#\\$\\{PROMETHEUS_TARGET\\}#${PROMETHEUS_TARGET:-host.docker.internal:8081}#g"
+        -e "s#\\$\\{PROMETHEUS_BEARER_TOKEN\\}#${PROMETHEUS_BEARER_TOKEN}#g"
+        /etc/prometheus/prometheus.tmpl.yml > /etc/prometheus/prometheus.yml &&
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.enable-lifecycle
+    environment:
+      - PROMETHEUS_TARGET=${PROMETHEUS_TARGET:-host.docker.internal:8081}
+      - PROMETHEUS_BEARER_TOKEN=${PROMETHEUS_BEARER_TOKEN:-}
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports:
+      - "3000:3000"
+    volumes:
+      - "./grafana/provisioning:/etc/grafana/provisioning:ro"
+      - "grafana_data:/var/lib/grafana"
+    env_file:
+      - .env.observability
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  prometheus_data:
+  grafana_data:
