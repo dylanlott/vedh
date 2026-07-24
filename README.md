@@ -107,11 +107,20 @@ Use the smallest layer that proves the change you made:
 
 - **Frontend unit/helper tests** (`cd app && npm test`): proves Vue components, stores, and small browser helpers behave correctly in isolation. Runs once and exits cleanly. Requires Node and frontend deps installed; no server or database.
 - **Backend integration tests** (`make test-api`): proves the Go API works against its real persistence and GraphQL paths. Requires local Postgres on `localhost:5432` and any test fixture/config expected by the current Go tests.
-- **API smoke (Rust, preferred)** (`make test-smoke-rust` or `cargo run --manifest-path tools/smoke/Cargo.toml --`): proves a create/join flow works against a running GraphQL API with minimal end-to-end setup. Defaults to `http://127.0.0.1:8080/graphql` and respects `VEDH_GRAPHQL_URL` / `VEDH_SMOKE_TIMEOUT_MS`. For production, point it at `https://api.vedh.xyz/graphql`.
+- **API smoke (Rust, preferred)** (`make test-smoke-rust` or `cargo run --manifest-path tools/smoke/Cargo.toml --`): proves a create/join flow works against a running GraphQL API with minimal end-to-end setup. Defaults to `http://127.0.0.1:8080/graphql` and respects `VEDH_GRAPHQL_URL` / `VEDH_SMOKE_TIMEOUT_MS`. This mutates data, so treat it as a local/staging/ephemeral-stack check, not a production probe.
 - **API smoke (legacy JS)** (`cd app && npm run test:smoke`): older create/join smoke runner against a running API. Keep only as fallback while the Rust path settles.
-- **Browser E2E** (`cd app && npm run test:e2e` or `npm run test:e2e:headed`): proves the browser experience works through real UI flows. Requires frontend deps, a running app/API target for Playwright, and browser binaries installed.
+- **Browser E2E** (`cd app && npm run test:e2e` or `npm run test:e2e:headed`): proves the browser experience works through real UI flows. Requires frontend deps, a running app/API target for Playwright, and browser binaries installed. In CI we run it only against a local ephemeral stack.
 
 If you only need fast feedback, start with unit/helper tests. Reach for backend integration, the Rust smoke runner, or browser E2E when you need confidence across process boundaries.
+
+### CI smoke contract
+
+The GitHub Actions smoke workflow is the current release gate for cross-process confidence:
+
+1. `smoke-rust` boots Postgres plus the Go API and runs `make test-smoke-rust`.
+2. `smoke-playwright` boots the same local API plus the Vite app and runs `cd app && npm run test:e2e`.
+
+That keeps CI self-contained: no shared staging dependency, no production credentials, and no persistent browser-test data.
 
 ## Observability
 
@@ -319,6 +328,16 @@ A few route expectations that matter when debugging prod:
 - `https://vedh.xyz` is the frontend SPA, not the GraphQL API
 - `https://api.vedh.xyz/graphql` is the real live GraphQL endpoint
 - `GET https://api.vedh.xyz/graphql` may return a GraphQL validation error when no operation is supplied; that is expected
-- `POST https://api.vedh.xyz/graphql` is the meaningful API smoke target
+- `POST https://api.vedh.xyz/graphql` is the meaningful API route when you are intentionally exercising GraphQL
 - `https://api.vedh.xyz/playground` should load the GraphQL playground
 - there is currently no dedicated `/health` endpoint in the Go app
+
+## Production-safe smoke policy
+
+Use production smoke checks that do not create users, games, or other long-lived records.
+
+- **Allowed in production:** route sanity checks such as loading `https://api.vedh.xyz/playground`, confirming the frontend points at `https://api.vedh.xyz/graphql`, and lightweight listener/origin/metrics verification.
+- **Not allowed in production by default:** `make test-smoke-rust`, `cd app && npm run test:smoke`, and `cd app && npm run test:e2e`, because all of them perform signup/create/join mutations.
+- **Where mutation smoke belongs:** local dev, pull-request CI, or a disposable staging environment that can tolerate throwaway accounts and games.
+
+Until we build a dedicated non-mutating production probe, treat the local CI smoke workflow as the authoritative release gate and keep production checks read-only.
