@@ -1,4 +1,4 @@
-.PHONY: build dev persistence clean test test-api test-smoke-rust deploy-ui deploy-server docker-server docker-ui docker
+.PHONY: build dev persistence clean test test-api test-smoke-rust monitoring-up monitoring-down deploy-ui deploy-server docker-server docker-ui docker
 
 GOCMD=go
 GOBUILD=$(GOCMD) build
@@ -67,6 +67,12 @@ import-csv:
 
 persistence:
 	docker-compose -f dev.docker-compose.yml up -d postgres
+
+monitoring-up:
+	cd monitoring && docker compose --env-file .env.observability up -d
+
+monitoring-down:
+	cd monitoring && docker compose --env-file .env.observability down
 
 confirm:
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
