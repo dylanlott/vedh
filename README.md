@@ -19,9 +19,9 @@
 Prerequisites:
 
 - Make
-- Go v1.17
-- PostgreSQL 14.15.0
-- Node 16
+- Go 1.24+
+- PostgreSQL 14+
+- Node 20+
 
 ### Server
 
@@ -57,8 +57,8 @@ POSTGRESQL_DATABASE=""
 
 ### FrontEnd
 
-The front end uses Node 16 and won't build with any other version.
-I recommend NVM to manage the environment for it.
+The frontend is currently built and tested with Node 20 (matching `app/Dockerfile`).
+Using `nvm` or another version manager is a good idea if your system Node differs.
 The front end also supports an environment file, `.env.local`.
 
 ```sh
@@ -280,8 +280,8 @@ git subtree push --prefix app dokku-app main
 
 ## Environments
 
-`app/.env.local` sets local environemnt variables and is used when `yarn start` is run.
-`app/.env.production` sets production environment variables and it used for `yarn build`.
+`app/.env.local` sets local environment variables for `npm run dev`.
+`app/.env.production` sets production environment variables for `npm run build`.
 
 A copy of the frontend environment file for development is included in this repository.
 
