@@ -66,10 +66,17 @@
             <h2>{{ player.Username }}</h2>
             <span class="life">{{ player.Boardstate?.Life ?? '—' }} life</span>
           </header>
+          <div class="player-summary">
+            <span class="summary-chip" :class="{ hot: isActivePlayer(player.Username) }">{{ isActivePlayer(player.Username) ? 'Active turn' : 'Waiting' }}</span>
+            <span class="summary-chip">BF {{ player.Boardstate?.Battlefield?.length ?? 0 }}</span>
+            <span class="summary-chip">Hand {{ player.Boardstate?.Hand?.length ?? 0 }}</span>
+            <span class="summary-chip">GY {{ player.Boardstate?.Graveyard?.length ?? 0 }}</span>
+            <span class="summary-chip">Library {{ player.Boardstate?.Library?.length ?? 0 }}</span>
+          </div>
           <div class="zone" :data-zone="'Commander'" :class="{ 'drag-over': isDragOver(player.Username, 'Commander') }" @dragenter.prevent="onDragEnter(player.Username, 'Commander')" @dragleave.prevent="onDragLeave(player.Username, 'Commander')">
               <h3>
                 Commander
-                <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Commander')">
+                <button class="tool zone-toggle" @click="toggleStack(player.Username, 'Commander')">
                   {{ isStacked(player.Username, 'Commander') ? 'Tiles' : 'Art' }}
                 </button>
               </h3>
@@ -92,7 +99,7 @@
           <div class="zone" :data-zone="'Battlefield'" :class="{ 'drag-over': isDragOver(player.Username, 'Battlefield') }" @dragenter.prevent="onDragEnter(player.Username, 'Battlefield')" @dragleave.prevent="onDragLeave(player.Username, 'Battlefield')">
               <h3>
                 Battlefield
-                <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Battlefield')">
+                <button class="tool zone-toggle" @click="toggleStack(player.Username, 'Battlefield')">
                   {{ isStacked(player.Username, 'Battlefield') ? 'Tiles' : 'Art' }}
                 </button>
               </h3>
@@ -121,7 +128,7 @@
           <div class="zone" :data-zone="'Graveyard'" :class="{ 'drag-over': isDragOver(player.Username, 'Graveyard') }" @dragenter.prevent="onDragEnter(player.Username, 'Graveyard')" @dragleave.prevent="onDragLeave(player.Username, 'Graveyard')">
             <h3>
               Graveyard ({{ player.Boardstate?.Graveyard?.length ?? 0 }})
-              <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Graveyard')">
+              <button class="tool zone-toggle" @click="toggleStack(player.Username, 'Graveyard')">
                 {{ isStacked(player.Username, 'Graveyard') ? 'Tiles' : 'Art' }}
               </button>
             </h3>
@@ -144,7 +151,7 @@
           <div class="zone" :data-zone="'Exiled'" :class="{ 'drag-over': isDragOver(player.Username, 'Exiled') }" @dragenter.prevent="onDragEnter(player.Username, 'Exiled')" @dragleave.prevent="onDragLeave(player.Username, 'Exiled')">
             <h3>
               Exiled ({{ player.Boardstate?.Exiled?.length ?? 0 }})
-              <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Exiled')">
+              <button class="tool zone-toggle" @click="toggleStack(player.Username, 'Exiled')">
                 {{ isStacked(player.Username, 'Exiled') ? 'Tiles' : 'Art' }}
               </button>
             </h3>
@@ -167,7 +174,7 @@
           <div class="zone" :data-zone="'Revealed'" :class="{ 'drag-over': isDragOver(player.Username, 'Revealed') }" @dragenter.prevent="onDragEnter(player.Username, 'Revealed')" @dragleave.prevent="onDragLeave(player.Username, 'Revealed')">
             <h3>
               Revealed ({{ player.Boardstate?.Revealed?.length ?? 0 }})
-              <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Revealed')">
+              <button class="tool zone-toggle" @click="toggleStack(player.Username, 'Revealed')">
                 {{ isStacked(player.Username, 'Revealed') ? 'Tiles' : 'Art' }}
               </button>
             </h3>
@@ -190,7 +197,7 @@
           <div class="zone" :data-zone="'Controlled'" :class="{ 'drag-over': isDragOver(player.Username, 'Controlled') }" @dragenter.prevent="onDragEnter(player.Username, 'Controlled')" @dragleave.prevent="onDragLeave(player.Username, 'Controlled')">
             <h3>
               Controlled ({{ player.Boardstate?.Controlled?.length ?? 0 }})
-              <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(player.Username, 'Controlled')">
+              <button class="tool zone-toggle" @click="toggleStack(player.Username, 'Controlled')">
                 {{ isStacked(player.Username, 'Controlled') ? 'Tiles' : 'Art' }}
               </button>
             </h3>
@@ -296,7 +303,7 @@
           <div class="zone commander" :data-zone="'Commander'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Commander'), 'zone-hit': isZonePulsing('Commander') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Commander')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Commander')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Commander')">
             <h3>
               Commander
-              <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Commander')">
+              <button class="tool zone-toggle" @click="toggleStack(selfPlayer.Username, 'Commander')">
               {{ isStacked(selfPlayer.Username, 'Commander') ? 'Tiles' : 'Art' }}
               </button>
             </h3>
@@ -344,7 +351,7 @@
   <div class="zone" :data-zone="'Battlefield'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Battlefield'), 'zone-hit': isZonePulsing('Battlefield') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Battlefield')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Battlefield')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Battlefield')">
           <h3>
             Battlefield
-            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Battlefield')">
+            <button class="tool zone-toggle" @click="toggleStack(selfPlayer.Username, 'Battlefield')">
               {{ isStacked(selfPlayer.Username, 'Battlefield') ? 'Tiles' : 'Art' }}
             </button>
           </h3>
@@ -390,7 +397,7 @@
   <div class="zone" :data-zone="'Hand'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Hand'), 'zone-hit': isZonePulsing('Hand') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Hand')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Hand')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Hand')">
           <h3>
             Hand ({{ selfPlayer.Boardstate?.Hand?.length ?? 0 }})
-            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Hand')">
+            <button class="tool zone-toggle" @click="toggleStack(selfPlayer.Username, 'Hand')">
               {{ isStacked(selfPlayer.Username, 'Hand') ? 'Tiles' : 'Art' }}
             </button>
           </h3>
@@ -436,7 +443,7 @@
   <div class="zone" :data-zone="'Graveyard'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Graveyard'), 'zone-hit': isZonePulsing('Graveyard') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Graveyard')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Graveyard')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Graveyard')">
           <h3>
             Graveyard ({{ selfPlayer.Boardstate?.Graveyard?.length ?? 0 }})
-            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Graveyard')">
+            <button class="tool zone-toggle" @click="toggleStack(selfPlayer.Username, 'Graveyard')">
               {{ isStacked(selfPlayer.Username, 'Graveyard') ? 'Tiles' : 'Art' }}
             </button>
           </h3>
@@ -482,7 +489,7 @@
   <div class="zone" :data-zone="'Exiled'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Exiled'), 'zone-hit': isZonePulsing('Exiled') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Exiled')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Exiled')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Exiled')">
           <h3>
             Exiled ({{ selfPlayer.Boardstate?.Exiled?.length ?? 0 }})
-            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Exiled')">
+            <button class="tool zone-toggle" @click="toggleStack(selfPlayer.Username, 'Exiled')">
               {{ isStacked(selfPlayer.Username, 'Exiled') ? 'Tiles' : 'Art' }}
             </button>
           </h3>
@@ -528,7 +535,7 @@
   <div class="zone" :data-zone="'Revealed'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Revealed'), 'zone-hit': isZonePulsing('Revealed') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Revealed')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Revealed')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Revealed')">
           <h3>
             Revealed ({{ selfPlayer.Boardstate?.Revealed?.length ?? 0 }})
-            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Revealed')">
+            <button class="tool zone-toggle" @click="toggleStack(selfPlayer.Username, 'Revealed')">
               {{ isStacked(selfPlayer.Username, 'Revealed') ? 'Tiles' : 'Art' }}
             </button>
           </h3>
@@ -574,7 +581,7 @@
   <div class="zone" :data-zone="'Controlled'" :class="{ 'drag-over': isDragOver(selfPlayer.Username, 'Controlled'), 'zone-hit': isZonePulsing('Controlled') }" @dragenter.prevent="onDragEnter(selfPlayer.Username, 'Controlled')" @dragleave.prevent="onDragLeave(selfPlayer.Username, 'Controlled')" @dragover.prevent @drop.prevent="onDrop(selfPlayer.Username, 'Controlled')">
           <h3>
             Controlled ({{ selfPlayer.Boardstate?.Controlled?.length ?? 0 }})
-            <button class="tool" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.4rem;" @click="toggleStack(selfPlayer.Username, 'Controlled')">
+            <button class="tool zone-toggle" @click="toggleStack(selfPlayer.Username, 'Controlled')">
               {{ isStacked(selfPlayer.Username, 'Controlled') ? 'Tiles' : 'Art' }}
             </button>
           </h3>
@@ -1846,14 +1853,22 @@ watch(stackedZones, (val) => {
   gap: 1rem;
   height: 100dvh;
   --main-player-height: 33vh; /* bottom third reserved for player's control center */
-  --turn-accent: #f5b342;
+  --turn-accent: var(--vedh-primary);
+  --zone-gap: 0.75rem;
+  --row-tile-width: 132px;
+  --row-art-width: 150px;
+  --secondary-tile-width: 106px;
+  --secondary-art-width: 124px;
+  color: var(--vedh-text);
 }
 
 .board-header {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
+  background: rgba(var(--vedh-bg-rgb), 0.72);
+  backdrop-filter: blur(16px);
+  border-radius: 18px;
   padding: 1rem 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--vedh-border);
+  box-shadow: 0 18px 42px rgba(21, 12, 9, 0.28);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1872,9 +1887,9 @@ watch(stackedZones, (val) => {
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(var(--vedh-primary-rgb), 0.18), rgba(var(--vedh-secondary-rgb), 0.08));
+  border: 1px solid rgba(255, 244, 237, 0.18);
+  box-shadow: 0 14px 28px rgba(21, 12, 9, 0.32), inset 0 0 0 1px rgba(255, 244, 237, 0.05);
   transition: box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
 }
 
@@ -1906,12 +1921,12 @@ watch(stackedZones, (val) => {
 }
 
 .turn-spotlight.priority-owner {
-  border-color: rgba(245, 179, 66, 0.6);
-  background: linear-gradient(135deg, rgba(245, 179, 66, 0.22), rgba(255, 255, 255, 0.04));
+  border-color: rgba(var(--vedh-primary-rgb), 0.6);
+  background: linear-gradient(135deg, rgba(var(--vedh-primary-rgb), 0.28), rgba(var(--vedh-secondary-rgb), 0.12));
   box-shadow:
-    0 14px 28px rgba(0, 0, 0, 0.35),
-    0 0 18px rgba(245, 179, 66, 0.35),
-    0 0 36px rgba(245, 179, 66, 0.2);
+    0 14px 28px rgba(21, 12, 9, 0.35),
+    0 0 18px rgba(var(--vedh-primary-rgb), 0.35),
+    0 0 36px rgba(var(--vedh-secondary-rgb), 0.18);
 }
 
 .turn-meta {
@@ -1933,9 +1948,9 @@ watch(stackedZones, (val) => {
   text-transform: uppercase;
   padding: 0.25rem 0.5rem;
   border-radius: 999px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.8);
+  background: rgba(255,244,237,0.07);
+  border: 1px solid var(--vedh-border);
+  color: var(--vedh-muted);
 }
 
 .turn-controls {
@@ -1964,9 +1979,9 @@ watch(stackedZones, (val) => {
 
 .settings-trigger {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  border: 1px solid var(--vedh-border);
+  background: rgba(255, 244, 237, 0.08);
+  color: var(--vedh-text);
   font-size: 1rem;
   padding: 0.35rem 0.6rem;
   border-radius: 10px;
@@ -1977,8 +1992,8 @@ watch(stackedZones, (val) => {
   position: absolute;
   right: 0;
   top: calc(100% + 0.5rem);
-  background: rgba(18, 18, 18, 0.98);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--vedh-panel-strong);
+  border: 1px solid var(--vedh-border);
   border-radius: 12px;
   min-width: 220px;
   padding: 0.75rem 0.9rem;
@@ -2065,31 +2080,63 @@ watch(stackedZones, (val) => {
 
 .players {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--zone-gap);
 }
 
 .players article {
   display: grid;
   grid-template-columns: repeat(6, minmax(140px, 1fr));
-  gap: 0.75rem;
+  gap: var(--zone-gap);
   align-items: flex-start;
   overflow-x: auto;
 }
 
 .players article {
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 14px;
+  background: var(--vedh-panel);
+  border-radius: 16px;
   padding: 0.75rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--vedh-border);
+  box-shadow: 0 12px 30px rgba(21, 12, 9, 0.16);
 }
 
 .players article.active {
-  border-color: rgba(133, 215, 255, 0.6);
-  box-shadow: 0 0 0 1px rgba(133, 215, 255, 0.15);
+  border-color: rgba(var(--vedh-primary-rgb), 0.55);
+  box-shadow: 0 0 0 1px rgba(var(--vedh-primary-rgb), 0.15), 0 0 24px rgba(var(--vedh-secondary-rgb), 0.12);
 }
 
 .players article > header {
   grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.players article > header h2 {
+  margin: 0;
+}
+
+.player-summary {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: -0.2rem;
+}
+
+.summary-chip {
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  background: rgba(255, 244, 237, 0.07);
+  border: 1px solid rgba(255, 244, 237, 0.14);
+  color: rgba(255, 244, 237, 0.84);
+}
+
+.summary-chip.hot {
+  border-color: rgba(var(--vedh-primary-rgb), 0.68);
+  box-shadow: 0 0 0 1px rgba(var(--vedh-primary-rgb), 0.18), 0 0 16px rgba(var(--vedh-secondary-rgb), 0.16);
 }
 
 .players article .zone {
@@ -2113,10 +2160,10 @@ watch(stackedZones, (val) => {
 
 .zone {
   margin-top: 0.5rem;
-  border: 1px solid rgba(255,255,255,0.04);
-  background: rgba(0,0,0,0.02);
-  padding: 0.5rem;
-  border-radius: 8px;
+  border: 1px solid rgba(255,244,237,0.07);
+  background: linear-gradient(180deg, rgba(255,244,237,0.04), rgba(0,0,0,0.06));
+  padding: 0.65rem;
+  border-radius: 12px;
   position: relative;
   transition: box-shadow 140ms ease, border-color 120ms ease;
 }
@@ -2135,13 +2182,13 @@ watch(stackedZones, (val) => {
   transition: background 160ms ease, opacity 160ms ease, transform 160ms ease;
 }
 .zone.drag-over::before {
-  background: linear-gradient(90deg, rgba(133,215,255,0.95), rgba(80,180,255,0.85));
+  background: linear-gradient(90deg, rgba(var(--vedh-primary-rgb),0.95), rgba(var(--vedh-secondary-rgb),0.85));
   opacity: 1;
   transform: scaleX(1);
 }
 .zone.drag-over {
-  border-color: rgba(80,180,255,0.9);
-  box-shadow: 0 12px 36px rgba(6,20,30,0.6);
+  border-color: rgba(var(--vedh-primary-rgb),0.85);
+  box-shadow: 0 12px 36px rgba(33,20,18,0.45), 0 0 24px rgba(var(--vedh-secondary-rgb),0.18);
 }
 
 .zone.zone-hit {
@@ -2150,10 +2197,14 @@ watch(stackedZones, (val) => {
 
 .zone h3 {
   margin: 0 0 0.25rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 244, 237, 0.72);
 }
 
 .zone h3 small {
@@ -2199,24 +2250,29 @@ watch(stackedZones, (val) => {
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 0.25rem;
+  scroll-snap-type: x proximity;
 }
 
 .zone[data-zone='Battlefield'] .cards.tiles > *,
 .zone[data-zone='Hand'] .cards.tiles > *,
 .zone[data-zone='Battlefield'] .cards.art > *,
 .zone[data-zone='Hand'] .cards.art > * {
-  flex: 0 0 120px;
+  flex: 0 0 var(--row-tile-width);
+  scroll-snap-align: start;
 }
 
 .zone[data-zone='Battlefield'] .cards.art > *,
 .zone[data-zone='Hand'] .cards.art > * {
-  flex-basis: 140px;
+  flex-basis: var(--row-art-width);
 }
 
-/* Keep secondary zones in a row with vertical card stacks */
-.zone:not([data-zone='Battlefield']):not([data-zone='Hand']) .cards.tiles,
+/* Keep secondary zones compact and denser so the board scans faster */
+.zone:not([data-zone='Battlefield']):not([data-zone='Hand']) .cards.tiles {
+  grid-template-columns: repeat(auto-fill, minmax(var(--secondary-tile-width), 1fr));
+}
+
 .zone:not([data-zone='Battlefield']):not([data-zone='Hand']) .cards.art {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(var(--secondary-art-width), 1fr));
 }
 
 /* Allow zone lists to expand vertically to fit their cards */
@@ -2227,38 +2283,75 @@ watch(stackedZones, (val) => {
 .card-tile {
   display: grid;
   gap: 0.35rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 244, 237, 0.08), rgba(26, 22, 21, 0.34));
+  border: 1px solid rgba(255, 244, 237, 0.11);
+  border-radius: 12px;
   padding: 0.4rem;
   cursor: grab;
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgba(21, 12, 9, 0.18);
 }
 .card-tile img {
   width: 100%;
   aspect-ratio: 0.714; /* 63x88mm ratio */
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 10px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  transition: transform 180ms ease, filter 180ms ease;
 }
-.card-tile .label { font-size: 0.8rem; opacity: 0.9; }
+.card-tile .label {
+  font-size: 0.8rem;
+  opacity: 0.95;
+  line-height: 1.24;
+  font-weight: 500;
+  color: var(--vedh-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2em;
+}
+
+.zone[data-zone='Commander'] .card-tile {
+  border-color: rgba(var(--vedh-primary-rgb), 0.28);
+  box-shadow: 0 12px 28px rgba(21, 12, 9, 0.22), 0 0 0 1px rgba(var(--vedh-primary-rgb), 0.08);
+}
+
+.zone[data-zone='Commander'] .card-tile .label {
+  font-weight: 600;
+}
+
+.zone[data-zone='Battlefield'] .card-tile .label,
+.zone[data-zone='Hand'] .card-tile .label {
+  font-size: 0.74rem;
+}
+
+.zone[data-zone='Graveyard'] .card-tile,
+.zone[data-zone='Exiled'] .card-tile,
+.zone[data-zone='Revealed'] .card-tile,
+.zone[data-zone='Controlled'] .card-tile {
+  padding: 0.34rem;
+}
 
 .stack-card {
   position: relative;
+  border-color: rgba(var(--vedh-secondary-rgb), 0.24);
 }
 .stack-resolve {
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 2;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(20, 20, 20, 0.85);
-  color: #fff;
+  border: 1px solid rgba(var(--vedh-primary-rgb), 0.3);
+  background: rgba(var(--vedh-bg-rgb), 0.9);
+  color: var(--vedh-text);
   font-size: 0.7rem;
   padding: 0.2rem 0.4rem;
   border-radius: 6px;
   cursor: pointer;
 }
 .stack-resolve:hover {
-  background: rgba(40, 40, 40, 0.9);
+  background: rgba(84, 75, 71, 0.95);
 }
 
 /* Pulsing glow when dragging or on hover */
@@ -2290,7 +2383,13 @@ watch(stackedZones, (val) => {
 }
 .card-tile:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 22px rgba(0,0,0,0.55);
+  box-shadow: 0 16px 32px rgba(17, 10, 9, 0.36), 0 0 0 1px rgba(var(--vedh-primary-rgb), 0.12);
+  border-color: rgba(var(--vedh-primary-rgb), 0.28);
+}
+
+.card-tile:hover img {
+  transform: scale(1.03);
+  filter: saturate(1.04) contrast(1.02);
 }
 
 /* Stacks view */
@@ -2367,15 +2466,16 @@ watch(stackedZones, (val) => {
 }
 
 .stack {
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--vedh-panel);
+  border-radius: 18px;
+  border: 1px solid var(--vedh-border);
   padding: 0.75rem 1rem;
   display: grid;
   gap: 0.5rem;
   position: sticky;
   top: 0.75rem;
   z-index: 5;
+  box-shadow: 0 16px 34px rgba(21, 12, 9, 0.2);
 }
 
 @keyframes stack-pop {
@@ -2398,8 +2498,8 @@ watch(stackedZones, (val) => {
   bottom: 0;
   z-index: 999;
   height: var(--main-player-height);
-  background: linear-gradient(180deg, rgba(24,24,24,0.98) 0%, rgba(12,12,12,0.98) 100%);
-  border-top: 4px solid rgba(255,255,255,0.06); /* sharp dividing line */
+  background: linear-gradient(180deg, rgba(84,75,71,0.98) 0%, rgba(47,41,39,0.98) 100%);
+  border-top: 4px solid rgba(var(--vedh-primary-rgb),0.25); /* sharp dividing line */
   padding: 0;
   border-radius: 0 0 0 0;
   box-shadow: 0 -14px 40px rgba(0,0,0,0.55);
@@ -2486,22 +2586,22 @@ watch(stackedZones, (val) => {
   padding: 0.18rem 0.52rem;
   font-size: 0.72rem;
   letter-spacing: 0.03em;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 244, 237, 0.07);
+  border: 1px solid rgba(255, 244, 237, 0.14);
+  color: rgba(255, 244, 237, 0.88);
   transition: border-color 130ms ease, box-shadow 150ms ease, transform 120ms ease;
 }
 
 .status-chip.hot {
-  border-color: rgba(133, 215, 255, 0.75);
-  box-shadow: 0 0 0 1px rgba(133, 215, 255, 0.22), 0 0 18px rgba(133, 215, 255, 0.3);
+  border-color: rgba(var(--vedh-primary-rgb), 0.75);
+  box-shadow: 0 0 0 1px rgba(var(--vedh-primary-rgb), 0.22), 0 0 18px rgba(var(--vedh-secondary-rgb), 0.2);
   transform: translateY(-1px);
 }
 
 .main-player-right {
   display: grid;
   grid-template-columns: repeat(6, minmax(130px, 1fr));
-  gap: 0.75rem;
+  gap: var(--zone-gap);
   align-items: start;
   overflow-x: auto;
 }
@@ -2609,12 +2709,41 @@ header .player-toolbar {
 
 .player-toolbar .tool {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  border: 1px solid var(--vedh-border);
+  background: rgba(255, 244, 237, 0.08);
+  color: var(--vedh-text);
   font-size: 0.8rem;
   padding: 0.25rem 0.5rem;
   border-radius: 999px;
+}
+
+.board .tool {
+  appearance: none;
+  border: 1px solid var(--vedh-border);
+  background: rgba(255, 244, 237, 0.08);
+  color: var(--vedh-text);
+  border-radius: 999px;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  box-shadow: 0 4px 12px rgba(21, 12, 9, 0.14);
+}
+
+.board .tool:hover:not(:disabled) {
+  background: rgba(var(--vedh-primary-rgb), 0.16);
+  border-color: rgba(var(--vedh-primary-rgb), 0.38);
+}
+
+.board .tool:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.zone-toggle {
+  margin-left: auto;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
 }
 
 .board button {

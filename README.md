@@ -129,6 +129,94 @@ The server emits structured JSON logs to stdout.
 LOG_LEVEL=debug make run
 ```
 
+For local stack runs via `dev.docker-compose.yml`, add basic container log controls:
+
+- `web`, `server`, and `postgres` now use the `json-file` logging driver.
+- log rotation is set to `10m` per file with `3` files retained.
+
+Read logs per service:
+
+```sh
+docker compose -f dev.docker-compose.yml logs -f server
+docker compose -f dev.docker-compose.yml logs -f web
+docker compose -f dev.docker-compose.yml logs -f postgres
+```
+
+## Observability stack (local)
+
+Use this stack to validate that the API is exporting `/prometheus` and that Grafana is wired to it.
+
+1. Ensure API metrics are enabled and token-protected in the API env.
+
+```sh
+cd /root/.openclaw/workspace/vedh
+sed -i 's/^METRICS_ENABLED=.*/METRICS_ENABLED=true/' .vedh.env
+sed -i 's/^METRICS_TOKEN=.*/METRICS_TOKEN=dev-metrics-token/' .vedh.env
+grep -q '^METRICS_ENABLED=' .vedh.env || echo 'METRICS_ENABLED=true' >> .vedh.env
+grep -q '^METRICS_TOKEN=' .vedh.env || echo 'METRICS_TOKEN=dev-metrics-token' >> .vedh.env
+```
+
+2. Configure observability env.
+
+```sh
+cd /root/.openclaw/workspace/vedh/monitoring
+cp .env.observability.example .env.observability
+```
+
+Set these values in `.env.observability`:
+
+- `PROMETHEUS_TARGET` to the API host:port your monitoring stack should scrape
+  - default example: `host.docker.internal:8081` for the API in `dev.docker-compose.yml`
+- `PROMETHEUS_BEARER_TOKEN` to match `METRICS_TOKEN` from `.vedh.env`
+- `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` for UI login
+
+3. Start the stack.
+
+```sh
+cd /root/.openclaw/workspace/vedh
+make monitoring-up
+```
+
+If the API stack is already running, restart it after changing metrics env vars:
+
+```sh
+docker compose -f dev.docker-compose.yml up -d --force-recreate server
+```
+
+4. Verify Prometheus is running and scraping the API.
+
+```sh
+curl -sf http://localhost:9090/-/ready
+curl -sf http://localhost:9090/api/v1/targets?state=any | grep -q '"job":"vedh-api"' && echo "scrape target configured"
+curl -sf "http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22vedh-api%22%7D" | grep -q '"value":\[' && echo "metrics query returned"
+```
+
+5. Verify Grafana has the Prometheus datasource and is connected.
+
+```sh
+export GRAFANA_ADMIN_USER=admin
+export GRAFANA_ADMIN_PASSWORD=admin
+
+curl -s -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASSWORD" \
+  http://localhost:3000/api/health | grep -q '"database": "ok"' && echo "grafana up"
+
+curl -s -u "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASSWORD" \
+  "http://localhost:3000/api/datasources/name/Prometheus" | grep -q '"url":"http://prometheus:9090"' && echo "prometheus datasource configured"
+```
+
+Open `http://localhost:3000` and run an Explore query such as:
+
+```txt
+up{job="vedh-api"}
+```
+
+Stop the monitoring stack when done:
+
+```sh
+cd /root/.openclaw/workspace/vedh
+make monitoring-down
+```
+
 ## Stack
 
 - Postgres stores application and card data.
