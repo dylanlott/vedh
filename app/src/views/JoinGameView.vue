@@ -9,7 +9,9 @@
       <button class="primary" :disabled="!parsedID">Continue</button>
     </form>
 
-    <form v-else @submit.prevent="handleJoin">
+    <p v-if="validatingGame">Checking invite…</p>
+
+    <form v-else-if="gameID" @submit.prevent="handleJoin">
       <p>You are about to join game <strong>{{ gameID }}</strong>.</p>
 
       <label class="stacked">
@@ -100,12 +102,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
 import { apolloClient } from '../services/apollo';
-import { SEARCH_CARDS_QUERY } from '../graphql/queries';
+import { GET_GAME_QUERY, SEARCH_CARDS_QUERY } from '../graphql/queries';
 import {
   type CommanderPick,
   canAddSecondCommander,
@@ -120,6 +122,9 @@ const auth = useAuthStore();
 
 const gameID = computed(() => route.params.id as string | undefined);
 const invite = ref('');
+
+const validatingGame = ref(false);
+let latestValidationToken = 0;
 
 const parsedID = computed(() => {
   const raw = invite.value.trim();
@@ -136,6 +141,42 @@ function submitInvite() {
   if (!parsedID.value) return;
   router.push({ name: 'join-game', params: { id: parsedID.value } });
 }
+
+async function validateGame(nextGameID: string) {
+  const validationToken = ++latestValidationToken;
+  validatingGame.value = true;
+
+  try {
+    const { data } = await apolloClient.query<{ getGame?: { ID: string } | null }>({
+      query: GET_GAME_QUERY,
+      variables: { gameID: nextGameID },
+      fetchPolicy: 'no-cache',
+    });
+
+    if (validationToken !== latestValidationToken) return;
+    if (!data?.getGame) {
+      await router.replace({ name: 'game-not-found' });
+    }
+  } catch {
+    if (validationToken !== latestValidationToken) return;
+    await router.replace({ name: 'game-not-found' });
+  } finally {
+    if (validationToken === latestValidationToken) {
+      validatingGame.value = false;
+    }
+  }
+}
+
+onMounted(() => {
+  if (gameID.value) {
+    void validateGame(gameID.value);
+  }
+});
+
+watch(gameID, (nextGameID, previousGameID) => {
+  if (!nextGameID || nextGameID === previousGameID) return;
+  void validateGame(nextGameID);
+});
 
 // Commander search state (mirrors FormCreateGame)
 const isCommanderModalOpen = ref(false);
@@ -281,10 +322,18 @@ async function handleJoin() {
       Counters: [],
     },
   } as const;
-  const joinedID = await games.joinGame(payload);
-  if (joinedID) {
-    router.push({ name: 'board', params: { id: joinedID } });
+
+  try {
+    const joinedID = await games.joinGame(payload);
+    if (joinedID) {
+      router.push({ name: 'board', params: { id: joinedID } });
+      return;
+    }
+  } catch {
+    // fall through to the not-found route below
   }
+
+  await router.replace({ name: 'game-not-found' });
 }
 </script>
 
