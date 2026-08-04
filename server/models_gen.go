@@ -48,11 +48,52 @@ type Card struct {
 	ScreenX               *float64   `json:"ScreenX,omitempty"`
 	ScreenY               *float64   `json:"ScreenY,omitempty"`
 	CurrentZone           *string    `json:"CurrentZone,omitempty"`
+	SetCode               *string    `json:"SetCode,omitempty"`
+	CollectorNumber       *string    `json:"CollectorNumber,omitempty"`
+	Category              *string    `json:"Category,omitempty"`
+	SourceFormat          *string    `json:"SourceFormat,omitempty"`
 }
 
 type Counter struct {
 	Name  string `json:"Name"`
 	Value string `json:"Value"`
+}
+
+type DeckImportIssue struct {
+	SourceLine int               `json:"SourceLine"`
+	RawLine    string            `json:"RawLine"`
+	Name       string            `json:"Name"`
+	Reason     string            `json:"Reason"`
+	Candidates []*DeckSuggestion `json:"Candidates"`
+}
+
+type DeckPreview struct {
+	SourceType          string              `json:"SourceType"`
+	CardCount           int                 `json:"CardCount"`
+	Entries             []*DeckPreviewEntry `json:"Entries"`
+	CommanderCandidates []*Card             `json:"CommanderCandidates"`
+	Unresolved          []*DeckImportIssue  `json:"Unresolved"`
+	Warnings            []string            `json:"Warnings"`
+	CanContinue         bool                `json:"CanContinue"`
+	BlockingErrors      []string            `json:"BlockingErrors"`
+}
+
+type DeckPreviewEntry struct {
+	Quantity        int     `json:"Quantity"`
+	Name            string  `json:"Name"`
+	SetCode         *string `json:"SetCode,omitempty"`
+	CollectorNumber *string `json:"CollectorNumber,omitempty"`
+	Category        *string `json:"Category,omitempty"`
+	Section         string  `json:"Section"`
+	SourceLine      int     `json:"SourceLine"`
+	Resolved        bool    `json:"Resolved"`
+	Card            *Card   `json:"Card,omitempty"`
+}
+
+type DeckSuggestion struct {
+	Name          string  `json:"Name"`
+	Score         float64 `json:"Score"`
+	LowConfidence bool    `json:"LowConfidence"`
 }
 
 type Game struct {
@@ -134,6 +175,12 @@ type InputDeck struct {
 	Cards     []string `json:"Cards,omitempty"`
 }
 
+type InputDeckImport struct {
+	Text      *string `json:"text,omitempty"`
+	SourceURL *string `json:"sourceURL,omitempty"`
+	SessionID string  `json:"sessionID"`
+}
+
 type InputGame struct {
 	ID        string       `json:"ID"`
 	Turn      *InputTurn   `json:"Turn,omitempty"`
@@ -154,6 +201,22 @@ type InputLabel struct {
 	Name       string `json:"Name"`
 	Value      string `json:"Value"`
 	AssignedBy string `json:"AssignedBy"`
+}
+
+type InputProductEvent struct {
+	Name       string                   `json:"name"`
+	SessionID  string                   `json:"sessionID"`
+	GameID     *string                  `json:"gameID,omitempty"`
+	Role       *string                  `json:"role,omitempty"`
+	Source     *string                  `json:"source,omitempty"`
+	Outcome    *string                  `json:"outcome,omitempty"`
+	DurationMs *int                     `json:"durationMs,omitempty"`
+	Metadata   []*InputProductEventMeta `json:"metadata,omitempty"`
+}
+
+type InputProductEventMeta struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type InputRule struct {

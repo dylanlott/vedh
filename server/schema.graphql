@@ -10,6 +10,8 @@ type Mutation {
   advancePhase(gameID: String!, phase: String!, number: Int): Game!
   updateBoardState(input: InputBoardState!): BoardState!
   claimWin(gameID: String!, condition: String): Game!
+  previewDeck(input: InputDeckImport!): DeckPreview!
+  trackProductEvent(input: InputProductEvent!): Boolean!
 }
 
 type Query {
@@ -38,7 +40,7 @@ type Card {
   Quantity: Int
   Tapped: Boolean
   Flipped: Boolean
-  Counters: [Counter] 
+  Counters: [Counter]
   Colors: String
   ColorIdentity: String
   FaceManaValue: String
@@ -57,6 +59,53 @@ type Card {
   ScreenX: Float
   ScreenY: Float
   CurrentZone: String
+  SetCode: String
+  CollectorNumber: String
+  Category: String
+  SourceFormat: String
+}
+
+# --- Deck import / product-event contract (Phase 1, plan 01-01) ---
+# previewDeck and trackProductEvent are deliberately Mutation fields, not
+# Query fields, per the locked api-contract in .planning/intel/constraints.md:
+# previewDeck writes a product_events row and moves Prometheus collectors, and
+# trackProductEvent is inherently a write. Neither belongs under type Query.
+
+type DeckPreview {
+  SourceType: String!
+  CardCount: Int!
+  Entries: [DeckPreviewEntry!]!
+  CommanderCandidates: [Card!]!
+  Unresolved: [DeckImportIssue!]!
+  Warnings: [String!]!
+  CanContinue: Boolean!
+  BlockingErrors: [String!]!
+}
+
+type DeckPreviewEntry {
+  Quantity: Int!
+  Name: String!
+  SetCode: String
+  CollectorNumber: String
+  Category: String
+  Section: String!
+  SourceLine: Int!
+  Resolved: Boolean!
+  Card: Card
+}
+
+type DeckImportIssue {
+  SourceLine: Int!
+  RawLine: String!
+  Name: String!
+  Reason: String!
+  Candidates: [DeckSuggestion!]!
+}
+
+type DeckSuggestion {
+  Name: String!
+  Score: Float!
+  LowConfidence: Boolean!
 }
 
 type User {
@@ -266,4 +315,26 @@ input InputLabel {
   Name: String!
   Value: String!
   AssignedBy: String!
+}
+
+input InputDeckImport {
+  text: String
+  sourceURL: String
+  sessionID: String!
+}
+
+input InputProductEvent {
+  name: String!
+  sessionID: String!
+  gameID: String
+  role: String
+  source: String
+  outcome: String
+  durationMs: Int
+  metadata: [InputProductEventMeta!]
+}
+
+input InputProductEventMeta {
+  key: String!
+  value: String!
 }

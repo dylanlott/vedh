@@ -54,6 +54,16 @@ func (r *mutationResolver) ClaimWin(ctx context.Context, gameID string, conditio
 	panic(fmt.Errorf("not implemented: ClaimWin - claimWin"))
 }
 
+// PreviewDeck is the resolver for the previewDeck field.
+func (r *mutationResolver) PreviewDeck(ctx context.Context, input InputDeckImport) (*DeckPreview, error) {
+	panic(fmt.Errorf("not implemented: PreviewDeck - previewDeck"))
+}
+
+// TrackProductEvent is the resolver for the trackProductEvent field.
+func (r *mutationResolver) TrackProductEvent(ctx context.Context, input InputProductEvent) (bool, error) {
+	panic(fmt.Errorf("not implemented: TrackProductEvent - trackProductEvent"))
+}
+
 // Users is the resolver for the users field.
 func (r *queryResolver) Users(ctx context.Context, userID *string) ([]string, error) {
 	panic(fmt.Errorf("not implemented: Users - users"))

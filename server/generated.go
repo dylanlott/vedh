@@ -65,7 +65,9 @@ type ComplexityRoot struct {
 	}
 
 	Card struct {
+		Category              func(childComplexity int) int
 		Cmc                   func(childComplexity int) int
+		CollectorNumber       func(childComplexity int) int
 		ColorIdentity         func(childComplexity int) int
 		Colors                func(childComplexity int) int
 		Counters              func(childComplexity int) int
@@ -82,6 +84,8 @@ type ComplexityRoot struct {
 		ScreenX               func(childComplexity int) int
 		ScreenY               func(childComplexity int) int
 		ScryfallID            func(childComplexity int) int
+		SetCode               func(childComplexity int) int
+		SourceFormat          func(childComplexity int) int
 		Subtypes              func(childComplexity int) int
 		Supertypes            func(childComplexity int) int
 		Tapped                func(childComplexity int) int
@@ -95,6 +99,43 @@ type ComplexityRoot struct {
 	Counter struct {
 		Name  func(childComplexity int) int
 		Value func(childComplexity int) int
+	}
+
+	DeckImportIssue struct {
+		Candidates func(childComplexity int) int
+		Name       func(childComplexity int) int
+		RawLine    func(childComplexity int) int
+		Reason     func(childComplexity int) int
+		SourceLine func(childComplexity int) int
+	}
+
+	DeckPreview struct {
+		BlockingErrors      func(childComplexity int) int
+		CanContinue         func(childComplexity int) int
+		CardCount           func(childComplexity int) int
+		CommanderCandidates func(childComplexity int) int
+		Entries             func(childComplexity int) int
+		SourceType          func(childComplexity int) int
+		Unresolved          func(childComplexity int) int
+		Warnings            func(childComplexity int) int
+	}
+
+	DeckPreviewEntry struct {
+		Card            func(childComplexity int) int
+		Category        func(childComplexity int) int
+		CollectorNumber func(childComplexity int) int
+		Name            func(childComplexity int) int
+		Quantity        func(childComplexity int) int
+		Resolved        func(childComplexity int) int
+		Section         func(childComplexity int) int
+		SetCode         func(childComplexity int) int
+		SourceLine      func(childComplexity int) int
+	}
+
+	DeckSuggestion struct {
+		LowConfidence func(childComplexity int) int
+		Name          func(childComplexity int) int
+		Score         func(childComplexity int) int
 	}
 
 	Game struct {
@@ -139,15 +180,17 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AdvancePhase     func(childComplexity int, gameID string, phase string, number *int) int
-		ClaimWin         func(childComplexity int, gameID string, condition *string) int
-		CreateGame       func(childComplexity int, input InputCreateGame) int
-		JoinGame         func(childComplexity int, input *InputJoinGame) int
-		Login            func(childComplexity int, username string, password string) int
-		PassPriority     func(childComplexity int, gameID string, toPlayer string) int
-		Signup           func(childComplexity int, username string, password string) int
-		UpdateBoardState func(childComplexity int, input InputBoardState) int
-		UpdateGame       func(childComplexity int, input InputGame) int
+		AdvancePhase      func(childComplexity int, gameID string, phase string, number *int) int
+		ClaimWin          func(childComplexity int, gameID string, condition *string) int
+		CreateGame        func(childComplexity int, input InputCreateGame) int
+		JoinGame          func(childComplexity int, input *InputJoinGame) int
+		Login             func(childComplexity int, username string, password string) int
+		PassPriority      func(childComplexity int, gameID string, toPlayer string) int
+		PreviewDeck       func(childComplexity int, input InputDeckImport) int
+		Signup            func(childComplexity int, username string, password string) int
+		TrackProductEvent func(childComplexity int, input InputProductEvent) int
+		UpdateBoardState  func(childComplexity int, input InputBoardState) int
+		UpdateGame        func(childComplexity int, input InputGame) int
 	}
 
 	PendingWinClaim struct {
@@ -204,6 +247,8 @@ type MutationResolver interface {
 	AdvancePhase(ctx context.Context, gameID string, phase string, number *int) (*Game, error)
 	UpdateBoardState(ctx context.Context, input InputBoardState) (*BoardState, error)
 	ClaimWin(ctx context.Context, gameID string, condition *string) (*Game, error)
+	PreviewDeck(ctx context.Context, input InputDeckImport) (*DeckPreview, error)
+	TrackProductEvent(ctx context.Context, input InputProductEvent) (bool, error)
 }
 type QueryResolver interface {
 	Users(ctx context.Context, userID *string) ([]string, error)
@@ -319,12 +364,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.BoardState.UserID(childComplexity), true
 
+	case "Card.Category":
+		if e.complexity.Card.Category == nil {
+			break
+		}
+
+		return e.complexity.Card.Category(childComplexity), true
 	case "Card.CMC":
 		if e.complexity.Card.Cmc == nil {
 			break
 		}
 
 		return e.complexity.Card.Cmc(childComplexity), true
+	case "Card.CollectorNumber":
+		if e.complexity.Card.CollectorNumber == nil {
+			break
+		}
+
+		return e.complexity.Card.CollectorNumber(childComplexity), true
 	case "Card.ColorIdentity":
 		if e.complexity.Card.ColorIdentity == nil {
 			break
@@ -421,6 +478,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Card.ScryfallID(childComplexity), true
+	case "Card.SetCode":
+		if e.complexity.Card.SetCode == nil {
+			break
+		}
+
+		return e.complexity.Card.SetCode(childComplexity), true
+	case "Card.SourceFormat":
+		if e.complexity.Card.SourceFormat == nil {
+			break
+		}
+
+		return e.complexity.Card.SourceFormat(childComplexity), true
 	case "Card.Subtypes":
 		if e.complexity.Card.Subtypes == nil {
 			break
@@ -482,6 +551,160 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Counter.Value(childComplexity), true
+
+	case "DeckImportIssue.Candidates":
+		if e.complexity.DeckImportIssue.Candidates == nil {
+			break
+		}
+
+		return e.complexity.DeckImportIssue.Candidates(childComplexity), true
+	case "DeckImportIssue.Name":
+		if e.complexity.DeckImportIssue.Name == nil {
+			break
+		}
+
+		return e.complexity.DeckImportIssue.Name(childComplexity), true
+	case "DeckImportIssue.RawLine":
+		if e.complexity.DeckImportIssue.RawLine == nil {
+			break
+		}
+
+		return e.complexity.DeckImportIssue.RawLine(childComplexity), true
+	case "DeckImportIssue.Reason":
+		if e.complexity.DeckImportIssue.Reason == nil {
+			break
+		}
+
+		return e.complexity.DeckImportIssue.Reason(childComplexity), true
+	case "DeckImportIssue.SourceLine":
+		if e.complexity.DeckImportIssue.SourceLine == nil {
+			break
+		}
+
+		return e.complexity.DeckImportIssue.SourceLine(childComplexity), true
+
+	case "DeckPreview.BlockingErrors":
+		if e.complexity.DeckPreview.BlockingErrors == nil {
+			break
+		}
+
+		return e.complexity.DeckPreview.BlockingErrors(childComplexity), true
+	case "DeckPreview.CanContinue":
+		if e.complexity.DeckPreview.CanContinue == nil {
+			break
+		}
+
+		return e.complexity.DeckPreview.CanContinue(childComplexity), true
+	case "DeckPreview.CardCount":
+		if e.complexity.DeckPreview.CardCount == nil {
+			break
+		}
+
+		return e.complexity.DeckPreview.CardCount(childComplexity), true
+	case "DeckPreview.CommanderCandidates":
+		if e.complexity.DeckPreview.CommanderCandidates == nil {
+			break
+		}
+
+		return e.complexity.DeckPreview.CommanderCandidates(childComplexity), true
+	case "DeckPreview.Entries":
+		if e.complexity.DeckPreview.Entries == nil {
+			break
+		}
+
+		return e.complexity.DeckPreview.Entries(childComplexity), true
+	case "DeckPreview.SourceType":
+		if e.complexity.DeckPreview.SourceType == nil {
+			break
+		}
+
+		return e.complexity.DeckPreview.SourceType(childComplexity), true
+	case "DeckPreview.Unresolved":
+		if e.complexity.DeckPreview.Unresolved == nil {
+			break
+		}
+
+		return e.complexity.DeckPreview.Unresolved(childComplexity), true
+	case "DeckPreview.Warnings":
+		if e.complexity.DeckPreview.Warnings == nil {
+			break
+		}
+
+		return e.complexity.DeckPreview.Warnings(childComplexity), true
+
+	case "DeckPreviewEntry.Card":
+		if e.complexity.DeckPreviewEntry.Card == nil {
+			break
+		}
+
+		return e.complexity.DeckPreviewEntry.Card(childComplexity), true
+	case "DeckPreviewEntry.Category":
+		if e.complexity.DeckPreviewEntry.Category == nil {
+			break
+		}
+
+		return e.complexity.DeckPreviewEntry.Category(childComplexity), true
+	case "DeckPreviewEntry.CollectorNumber":
+		if e.complexity.DeckPreviewEntry.CollectorNumber == nil {
+			break
+		}
+
+		return e.complexity.DeckPreviewEntry.CollectorNumber(childComplexity), true
+	case "DeckPreviewEntry.Name":
+		if e.complexity.DeckPreviewEntry.Name == nil {
+			break
+		}
+
+		return e.complexity.DeckPreviewEntry.Name(childComplexity), true
+	case "DeckPreviewEntry.Quantity":
+		if e.complexity.DeckPreviewEntry.Quantity == nil {
+			break
+		}
+
+		return e.complexity.DeckPreviewEntry.Quantity(childComplexity), true
+	case "DeckPreviewEntry.Resolved":
+		if e.complexity.DeckPreviewEntry.Resolved == nil {
+			break
+		}
+
+		return e.complexity.DeckPreviewEntry.Resolved(childComplexity), true
+	case "DeckPreviewEntry.Section":
+		if e.complexity.DeckPreviewEntry.Section == nil {
+			break
+		}
+
+		return e.complexity.DeckPreviewEntry.Section(childComplexity), true
+	case "DeckPreviewEntry.SetCode":
+		if e.complexity.DeckPreviewEntry.SetCode == nil {
+			break
+		}
+
+		return e.complexity.DeckPreviewEntry.SetCode(childComplexity), true
+	case "DeckPreviewEntry.SourceLine":
+		if e.complexity.DeckPreviewEntry.SourceLine == nil {
+			break
+		}
+
+		return e.complexity.DeckPreviewEntry.SourceLine(childComplexity), true
+
+	case "DeckSuggestion.LowConfidence":
+		if e.complexity.DeckSuggestion.LowConfidence == nil {
+			break
+		}
+
+		return e.complexity.DeckSuggestion.LowConfidence(childComplexity), true
+	case "DeckSuggestion.Name":
+		if e.complexity.DeckSuggestion.Name == nil {
+			break
+		}
+
+		return e.complexity.DeckSuggestion.Name(childComplexity), true
+	case "DeckSuggestion.Score":
+		if e.complexity.DeckSuggestion.Score == nil {
+			break
+		}
+
+		return e.complexity.DeckSuggestion.Score(childComplexity), true
 
 	case "Game.CreatedAt":
 		if e.complexity.Game.CreatedAt == nil {
@@ -727,6 +950,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.PassPriority(childComplexity, args["gameID"].(string), args["toPlayer"].(string)), true
+	case "Mutation.previewDeck":
+		if e.complexity.Mutation.PreviewDeck == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_previewDeck_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.PreviewDeck(childComplexity, args["input"].(InputDeckImport)), true
 	case "Mutation.signup":
 		if e.complexity.Mutation.Signup == nil {
 			break
@@ -738,6 +972,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.Signup(childComplexity, args["username"].(string), args["password"].(string)), true
+	case "Mutation.trackProductEvent":
+		if e.complexity.Mutation.TrackProductEvent == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_trackProductEvent_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.TrackProductEvent(childComplexity, args["input"].(InputProductEvent)), true
 	case "Mutation.updateBoardState":
 		if e.complexity.Mutation.UpdateBoardState == nil {
 			break
@@ -980,9 +1225,12 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputInputCounter,
 		ec.unmarshalInputInputCreateGame,
 		ec.unmarshalInputInputDeck,
+		ec.unmarshalInputInputDeckImport,
 		ec.unmarshalInputInputGame,
 		ec.unmarshalInputInputJoinGame,
 		ec.unmarshalInputInputLabel,
+		ec.unmarshalInputInputProductEvent,
+		ec.unmarshalInputInputProductEventMeta,
 		ec.unmarshalInputInputRule,
 		ec.unmarshalInputInputSignup,
 		ec.unmarshalInputInputTurn,
@@ -1211,6 +1459,17 @@ func (ec *executionContext) field_Mutation_passPriority_args(ctx context.Context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_previewDeck_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNInputDeckImport2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputDeckImport)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_signup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1224,6 +1483,17 @@ func (ec *executionContext) field_Mutation_signup_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["password"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_trackProductEvent_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNInputProductEvent2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputProductEvent)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -1672,6 +1942,14 @@ func (ec *executionContext) fieldContext_BoardState_Commander(_ context.Context,
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1753,6 +2031,14 @@ func (ec *executionContext) fieldContext_BoardState_Library(_ context.Context, f
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1834,6 +2120,14 @@ func (ec *executionContext) fieldContext_BoardState_Graveyard(_ context.Context,
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1915,6 +2209,14 @@ func (ec *executionContext) fieldContext_BoardState_Exiled(_ context.Context, fi
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -1996,6 +2298,14 @@ func (ec *executionContext) fieldContext_BoardState_Battlefield(_ context.Contex
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -2077,6 +2387,14 @@ func (ec *executionContext) fieldContext_BoardState_Hand(_ context.Context, fiel
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -2158,6 +2476,14 @@ func (ec *executionContext) fieldContext_BoardState_Revealed(_ context.Context, 
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -2239,6 +2565,14 @@ func (ec *executionContext) fieldContext_BoardState_Controlled(_ context.Context
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -3012,6 +3346,122 @@ func (ec *executionContext) fieldContext_Card_CurrentZone(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Card_SetCode(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Card_SetCode,
+		func(ctx context.Context) (any, error) {
+			return obj.SetCode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Card_SetCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Card_CollectorNumber(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Card_CollectorNumber,
+		func(ctx context.Context) (any, error) {
+			return obj.CollectorNumber, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Card_CollectorNumber(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Card_Category(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Card_Category,
+		func(ctx context.Context) (any, error) {
+			return obj.Category, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Card_Category(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Card_SourceFormat(ctx context.Context, field graphql.CollectedField, obj *Card) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Card_SourceFormat,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceFormat, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Card_SourceFormat(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Card",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Counter_Name(ctx context.Context, field graphql.CollectedField, obj *Counter) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3065,6 +3515,891 @@ func (ec *executionContext) fieldContext_Counter_Value(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckImportIssue_SourceLine(ctx context.Context, field graphql.CollectedField, obj *DeckImportIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckImportIssue_SourceLine,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceLine, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckImportIssue_SourceLine(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckImportIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckImportIssue_RawLine(ctx context.Context, field graphql.CollectedField, obj *DeckImportIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckImportIssue_RawLine,
+		func(ctx context.Context) (any, error) {
+			return obj.RawLine, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckImportIssue_RawLine(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckImportIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckImportIssue_Name(ctx context.Context, field graphql.CollectedField, obj *DeckImportIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckImportIssue_Name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckImportIssue_Name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckImportIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckImportIssue_Reason(ctx context.Context, field graphql.CollectedField, obj *DeckImportIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckImportIssue_Reason,
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckImportIssue_Reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckImportIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckImportIssue_Candidates(ctx context.Context, field graphql.CollectedField, obj *DeckImportIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckImportIssue_Candidates,
+		func(ctx context.Context) (any, error) {
+			return obj.Candidates, nil
+		},
+		nil,
+		ec.marshalNDeckSuggestion2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckSuggestionᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckImportIssue_Candidates(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckImportIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "Name":
+				return ec.fieldContext_DeckSuggestion_Name(ctx, field)
+			case "Score":
+				return ec.fieldContext_DeckSuggestion_Score(ctx, field)
+			case "LowConfidence":
+				return ec.fieldContext_DeckSuggestion_LowConfidence(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeckSuggestion", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreview_SourceType(ctx context.Context, field graphql.CollectedField, obj *DeckPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreview_SourceType,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreview_SourceType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreview_CardCount(ctx context.Context, field graphql.CollectedField, obj *DeckPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreview_CardCount,
+		func(ctx context.Context) (any, error) {
+			return obj.CardCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreview_CardCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreview_Entries(ctx context.Context, field graphql.CollectedField, obj *DeckPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreview_Entries,
+		func(ctx context.Context) (any, error) {
+			return obj.Entries, nil
+		},
+		nil,
+		ec.marshalNDeckPreviewEntry2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckPreviewEntryᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreview_Entries(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "Quantity":
+				return ec.fieldContext_DeckPreviewEntry_Quantity(ctx, field)
+			case "Name":
+				return ec.fieldContext_DeckPreviewEntry_Name(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_DeckPreviewEntry_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_DeckPreviewEntry_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_DeckPreviewEntry_Category(ctx, field)
+			case "Section":
+				return ec.fieldContext_DeckPreviewEntry_Section(ctx, field)
+			case "SourceLine":
+				return ec.fieldContext_DeckPreviewEntry_SourceLine(ctx, field)
+			case "Resolved":
+				return ec.fieldContext_DeckPreviewEntry_Resolved(ctx, field)
+			case "Card":
+				return ec.fieldContext_DeckPreviewEntry_Card(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeckPreviewEntry", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreview_CommanderCandidates(ctx context.Context, field graphql.CollectedField, obj *DeckPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreview_CommanderCandidates,
+		func(ctx context.Context) (any, error) {
+			return obj.CommanderCandidates, nil
+		},
+		nil,
+		ec.marshalNCard2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐCardᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreview_CommanderCandidates(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "FaceName":
+				return ec.fieldContext_Card_FaceName(ctx, field)
+			case "Name":
+				return ec.fieldContext_Card_Name(ctx, field)
+			case "ID":
+				return ec.fieldContext_Card_ID(ctx, field)
+			case "Quantity":
+				return ec.fieldContext_Card_Quantity(ctx, field)
+			case "Tapped":
+				return ec.fieldContext_Card_Tapped(ctx, field)
+			case "Flipped":
+				return ec.fieldContext_Card_Flipped(ctx, field)
+			case "Counters":
+				return ec.fieldContext_Card_Counters(ctx, field)
+			case "Colors":
+				return ec.fieldContext_Card_Colors(ctx, field)
+			case "ColorIdentity":
+				return ec.fieldContext_Card_ColorIdentity(ctx, field)
+			case "FaceManaValue":
+				return ec.fieldContext_Card_FaceManaValue(ctx, field)
+			case "FaceConvertedManaCost":
+				return ec.fieldContext_Card_FaceConvertedManaCost(ctx, field)
+			case "CMC":
+				return ec.fieldContext_Card_CMC(ctx, field)
+			case "ManaCost":
+				return ec.fieldContext_Card_ManaCost(ctx, field)
+			case "UUID":
+				return ec.fieldContext_Card_UUID(ctx, field)
+			case "Power":
+				return ec.fieldContext_Card_Power(ctx, field)
+			case "Toughness":
+				return ec.fieldContext_Card_Toughness(ctx, field)
+			case "Types":
+				return ec.fieldContext_Card_Types(ctx, field)
+			case "Subtypes":
+				return ec.fieldContext_Card_Subtypes(ctx, field)
+			case "Supertypes":
+				return ec.fieldContext_Card_Supertypes(ctx, field)
+			case "Text":
+				return ec.fieldContext_Card_Text(ctx, field)
+			case "TCGID":
+				return ec.fieldContext_Card_TCGID(ctx, field)
+			case "ScryfallID":
+				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreview_Unresolved(ctx context.Context, field graphql.CollectedField, obj *DeckPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreview_Unresolved,
+		func(ctx context.Context) (any, error) {
+			return obj.Unresolved, nil
+		},
+		nil,
+		ec.marshalNDeckImportIssue2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckImportIssueᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreview_Unresolved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "SourceLine":
+				return ec.fieldContext_DeckImportIssue_SourceLine(ctx, field)
+			case "RawLine":
+				return ec.fieldContext_DeckImportIssue_RawLine(ctx, field)
+			case "Name":
+				return ec.fieldContext_DeckImportIssue_Name(ctx, field)
+			case "Reason":
+				return ec.fieldContext_DeckImportIssue_Reason(ctx, field)
+			case "Candidates":
+				return ec.fieldContext_DeckImportIssue_Candidates(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeckImportIssue", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreview_Warnings(ctx context.Context, field graphql.CollectedField, obj *DeckPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreview_Warnings,
+		func(ctx context.Context) (any, error) {
+			return obj.Warnings, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreview_Warnings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreview_CanContinue(ctx context.Context, field graphql.CollectedField, obj *DeckPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreview_CanContinue,
+		func(ctx context.Context) (any, error) {
+			return obj.CanContinue, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreview_CanContinue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreview_BlockingErrors(ctx context.Context, field graphql.CollectedField, obj *DeckPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreview_BlockingErrors,
+		func(ctx context.Context) (any, error) {
+			return obj.BlockingErrors, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreview_BlockingErrors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreviewEntry_Quantity(ctx context.Context, field graphql.CollectedField, obj *DeckPreviewEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreviewEntry_Quantity,
+		func(ctx context.Context) (any, error) {
+			return obj.Quantity, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreviewEntry_Quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreviewEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreviewEntry_Name(ctx context.Context, field graphql.CollectedField, obj *DeckPreviewEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreviewEntry_Name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreviewEntry_Name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreviewEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreviewEntry_SetCode(ctx context.Context, field graphql.CollectedField, obj *DeckPreviewEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreviewEntry_SetCode,
+		func(ctx context.Context) (any, error) {
+			return obj.SetCode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreviewEntry_SetCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreviewEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreviewEntry_CollectorNumber(ctx context.Context, field graphql.CollectedField, obj *DeckPreviewEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreviewEntry_CollectorNumber,
+		func(ctx context.Context) (any, error) {
+			return obj.CollectorNumber, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreviewEntry_CollectorNumber(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreviewEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreviewEntry_Category(ctx context.Context, field graphql.CollectedField, obj *DeckPreviewEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreviewEntry_Category,
+		func(ctx context.Context) (any, error) {
+			return obj.Category, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreviewEntry_Category(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreviewEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreviewEntry_Section(ctx context.Context, field graphql.CollectedField, obj *DeckPreviewEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreviewEntry_Section,
+		func(ctx context.Context) (any, error) {
+			return obj.Section, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreviewEntry_Section(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreviewEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreviewEntry_SourceLine(ctx context.Context, field graphql.CollectedField, obj *DeckPreviewEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreviewEntry_SourceLine,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceLine, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreviewEntry_SourceLine(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreviewEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreviewEntry_Resolved(ctx context.Context, field graphql.CollectedField, obj *DeckPreviewEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreviewEntry_Resolved,
+		func(ctx context.Context) (any, error) {
+			return obj.Resolved, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreviewEntry_Resolved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreviewEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckPreviewEntry_Card(ctx context.Context, field graphql.CollectedField, obj *DeckPreviewEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckPreviewEntry_Card,
+		func(ctx context.Context) (any, error) {
+			return obj.Card, nil
+		},
+		nil,
+		ec.marshalOCard2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐCard,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckPreviewEntry_Card(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckPreviewEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "FaceName":
+				return ec.fieldContext_Card_FaceName(ctx, field)
+			case "Name":
+				return ec.fieldContext_Card_Name(ctx, field)
+			case "ID":
+				return ec.fieldContext_Card_ID(ctx, field)
+			case "Quantity":
+				return ec.fieldContext_Card_Quantity(ctx, field)
+			case "Tapped":
+				return ec.fieldContext_Card_Tapped(ctx, field)
+			case "Flipped":
+				return ec.fieldContext_Card_Flipped(ctx, field)
+			case "Counters":
+				return ec.fieldContext_Card_Counters(ctx, field)
+			case "Colors":
+				return ec.fieldContext_Card_Colors(ctx, field)
+			case "ColorIdentity":
+				return ec.fieldContext_Card_ColorIdentity(ctx, field)
+			case "FaceManaValue":
+				return ec.fieldContext_Card_FaceManaValue(ctx, field)
+			case "FaceConvertedManaCost":
+				return ec.fieldContext_Card_FaceConvertedManaCost(ctx, field)
+			case "CMC":
+				return ec.fieldContext_Card_CMC(ctx, field)
+			case "ManaCost":
+				return ec.fieldContext_Card_ManaCost(ctx, field)
+			case "UUID":
+				return ec.fieldContext_Card_UUID(ctx, field)
+			case "Power":
+				return ec.fieldContext_Card_Power(ctx, field)
+			case "Toughness":
+				return ec.fieldContext_Card_Toughness(ctx, field)
+			case "Types":
+				return ec.fieldContext_Card_Types(ctx, field)
+			case "Subtypes":
+				return ec.fieldContext_Card_Subtypes(ctx, field)
+			case "Supertypes":
+				return ec.fieldContext_Card_Supertypes(ctx, field)
+			case "Text":
+				return ec.fieldContext_Card_Text(ctx, field)
+			case "TCGID":
+				return ec.fieldContext_Card_TCGID(ctx, field)
+			case "ScryfallID":
+				return ec.fieldContext_Card_ScryfallID(ctx, field)
+			case "ScreenX":
+				return ec.fieldContext_Card_ScreenX(ctx, field)
+			case "ScreenY":
+				return ec.fieldContext_Card_ScreenY(ctx, field)
+			case "CurrentZone":
+				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckSuggestion_Name(ctx context.Context, field graphql.CollectedField, obj *DeckSuggestion) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckSuggestion_Name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckSuggestion_Name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckSuggestion",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckSuggestion_Score(ctx context.Context, field graphql.CollectedField, obj *DeckSuggestion) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckSuggestion_Score,
+		func(ctx context.Context) (any, error) {
+			return obj.Score, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckSuggestion_Score(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckSuggestion",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeckSuggestion_LowConfidence(ctx context.Context, field graphql.CollectedField, obj *DeckSuggestion) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeckSuggestion_LowConfidence,
+		func(ctx context.Context) (any, error) {
+			return obj.LowConfidence, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeckSuggestion_LowConfidence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeckSuggestion",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -3317,6 +4652,14 @@ func (ec *executionContext) fieldContext_Game_Stack(_ context.Context, field gra
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -4576,6 +5919,106 @@ func (ec *executionContext) fieldContext_Mutation_claimWin(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_previewDeck(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_previewDeck,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().PreviewDeck(ctx, fc.Args["input"].(InputDeckImport))
+		},
+		nil,
+		ec.marshalNDeckPreview2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckPreview,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_previewDeck(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "SourceType":
+				return ec.fieldContext_DeckPreview_SourceType(ctx, field)
+			case "CardCount":
+				return ec.fieldContext_DeckPreview_CardCount(ctx, field)
+			case "Entries":
+				return ec.fieldContext_DeckPreview_Entries(ctx, field)
+			case "CommanderCandidates":
+				return ec.fieldContext_DeckPreview_CommanderCandidates(ctx, field)
+			case "Unresolved":
+				return ec.fieldContext_DeckPreview_Unresolved(ctx, field)
+			case "Warnings":
+				return ec.fieldContext_DeckPreview_Warnings(ctx, field)
+			case "CanContinue":
+				return ec.fieldContext_DeckPreview_CanContinue(ctx, field)
+			case "BlockingErrors":
+				return ec.fieldContext_DeckPreview_BlockingErrors(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeckPreview", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_previewDeck_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_trackProductEvent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_trackProductEvent,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().TrackProductEvent(ctx, fc.Args["input"].(InputProductEvent))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_trackProductEvent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_trackProductEvent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PendingWinClaim_ClaimedBy(ctx context.Context, field graphql.CollectedField, obj *PendingWinClaim) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5009,6 +6452,14 @@ func (ec *executionContext) fieldContext_Query_card(ctx context.Context, field g
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -5102,6 +6553,14 @@ func (ec *executionContext) fieldContext_Query_cards(ctx context.Context, field 
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -5195,6 +6654,14 @@ func (ec *executionContext) fieldContext_Query_search(ctx context.Context, field
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -5288,6 +6755,14 @@ func (ec *executionContext) fieldContext_Query_searchAll(ctx context.Context, fi
 				return ec.fieldContext_Card_ScreenY(ctx, field)
 			case "CurrentZone":
 				return ec.fieldContext_Card_CurrentZone(ctx, field)
+			case "SetCode":
+				return ec.fieldContext_Card_SetCode(ctx, field)
+			case "CollectorNumber":
+				return ec.fieldContext_Card_CollectorNumber(ctx, field)
+			case "Category":
+				return ec.fieldContext_Card_Category(ctx, field)
+			case "SourceFormat":
+				return ec.fieldContext_Card_SourceFormat(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Card", field.Name)
 		},
@@ -7791,6 +9266,47 @@ func (ec *executionContext) unmarshalInputInputDeck(ctx context.Context, obj any
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputInputDeckImport(ctx context.Context, obj any) (InputDeckImport, error) {
+	var it InputDeckImport
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"text", "sourceURL", "sessionID"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "text":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("text"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Text = data
+		case "sourceURL":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sourceURL"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SourceURL = data
+		case "sessionID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sessionID"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SessionID = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputInputGame(ctx context.Context, obj any) (InputGame, error) {
 	var it InputGame
 	asMap := map[string]any{}
@@ -7936,6 +9452,116 @@ func (ec *executionContext) unmarshalInputInputLabel(ctx context.Context, obj an
 				return it, err
 			}
 			it.AssignedBy = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputInputProductEvent(ctx context.Context, obj any) (InputProductEvent, error) {
+	var it InputProductEvent
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "sessionID", "gameID", "role", "source", "outcome", "durationMs", "metadata"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "sessionID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sessionID"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SessionID = data
+		case "gameID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gameID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GameID = data
+		case "role":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Role = data
+		case "source":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Source = data
+		case "outcome":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("outcome"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Outcome = data
+		case "durationMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMs"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DurationMs = data
+		case "metadata":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("metadata"))
+			data, err := ec.unmarshalOInputProductEventMeta2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputProductEventMetaᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Metadata = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputInputProductEventMeta(ctx context.Context, obj any) (InputProductEventMeta, error) {
+	var it InputProductEventMeta
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"key", "value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "key":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Key = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
 		}
 	}
 
@@ -8277,6 +9903,14 @@ func (ec *executionContext) _Card(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._Card_ScreenY(ctx, field, obj)
 		case "CurrentZone":
 			out.Values[i] = ec._Card_CurrentZone(ctx, field, obj)
+		case "SetCode":
+			out.Values[i] = ec._Card_SetCode(ctx, field, obj)
+		case "CollectorNumber":
+			out.Values[i] = ec._Card_CollectorNumber(ctx, field, obj)
+		case "Category":
+			out.Values[i] = ec._Card_Category(ctx, field, obj)
+		case "SourceFormat":
+			out.Values[i] = ec._Card_SourceFormat(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -8318,6 +9952,255 @@ func (ec *executionContext) _Counter(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "Value":
 			out.Values[i] = ec._Counter_Value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var deckImportIssueImplementors = []string{"DeckImportIssue"}
+
+func (ec *executionContext) _DeckImportIssue(ctx context.Context, sel ast.SelectionSet, obj *DeckImportIssue) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deckImportIssueImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeckImportIssue")
+		case "SourceLine":
+			out.Values[i] = ec._DeckImportIssue_SourceLine(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "RawLine":
+			out.Values[i] = ec._DeckImportIssue_RawLine(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Name":
+			out.Values[i] = ec._DeckImportIssue_Name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Reason":
+			out.Values[i] = ec._DeckImportIssue_Reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Candidates":
+			out.Values[i] = ec._DeckImportIssue_Candidates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var deckPreviewImplementors = []string{"DeckPreview"}
+
+func (ec *executionContext) _DeckPreview(ctx context.Context, sel ast.SelectionSet, obj *DeckPreview) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deckPreviewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeckPreview")
+		case "SourceType":
+			out.Values[i] = ec._DeckPreview_SourceType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "CardCount":
+			out.Values[i] = ec._DeckPreview_CardCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Entries":
+			out.Values[i] = ec._DeckPreview_Entries(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "CommanderCandidates":
+			out.Values[i] = ec._DeckPreview_CommanderCandidates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Unresolved":
+			out.Values[i] = ec._DeckPreview_Unresolved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Warnings":
+			out.Values[i] = ec._DeckPreview_Warnings(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "CanContinue":
+			out.Values[i] = ec._DeckPreview_CanContinue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "BlockingErrors":
+			out.Values[i] = ec._DeckPreview_BlockingErrors(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var deckPreviewEntryImplementors = []string{"DeckPreviewEntry"}
+
+func (ec *executionContext) _DeckPreviewEntry(ctx context.Context, sel ast.SelectionSet, obj *DeckPreviewEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deckPreviewEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeckPreviewEntry")
+		case "Quantity":
+			out.Values[i] = ec._DeckPreviewEntry_Quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Name":
+			out.Values[i] = ec._DeckPreviewEntry_Name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "SetCode":
+			out.Values[i] = ec._DeckPreviewEntry_SetCode(ctx, field, obj)
+		case "CollectorNumber":
+			out.Values[i] = ec._DeckPreviewEntry_CollectorNumber(ctx, field, obj)
+		case "Category":
+			out.Values[i] = ec._DeckPreviewEntry_Category(ctx, field, obj)
+		case "Section":
+			out.Values[i] = ec._DeckPreviewEntry_Section(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "SourceLine":
+			out.Values[i] = ec._DeckPreviewEntry_SourceLine(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Resolved":
+			out.Values[i] = ec._DeckPreviewEntry_Resolved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Card":
+			out.Values[i] = ec._DeckPreviewEntry_Card(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var deckSuggestionImplementors = []string{"DeckSuggestion"}
+
+func (ec *executionContext) _DeckSuggestion(ctx context.Context, sel ast.SelectionSet, obj *DeckSuggestion) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deckSuggestionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeckSuggestion")
+		case "Name":
+			out.Values[i] = ec._DeckSuggestion_Name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Score":
+			out.Values[i] = ec._DeckSuggestion_Score(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "LowConfidence":
+			out.Values[i] = ec._DeckSuggestion_LowConfidence(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -8673,6 +10556,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "claimWin":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_claimWin(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "previewDeck":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_previewDeck(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "trackProductEvent":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_trackProductEvent(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -9584,6 +11481,198 @@ func (ec *executionContext) marshalNCounter2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgo
 	return ec._Counter(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNDeckImportIssue2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckImportIssueᚄ(ctx context.Context, sel ast.SelectionSet, v []*DeckImportIssue) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDeckImportIssue2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckImportIssue(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDeckImportIssue2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckImportIssue(ctx context.Context, sel ast.SelectionSet, v *DeckImportIssue) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeckImportIssue(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDeckPreview2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckPreview(ctx context.Context, sel ast.SelectionSet, v DeckPreview) graphql.Marshaler {
+	return ec._DeckPreview(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDeckPreview2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckPreview(ctx context.Context, sel ast.SelectionSet, v *DeckPreview) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeckPreview(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDeckPreviewEntry2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckPreviewEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*DeckPreviewEntry) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDeckPreviewEntry2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckPreviewEntry(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDeckPreviewEntry2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckPreviewEntry(ctx context.Context, sel ast.SelectionSet, v *DeckPreviewEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeckPreviewEntry(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDeckSuggestion2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckSuggestionᚄ(ctx context.Context, sel ast.SelectionSet, v []*DeckSuggestion) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDeckSuggestion2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckSuggestion(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDeckSuggestion2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐDeckSuggestion(ctx context.Context, sel ast.SelectionSet, v *DeckSuggestion) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeckSuggestion(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v any) (float64, error) {
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalFloatContext(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return graphql.WrapContextMarshaler(ctx, res)
+}
+
 func (ec *executionContext) marshalNGame2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGame(ctx context.Context, sel ast.SelectionSet, v Game) graphql.Marshaler {
 	return ec._Game(ctx, sel, &v)
 }
@@ -9861,9 +11950,24 @@ func (ec *executionContext) unmarshalNInputCreateGame2githubᚗcomᚋopenmtgᚋe
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNInputDeckImport2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputDeckImport(ctx context.Context, v any) (InputDeckImport, error) {
+	res, err := ec.unmarshalInputInputDeckImport(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNInputGame2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputGame(ctx context.Context, v any) (InputGame, error) {
 	res, err := ec.unmarshalInputInputGame(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNInputProductEvent2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputProductEvent(ctx context.Context, v any) (InputProductEvent, error) {
+	res, err := ec.unmarshalInputInputProductEvent(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNInputProductEventMeta2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputProductEventMeta(ctx context.Context, v any) (*InputProductEventMeta, error) {
+	res, err := ec.unmarshalInputInputProductEventMeta(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNInputTurn2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputTurn(ctx context.Context, v any) (*InputTurn, error) {
@@ -10520,6 +12624,24 @@ func (ec *executionContext) unmarshalOInputJoinGame2ᚖgithubᚗcomᚋopenmtgᚋ
 	}
 	res, err := ec.unmarshalInputInputJoinGame(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOInputProductEventMeta2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputProductEventMetaᚄ(ctx context.Context, v any) ([]*InputProductEventMeta, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*InputProductEventMeta, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNInputProductEventMeta2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputProductEventMeta(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOInputRule2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputRule(ctx context.Context, v any) ([]*InputRule, error) {
