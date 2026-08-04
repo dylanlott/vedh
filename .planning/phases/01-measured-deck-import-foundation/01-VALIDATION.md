@@ -59,6 +59,17 @@ behaviors may ship with a manual-only verify. Rows marked **DB** run in `package
 `TestMain` migrates Postgres and imports an MTGJSON snapshot before any test runs — those tasks carry
 a `<precondition>` naming both, and none of them is CI coverage (see the CI-reality note above).
 
+**Terminology, because "authoritative" means two different things in this phase.**
+`EventSpec.Authoritative` marks the **six server-owned** event names a client may not submit. The
+migration's dedup predicate names a different, smaller set: the **four deduplicated** names
+`game_created`, `player_joined`, `guest_session_created`, `account_claimed`. `deck_import_succeeded`
+and `deck_import_failed` are server-owned but deliberately *outside* the predicate, so they persist on
+every emission. Two identifiers keep the older word for continuity with `01-RESEARCH.md` — the index
+`product_events_authoritative_once` and the test `TestProductEvents_AuthoritativeDedup` — and both mean
+"the deduplicated four". Renaming them was considered and rejected at plan time: the strings appear in
+`01-RESEARCH.md` line 1235 as well as here, so a rename would trade one ambiguous name for one stale
+cross-reference. `01-01-PLAN.md` task 2 carries the same note where the test is specified.
+
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
 | 01-02-T1 | 01-02 | 2 | REQ-ACT-002 | — | Six required syntaxes parse identically | unit | `go test ./pkg/deckimport -run TestScanner_RequiredSyntaxes` | ❌ W0 | ⬜ pending |
@@ -79,8 +90,8 @@ a `<precondition>` naming both, and none of them is CI coverage (see the CI-real
 | 01-01-T1 | 01-01 | 1 | REQ-ACT-001, REQ-ACT-002 | — | Tracer: pasted card ⇒ preview + one event row + counter increment | integration **DB** | `go test ./server -run TestTracer_PreviewDeckEmitsMeasuredEvent` | ❌ W0 | ⬜ pending |
 | 01-01-T1 | 01-01 | 1 | REQ-ACT-001 | — | D-17 write failure does not fail the caller | integration **DB** | `go test ./server -run TestProductEvents_WriteFailureIsNonFatal` | ❌ W0 | ⬜ pending |
 | 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-01 | Unknown names/keys/oversized/client-authoritative/blank-session dropped: no row, counter +1 exactly, no neighbouring reason moved | integration **DB** | `go test ./server -run TestProductEvents_Allowlist` | ❌ W0 | ⬜ pending |
-| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-04 | Duplicate authoritative events deduplicate incl. both-NULL keys; non-authoritative control persists twice | integration **DB** | `go test ./server -run TestProductEvents_AuthoritativeDedup` | ❌ W0 | ⬜ pending |
-| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-04 | Two concurrent in-flight inserts of one authoritative event resolve to one row | integration **DB** | `go test ./server -run TestProductEvents_ConcurrentInsert` | ❌ W0 | ⬜ pending |
+| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-04 | Duplicate **deduplicated-set** events (the four in the index predicate) collapse to one row incl. both-NULL keys; a **repeatable** control (`deck_import_succeeded`) persists twice; a client replay of a server-owned `game_created` leaves the server-side original as the single row | integration **DB** | `go test ./server -run TestProductEvents_AuthoritativeDedup` | ❌ W0 | ⬜ pending |
+| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-04 | Two concurrent in-flight inserts of one **deduplicated** event (`game_created`) resolve to one row | integration **DB** | `go test ./server -run TestProductEvents_ConcurrentInsert` | ❌ W0 | ⬜ pending |
 | 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | — | Identical `occurred_at` orders by ascending id; funnel collapses to earliest per session | integration **DB** | `go test ./server -run TestProductEvents_OccurredAtTieOrdering` | ❌ W0 | ⬜ pending |
 | 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | — | Migration up/down/up passes for prod **and** test schemas, in scratch databases | integration **DB** | `go test ./server -run TestMigrations_ProductEvents` | ❌ W0 | ⬜ pending |
 | 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | T-01-01 | **No allowlisted key names a forbidden concept** (structural privacy proof) | unit (DB-free, CI) | `go test ./pkg/telemetry -run TestVocabulary_NoForbiddenKeys` | ❌ W0 | ⬜ pending |
@@ -131,7 +142,7 @@ each with a reason, and reported in that plan's summary.
 - [ ] `pkg/telemetry/vocabulary_test.go` — structural forbidden-key test, closed-at-15 test, authoritative-set test, and the full `ValidateEvent` rejection table including the missing-session case
 - [ ] `pkg/telemetry/metrics_test.go` — label-allowlist registry walk, the criterion-4 family-existence check, the D-24 source enum-value check, and the bounded `reason`/`role` value checks
 - [ ] `pkg/ratelimit/limiter_test.go` — burst exhaustion, per-key and per-surface isolation, idle eviction via an injected clock, and bounded registry growth
-- [ ] `server/product_events_test.go` — non-fatal-write test, allowlist *behaviour* (no row plus an exact counter delta), authoritative dedup incl. both-NULL keys, concurrent insert, `occurred_at` tie ordering, and `TestMigrations_ProductEvents` with its scratch-database helper
+- [ ] `server/product_events_test.go` — non-fatal-write test, allowlist *behaviour* (no row plus an exact counter delta), dedup-predicate coverage incl. both-NULL keys, concurrent insert, `occurred_at` tie ordering, and `TestMigrations_ProductEvents` with its named `withScratchMigrationDB` helper (which plan 01-04 task 1 reuses)
 - [ ] `server/deck_import_test.go` — the tracer end-to-end test, DB-backed resolution, suggestions, D-05/D-06 accounting, single-parse proof, `TestMigrations_CardNameSearch`
 - [ ] `server/ratelimit_test.go` — the wrapper's counter-on-both-paths assertion only; the registry logic is covered in `pkg/ratelimit`
 - [ ] `server/deck_providers_test.go` + `server/testdata/deck_providers/` — SSRF table tests and fixture contract. The safe-client tests are provider-agnostic and land **before** the D-14 checkpoint; only the fixture contract waits for it.
