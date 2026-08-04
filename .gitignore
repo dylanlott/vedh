@@ -29,3 +29,6 @@ scripts/sync.sh
 .git/
 All Printings.json
 cards.csv
+
+# GSD research fetch cache (regenerable)
+.planning/research/.cache/
