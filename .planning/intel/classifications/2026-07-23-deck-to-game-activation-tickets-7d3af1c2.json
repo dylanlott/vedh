@@ -1,0 +1,38 @@
+{
+  "source_path": "/Users/oberon/code/vedh/docs/plans/2026-07-23-deck-to-game-activation-tickets.md",
+  "type": "SPEC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "vEDH Deck-to-Game Activation Implementation Tickets",
+  "summary": "Dependency-ordered implementation ticket breakdown (ACT-001..ACT-013) delivering guest deck-to-board activation, with scope, files, acceptance criteria, and verification per ticket.",
+  "scope": [
+    "ACT-001 product-event and activation-metric foundation (P0, M, no deps)",
+    "ACT-002 canonical deck parser and preview API (P0, L, depends ACT-001)",
+    "ACT-003 public deck-provider feasibility gate and first adapter (P0, M, depends ACT-002)",
+    "ACT-004 reusable deck-import and commander-review UI (P0, L, depends ACT-002)",
+    "ACT-005 guest identity and account-claim backend (P0, L, depends ACT-001)",
+    "ACT-006 public quick-start host flow (P0, L, depends ACT-004, ACT-005)",
+    "ACT-007 safe public invite preview (P0, M, depends ACT-001)",
+    "ACT-008 guest invite-to-board flow (P0, L, depends ACT-004, ACT-005, ACT-007)",
+    "ACT-009 board readiness, reconnect, and invite sharing (P0, M, depends ACT-006, ACT-008)",
+    "ACT-010 post-value account claim UI (P1, M, depends ACT-005, ACT-009)",
+    "ACT-011 commander landing page and attribution (P1, M, depends ACT-001, ACT-006)",
+    "ACT-012 activation dashboard and quiet-beta runbook (P1, S, depends ACT-001, ACT-009)",
+    "ACT-013 end-to-end release gate and regression suite (P0, L, depends ACT-003 through ACT-010)",
+    "GraphQL schema: trackProductEvent, previewDeck/DeckPreview, guestSession, claimGuestAccount, gameInvite",
+    "product_events table and guest user schema migrations",
+    "deck provider SSRF controls, allowlist, timeouts, 1 MiB cap, kill switch",
+    "Prometheus/Grafana low-cardinality metrics and activation SQL",
+    "four-week delivery cut and scope guardrails"
+  ],
+  "cross_refs": [
+    "docs/product/2026-07-23-deck-to-game-activation-prd.md",
+    "docs/research/deck-provider-feasibility.md",
+    "docs/analytics/deck-to-game-activation.sql",
+    "docs/runbooks/deck-to-game-quiet-beta.md",
+    "docs/runbooks/deck-to-game-release.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Filename matched the numbered-ADR regex only via the 2026 date prefix; content has no Context/Decision/Consequences and no Accepted status, so ADR is rejected. Status field reads 'Ready for estimation'. Content is implementation-level: per-ticket scope, likely file paths, GraphQL/schema/migration contracts, security limits, acceptance criteria and verification -> SPEC over PRD. Product-level requirements live in the referenced parent PRD, which this document explicitly derives from. Plan/roadmap framing (delivery map, four-week cut) is the main DOC-leaning signal; resolved toward SPEC by higher-precedence technical-contract content."
+}

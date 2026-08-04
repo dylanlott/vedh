@@ -1,0 +1,33 @@
+{
+  "source_path": "/Users/oberon/code/vedh/docs/product/2026-07-23-deck-to-game-activation-prd.md",
+  "type": "PRD",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "vEDH Deck-to-Game Activation PRD",
+  "summary": "Guest-first quick-start funnel letting players import decks and create or join vEDH Commander games without registering, with activation metrics.",
+  "scope": [
+    "deck-to-game activation funnel",
+    "guest sessions",
+    "decklist parser",
+    "public deck URL provider adapters",
+    "public quick-start route /play",
+    "public invite preview /join/:id",
+    "invite sharing",
+    "guest account claiming",
+    "product event telemetry",
+    "Prometheus/Grafana metrics"
+  ],
+  "cross_refs": [
+    "docs/plans/2026-07-23-deck-to-game-activation-tickets.md",
+    "docs/plans/2026-07-16-vedh-nft-card-tracking-integration.md",
+    "docs/plans/2026-05-15-vedh-auth-storage-migration.md",
+    "app/e2e/create-and-join-game.spec.ts",
+    "app/src/components/games/FormCreateGame.vue",
+    "app/src/views/JoinGameView.vue",
+    "server/games.go",
+    "app/src/router/index.ts"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Self-declared PRD in title and filename; dominant signals are personas, user stories A1-A7 with acceptance criteria, success metrics, and non-goals. Contains a substantial 'Technical Specifications' section (GraphQL contract, service design, security) that carries SPEC-like content, but it is subordinate to the requirements framing. Status is 'Draft for implementation' — not an ADR, not locked. Sibling tickets doc listed in cross_refs per orchestrator context. Filename 2026- date prefix matched a numbered-ADR regex; that is a regex artifact and was disregarded."
+}
