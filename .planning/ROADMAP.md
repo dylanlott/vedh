@@ -62,7 +62,15 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Ticket waves**: ACT-001 → ACT-002 → ACT-003 (strictly sequential; each depends on the prior)
 **Open decisions to resolve here**: **OPEN-1 — which public deck provider becomes the first supported URL source.** Status: open. Owned by ACT-003's one-day time-boxed feasibility comparison of public Archidekt and Moxfield access. Do not pre-answer; `/gsd-discuss-phase 1` should pick this up.
 **Branch note (INFO-1)**: a provider adapter is **not** a fixed MVP commitment. If neither candidate clears the feasibility gate, ACT-003 terminates at a documented no-go and paste-only activation ships. SSRF and reliability controls may not be weakened to force a provider through. Phase 5's release gate depends on ACT-003 either way, so a no-go must not block it — it changes what "provider fallback" means in the gate, not whether the gate can close.
-**Plans**: TBD
+**Plans**: 7 plans in 6 waves
+Plans:
+- [ ] 01-01-PLAN.md — Tracer: one pasted card becomes a measured preview end to end (migration, whole Phase 1 GraphQL contract, `pkg/telemetry`, `pkg/deckimport` seed, three new `server/` files, documented vocabulary)
+- [ ] 01-02-PLAN.md — Full deck grammar: six syntaxes, comma and double-faced names, printing metadata, sections, source detection, golden corpus
+- [ ] 01-03-PLAN.md — Browser event service: persisted session identifier, fire-and-forget emission, allowlisted campaign attribution
+- [ ] 01-04-PLAN.md — Name-search migration, index-usable batch lookup, printing disambiguation and missing-printing warning
+- [ ] 01-05-PLAN.md — Bounded eager ranked suggestions, and one parsed deck feeding both the preview and the created library
+- [ ] 01-06-PLAN.md — Public-surface hardening: per-surface rate limits, two-layer SSRF-safe fetch client, provider kill switch defaulting off
+- [ ] 01-07-PLAN.md — Provider feasibility spike, decision checkpoint, selected branch executed, coverage decision recorded
 
 ### Phase 2: Guest Host Activation
 **Goal**: A Commander host who has never made an account pastes a deck, reviews what was parsed, and lands on their own live board — and an existing authenticated host travels the same road without a guest identity being invented for them.
@@ -136,7 +144,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Measured Deck Import Foundation | 0/TBD | Not started | - |
+| 1. Measured Deck Import Foundation | 0/7 | Planned | - |
 | 2. Guest Host Activation | 0/TBD | Not started | - |
 | 3. Invite, Join, and Board Readiness | 0/TBD | Not started | - |
 | 4. Post-Value Acquisition and Funnel Readout | 0/TBD | Not started | - |
