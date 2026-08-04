@@ -718,6 +718,18 @@ var (
 
 `promauto.New*` registers into `prometheus.DefaultRegisterer`, which is what `promhttp.Handler()` serves — so no change to `Serve()` is needed. The collectors appear at `/prometheus` automatically, still behind `withMetricsAuth` + `METRICS_ENABLED` + `METRICS_TOKEN` `[VERIFIED: server/graphql.go:37-43 Conf struct — MetricsEnabled `envconfig:"METRICS_ENABLED"`, MetricsToken `envconfig:"METRICS_TOKEN"`]`.
 
+**Completeness correction (2026-08-04, added during planning).** The collector list above and in the
+example is **incomplete against ROADMAP Phase 1 success criterion 4**, which requires
+"guest-session, import, create/join, and board-activation counters and latency histograms". This
+pattern covers only the import and product-event families plus the provider fetch; it names no
+guest-session, create/join, or board-activation collector. Plan `01-01` therefore declares all four
+families — `vedh_guest_session_{total,duration_seconds}`, `vedh_game_create_{total,duration_seconds}`,
+`vedh_game_join_{total,duration_seconds}`, `vedh_board_activation_{total,duration_seconds}` — with
+label sets drawn from the same allowlist (`outcome`, `role`), so a Phase 2 or 3 emit site adds an
+observation rather than inventing a name. Note that a vector with no observations exports no child
+series, so declaration alone does not close criterion 4; it closes when ACT-005, ACT-006, ACT-008 and
+ACT-009 emit.
+
 ---
 
 ### Pattern 7: Frontend product-event service
@@ -1115,26 +1127,56 @@ ORDER BY 1 DESC, 2;
 | A7 | Prometheus histogram bucket boundaries | Architecture Pattern 6 | Low. Changing buckets later resets historical histogram data but breaks nothing structural. The reasoning (boundaries at 3 s and 8 s to match the locked timeouts) is sound independent of the specific list. |
 | A8 | The `cards` table contains roughly 97k printings / 33k distinct names in this deployment | Architecture Pattern 2 | Low. Scryfall's paper counts were verified live this session (32,643 / 96,589), and `persistence/import_all_printings_json.go` imports MTGJSON `AllPrintings` cards one row per printing — but the actual deployed row count could not be measured (no local Postgres, no `All Printings.json` in the repo). Order of magnitude is what the design depends on, and that is safe. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All four are closed by the Phase 1 plan set written 2026-08-04. Each carries its resolution inline;
+Q1 is resolved *as deliberately deferred* to a human checkpoint, which is a resolution of the
+planning question, not of OPEN-1 itself.
 
 1. **OPEN-1 — Which public deck provider becomes the first supported URL source.**
    - What we know: D-13 requires the spike to start neutral; D-14 puts a `checkpoint:decision` before any adapter code; D-15 makes a stable response shape the only hard gate condition; the exit note permits a documented no-go with paste-only activation, and INFO-1 says a no-go must not block the Phase 5 release gate.
    - What's unclear: everything about the outcome, deliberately.
+   - **RESOLVED (planning question only) — deliberately deferred, as recommended.** Plan `01-07`
+     implements exactly the recommended shape: task 1 is the timeboxed neutral spike producing
+     `docs/research/deck-provider-feasibility.md`, task 2 is the `checkpoint:decision` where the
+     human picks Archidekt, Moxfield, or no-go, and task 3 executes only the selected branch. No
+     adapter code is pre-written and no candidate is pre-favoured anywhere in the plan set. The
+     provider-agnostic secure client and the default-off kill switch are built in plan `01-06`,
+     ahead of and independent of the decision, so both branches are equally cheap at the checkpoint.
+     OPEN-1 itself remains genuinely open until that checkpoint resolves at execution time.
    - Recommendation: **Do not research or pre-favour a provider.** Plan ACT-003 as: (a) a timeboxed spike task producing `docs/research/deck-provider-feasibility.md`; (b) a `checkpoint:decision`; (c) nothing else pre-written. The spike should measure, for each candidate, exactly six things — request shape and whether an unauthenticated public read path exists; how a *private* deck responds (this determines the "reported as unsupported without requesting credentials" behavior); rate-limit signals in headers or status codes; response-shape stability, which D-15 makes the only hard gate; ToS/operational risk, recorded but non-blocking; and whether a fixture can be captured and maintained, since the standing constraint forbids any test depending on a live provider. The safe HTTP client of Pattern 8 and the `DECK_PROVIDER_ENABLED` kill switch are provider-agnostic and can be built and tested in **either** branch — including the no-go branch, where shipping a default-off flag gives the Phase 5 runbook something concrete to reference.
 
 2. **`previewDeck` rate-limiting scope.**
    - What we know: the SPEC requires IP/session rate limiting on guest creation, deck import, and public invite lookup, with instrumented outcomes. **No rate limiting of any kind exists in the repo today.** `previewDeck` sits on the activation critical path.
    - What's unclear: whether `previewDeck` is "deck import" for the purposes of that constraint.
+   - **RESOLVED — in scope, tuned loosely, instrumented on both paths.** Plan `01-06` task 1 limits
+     both `previewDeck` and `trackProductEvent` per surface and per client key at 30/minute with a
+     burst of 10, counts `vedh_rate_limit_total{surface,outcome}` on the allowed path as well as the
+     limited one so the ratio is readable, and puts the bucket registry and its idle-eviction sweep
+     in `pkg/ratelimit` — the only test target CI runs — with the instrumented wrapper left in
+     `server/`. The `x/time/rate` module is promoted from transitive to direct.
    - Recommendation: treat it as in scope but tune it loosely — a per-session/IP token bucket generous enough that a human correcting cards several times never hits it (e.g. 30/minute), with the *outcome* instrumented (`vedh_rate_limit_total{surface,outcome}`). The instrumentation is the load-bearing part: it makes a too-tight limit visible in Grafana before it shows up as a funnel dip. `golang.org/x/time/rate` is the obvious implementation and is already in `go.sum`.
 
 3. **Whether CI should be extended to run `./server/...`.**
    - What we know: it does not today, and cannot without a Postgres service and a ~500 MB `All Printings.json`.
    - What's unclear: whether this phase should absorb that change.
+   - **RESOLVED — no; split the code instead, as recommended.** No plan touches CI. The deterministic
+     grammar lives in `pkg/deckimport` (plans `01-01`, `01-02`), the vocabulary and metric
+     guarantees in `pkg/telemetry` (`01-01`), and the limiter registry in `pkg/ratelimit` (`01-06`).
+     Every task whose verify block runs `go test ./server` carries a `<precondition>` naming both
+     Postgres and the MTGJSON snapshot, so an executor without them halts on a stated fact rather
+     than on a confusing `TestMain` exit. A committed MTGJSON subset fixture remains out of scope for
+     this phase, as recommended.
    - Recommendation: **No — split the code instead.** Put the deterministic grammar in `pkg/deckimport/` so REQ-A2's acceptance criteria gate every PR immediately at zero CI cost. Separately, consider a small, committed MTGJSON subset fixture (a few hundred cards, including comma-containing and double-faced names) so DB-backed tests can eventually run in CI without the full download — but scope that as its own change, not a Phase 1 dependency. Note `persistence/migrations_test/20260131000000_seed_test_cards.up.sql` (32 KB) already establishes the seeded-subset pattern.
 
 4. **Whether `card_names` should be a table, a materialized view, or a trigger-maintained projection.**
    - What we know: the source `cards` table is refreshed by an explicit, manual operation (`make import-allprintings` / `make import-csv`), not continuously.
    - What's unclear: nothing blocking — but a stale projection means new sets are unsuggestable.
+   - **RESOLVED — a plain table plus a refresh hook on the import path, as recommended.** Plan `01-04`
+     task 1 creates `card_names` as a plain table populated by the migration and appends the same
+     projection insert to the end of `persistence/import_all_printings_json.go`'s batch loop, logging
+     and continuing on failure and treating an absent projection relation as nothing to refresh. No
+     materialized view and no trigger.
    - Recommendation: a plain table populated by the migration, plus a documented refresh step appended to the MTGJSON import path (`persistence/import_all_printings_json.go` already has the natural hook at the end of its batch loop). A materialized view with `REFRESH CONCURRENTLY` is the tidier long-term answer but needs a unique index and adds a moving part this phase does not need.
 
 ## Environment Availability

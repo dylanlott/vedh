@@ -63,13 +63,26 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Open decisions to resolve here**: **OPEN-1 — which public deck provider becomes the first supported URL source.** Status: open. Owned by ACT-003's one-day time-boxed feasibility comparison of public Archidekt and Moxfield access. Do not pre-answer; `/gsd-discuss-phase 1` should pick this up.
 **Branch note (INFO-1)**: a provider adapter is **not** a fixed MVP commitment. If neither candidate clears the feasibility gate, ACT-003 terminates at a documented no-go and paste-only activation ships. SSRF and reliability controls may not be weakened to force a provider through. Phase 5's release gate depends on ACT-003 either way, so a no-go must not block it — it changes what "provider fallback" means in the gate, not whether the gate can close.
 **Plans**: 7 plans in 6 waves
+**Contract note**: Phase 1 adds one additive field to the locked `DeckPreview` type —
+`BlockingErrors: [String!]!` — because the locked api-contract's prose requires blocking errors to
+be returned while its GraphQL block declares no field for them. Recorded as a dated addendum in
+`.planning/intel/constraints.md`; Phase 2's ACT-004 client should expect it. `previewDeck` is a
+**`Mutation`** field, per the locked contract, not a query.
+**Criterion 4 note (declared here, closed later)**: plan 01-01 declares all four collector families
+criterion 4 names — guest session, deck import, game create/join, board activation — with their
+label sets, bucket boundaries, and cardinality proof, so no later ticket invents a metric name under
+deadline. Only the import and product-event families are *observed* in Phase 1. A Prometheus vector
+with no observation exports no child series, so criterion 4 is satisfied in name and shape here and
+**closes when the emit sites land**: guest session in Phase 2 (ACT-005), game create in Phase 2
+(ACT-006), game join in Phase 3 (ACT-008), board activation in Phase 3 (ACT-009). Do not mark
+criterion 4 complete on Phase 1 alone.
 Plans:
-- [ ] 01-01-PLAN.md — Tracer: one pasted card becomes a measured preview end to end (migration, whole Phase 1 GraphQL contract, `pkg/telemetry`, `pkg/deckimport` seed, three new `server/` files, documented vocabulary)
+- [ ] 01-01-PLAN.md — Tracer: one pasted card becomes a measured preview end to end (migration, whole Phase 1 GraphQL contract, all criterion-4 collectors, `pkg/telemetry`, `pkg/deckimport` seed, three new `server/` files, documented vocabulary, dedup/concurrency/migration proofs)
 - [ ] 01-02-PLAN.md — Full deck grammar: six syntaxes, comma and double-faced names, printing metadata, sections, source detection, golden corpus
 - [ ] 01-03-PLAN.md — Browser event service: persisted session identifier, fire-and-forget emission, allowlisted campaign attribution
 - [ ] 01-04-PLAN.md — Name-search migration, index-usable batch lookup, printing disambiguation and missing-printing warning
 - [ ] 01-05-PLAN.md — Bounded eager ranked suggestions, and one parsed deck feeding both the preview and the created library
-- [ ] 01-06-PLAN.md — Public-surface hardening: per-surface rate limits, two-layer SSRF-safe fetch client, provider kill switch defaulting off
+- [ ] 01-06-PLAN.md — Public-surface hardening: per-surface rate limits (`pkg/ratelimit` + instrumented wrapper), two-layer SSRF-safe fetch client, provider kill switch defaulting off
 - [ ] 01-07-PLAN.md — Provider feasibility spike, decision checkpoint, selected branch executed, coverage decision recorded
 
 ### Phase 2: Guest Host Activation

@@ -57,6 +57,15 @@ Code baseline for all constraints: `main` at `ef2732a` (verified = current HEAD)
   The PRD labels these "Proposed additions". The SPEC schedules each into a specific
   ticket, which is the stronger commitment.
 
+  **Phase 1 planning addendum (2026-08-04) — one additive field.** `DeckPreview` also carries
+  `BlockingErrors: [String!]!`, added by Phase 1 plan `01-01`. Provenance: the "Canonical deck
+  parser grammar" constraint below requires the parser to return "blocking errors" and requires
+  `CanContinue`, but the locked `DeckPreview` block above declares no field to carry them, so the
+  prose and the type disagree. The field is purely additive — it breaks no consumer written against
+  the block above — and downstream planners (Phase 2's ACT-004 in particular) should treat it as
+  part of the contract. Nothing else in the block above is changed: in particular `previewDeck`
+  remains a **`Mutation`** field, as written above, and plan `01-01` implements it there.
+
 ## Canonical deck parser grammar
 - source: docs/plans/2026-07-23-deck-to-game-activation-tickets.md (ACT-002)
 - type: api-contract
