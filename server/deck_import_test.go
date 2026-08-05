@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/openmtg/edh-go/pkg/deckimport"
+	"github.com/openmtg/edh-go/persistence"
 )
 
 // TestTracer_PreviewDeckEmitsMeasuredEvent proves the whole Phase 1
@@ -65,5 +67,139 @@ func TestTracer_PreviewDeckEmitsMeasuredEvent(t *testing.T) {
 	after := testutil.ToFloat64(collectors.DeckImportCounter(deckimport.SourcePlainText, "success"))
 	if after != before+1 {
 		t.Fatalf("vedh_deck_import_total{source=plain_text,outcome=success} delta = %v, want 1", after-before)
+	}
+}
+
+// cardNameSearchIndexes are the four indexes this migration creates on top
+// of the card_names table itself; assertCardNameSearchObjectsPresent checks
+// all of them plus card_names in one pass.
+var cardNameSearchIndexes = []string{
+	"card_names_trgm_gist",
+	"cards_name_lower_idx",
+	"cards_facename_lower_idx",
+	"cards_name_set_num_idx",
+}
+
+// assertCardNameSearchObjectsPresent asserts that the card_names table and
+// its four indexes are present (present == true) or absent (present ==
+// false) in the database reachable through db.
+func assertCardNameSearchObjectsPresent(t *testing.T, db *sql.DB, present bool) {
+	t.Helper()
+
+	wantCount := 0
+	if present {
+		wantCount = 1
+	}
+
+	var tableCount int
+	if err := db.QueryRow(
+		`SELECT count(*) FROM pg_tables WHERE tablename = 'card_names'`,
+	).Scan(&tableCount); err != nil {
+		t.Fatalf("query pg_tables: %v", err)
+	}
+	if tableCount != wantCount {
+		t.Fatalf("card_names table present = %v, want %v", tableCount == 1, present)
+	}
+
+	for _, idx := range cardNameSearchIndexes {
+		var idxCount int
+		if err := db.QueryRow(
+			`SELECT count(*) FROM pg_indexes WHERE indexname = $1`, idx,
+		).Scan(&idxCount); err != nil {
+			t.Fatalf("query pg_indexes for %s: %v", idx, err)
+		}
+		if idxCount != wantCount {
+			t.Fatalf("index %s present = %v, want %v", idx, idxCount == 1, present)
+		}
+	}
+}
+
+// assertTrgmExtensionInstalled asserts that pg_trgm is installed in the
+// database reachable through db. The down migration deliberately never
+// drops this extension (it is a shared, database-wide resource), so this
+// assertion is expected to hold both before and after the down migration.
+func assertTrgmExtensionInstalled(t *testing.T, db *sql.DB) {
+	t.Helper()
+
+	var count int
+	if err := db.QueryRow(
+		`SELECT count(*) FROM pg_extension WHERE extname = 'pg_trgm'`,
+	).Scan(&count); err != nil {
+		t.Fatalf("query pg_extension: %v", err)
+	}
+	if count != 1 {
+		t.Fatal("pg_trgm extension not installed, want installed")
+	}
+}
+
+// TestMigrations_CardNameSearch proves the name-search migration set (D-09
+// prerequisite indexes, the card_names projection, and its trigram index)
+// both exists in the already-migrated shared test database and survives a
+// full up, down, up cycle in scratch databases for both migration
+// directories -- reusing plan 01-01's withScratchMigrationDB by its exact
+// name rather than declaring a second scratch-database helper. It never
+// calls MigrateDown against the URL TestMain migrated: that would drop the
+// seeded cards and the imported MTGJSON snapshot out from under every other
+// test in this package.
+func TestMigrations_CardNameSearch(t *testing.T) {
+	s := testAPI(t)
+
+	assertCardNameSearchObjectsPresent(t, s.db, true)
+	assertTrgmExtensionInstalled(t, s.db)
+
+	var count int
+	if err := s.db.QueryRow(
+		`SELECT count(*) FROM card_names WHERE name_lower = lower($1)`, "Sol Ring",
+	).Scan(&count); err != nil {
+		t.Fatalf("query card_names: %v", err)
+	}
+	if count == 0 {
+		t.Fatal("card_names has no row for a name present in the seeded/imported cards, want at least one")
+	}
+
+	for _, dir := range []string{"../persistence/migrations/", "../persistence/migrations_test/"} {
+		dir := dir
+		t.Run(dir, func(t *testing.T) {
+			withScratchMigrationDB(t, dir, func(t *testing.T, scratchURL string) {
+				scratchDB, err := sql.Open("postgres", scratchURL)
+				if err != nil {
+					t.Fatalf("open scratch db: %v", err)
+				}
+				defer scratchDB.Close()
+
+				// Up (via NewPostgres, which migrates and hands back an
+				// open *sql.DB; closed immediately here, same as
+				// TestMigrations_ProductEvents, so the connection this step
+				// opens does not block withScratchMigrationDB's cleanup).
+				upDB, err := persistence.NewPostgres(dir, scratchURL)
+				if err != nil {
+					t.Fatalf("up: %v", err)
+				}
+				if err := upDB.Close(); err != nil {
+					t.Fatalf("close db after up: %v", err)
+				}
+				assertCardNameSearchObjectsPresent(t, scratchDB, true)
+				assertTrgmExtensionInstalled(t, scratchDB)
+
+				// Down.
+				if err := persistence.MigrateDown(dir, scratchURL); err != nil {
+					t.Fatalf("down: %v", err)
+				}
+				assertCardNameSearchObjectsPresent(t, scratchDB, false)
+				// The one thing this migration's down deliberately does not
+				// reverse: pg_trgm is a shared, database-wide resource.
+				assertTrgmExtensionInstalled(t, scratchDB)
+
+				// Up again.
+				upAgainDB, err := persistence.NewPostgres(dir, scratchURL)
+				if err != nil {
+					t.Fatalf("up (again): %v", err)
+				}
+				if err := upAgainDB.Close(); err != nil {
+					t.Fatalf("close db after second up: %v", err)
+				}
+				assertCardNameSearchObjectsPresent(t, scratchDB, true)
+			})
+		})
 	}
 }

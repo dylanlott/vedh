@@ -273,8 +273,51 @@ func ImportAllPrintingsJSON(dbURL string, opts AllPrintingsImportOptions) (int, 
 	if err := commitBatch(tx, stmt); err != nil {
 		return total, err
 	}
+	refreshCardNames(db, logger)
 	logger.Info("import complete", "count", total)
 	return total, nil
+}
+
+// refreshCardNames replays the same distinct-name projection insert that
+// persistence/migrations/20260804120100_card_name_search.up.sql performs,
+// so a freshly imported set becomes suggestable without re-running a
+// migration. It never fails the import: a driver error is logged at warn
+// level through the caller's logger, and an absent card_names relation
+// (a server running ahead of its migrations) is treated as "nothing to
+// refresh yet" rather than an error, matching the same tolerance the
+// existing card lookups in server/cards.go already apply to a missing
+// relation.
+func refreshCardNames(db *sql.DB, logger *slog.Logger) {
+	_, err := db.Exec(`
+		INSERT INTO card_names (name_lower, display)
+		SELECT DISTINCT lower(n.the_name), n.the_name
+		FROM (
+			SELECT name AS the_name FROM cards WHERE name IS NOT NULL AND name <> ''
+			UNION ALL
+			SELECT facename AS the_name FROM cards WHERE facename IS NOT NULL AND facename <> ''
+		) AS n
+		ON CONFLICT (name_lower) DO NOTHING;
+	`)
+	if err == nil {
+		return
+	}
+	if isMissingRelation(err, "card_names") {
+		logger.Info("card_names relation absent; skipping refresh (server running ahead of its migrations)")
+		return
+	}
+	logger.Warn("card_names refresh failed", "err", err)
+}
+
+// isMissingRelation reports whether err is a PostgreSQL "relation does not
+// exist" error for the named table. This package cannot import
+// server.isMissingRelation (server depends on persistence, not the other
+// way around), so it declares its own copy of the same string check.
+func isMissingRelation(err error, table string) bool {
+	if err == nil {
+		return false
+	}
+	msg := fmt.Sprintf("relation \"%s\" does not exist", table)
+	return strings.Contains(err.Error(), msg)
 }
 
 func joinOrNil(values []string) any {
