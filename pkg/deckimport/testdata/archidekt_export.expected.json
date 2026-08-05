@@ -1,0 +1,305 @@
+{
+  "Entries": [
+    {
+      "Quantity": 1,
+      "Name": "Kykar, Wind's Fury",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Commander",
+      "Section": "main",
+      "SourceLine": 1,
+      "RawLine": "1 Kykar, Wind's Fury [Commander]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Aetherflux Reservoir",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Combo",
+      "Section": "main",
+      "SourceLine": 2,
+      "RawLine": "1 Aetherflux Reservoir [Combo]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Ancient Tomb",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ramp",
+      "Section": "main",
+      "SourceLine": 3,
+      "RawLine": "1 Ancient Tomb [Ramp]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Arid Mesa",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Land",
+      "Section": "main",
+      "SourceLine": 4,
+      "RawLine": "1 Arid Mesa [Land]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Azorius Signet",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ramp",
+      "Section": "main",
+      "SourceLine": 5,
+      "RawLine": "1 Azorius Signet [Ramp]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Battle Hymn",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ritual",
+      "Section": "main",
+      "SourceLine": 6,
+      "RawLine": "1 Battle Hymn [Ritual]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Bloodstained Mire",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Land",
+      "Section": "main",
+      "SourceLine": 7,
+      "RawLine": "1 Bloodstained Mire [Land]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Boros Signet",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ramp",
+      "Section": "main",
+      "SourceLine": 8,
+      "RawLine": "1 Boros Signet [Ramp]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Brainstorm",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Draw",
+      "Section": "main",
+      "SourceLine": 9,
+      "RawLine": "1 Brainstorm [Draw]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Cascade Bluffs",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Land",
+      "Section": "main",
+      "SourceLine": 10,
+      "RawLine": "1 Cascade Bluffs [Land]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Cathartic Reunion",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Draw",
+      "Section": "main",
+      "SourceLine": 12,
+      "RawLine": "1 Cathartic Reunion [Draw]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Chain of Vapor",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Removal",
+      "Section": "main",
+      "SourceLine": 13,
+      "RawLine": "1 Chain of Vapor [Removal]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Chromatic Sphere",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ramp",
+      "Section": "main",
+      "SourceLine": 14,
+      "RawLine": "1 Chromatic Sphere [Ramp]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Chromatic Star",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ramp",
+      "Section": "main",
+      "SourceLine": 15,
+      "RawLine": "1 Chromatic Star [Ramp]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Chrome Mox",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ramp",
+      "Section": "main",
+      "SourceLine": 16,
+      "RawLine": "1 Chrome Mox [Ramp]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "City of Brass",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Land",
+      "Section": "main",
+      "SourceLine": 17,
+      "RawLine": "1 City of Brass [Land]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Command Tower",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Land",
+      "Section": "main",
+      "SourceLine": 18,
+      "RawLine": "1 Command Tower [Land]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Commander's Sphere",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ramp",
+      "Section": "main",
+      "SourceLine": 19,
+      "RawLine": "1 Commander's Sphere [Ramp]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Bala Ged Recovery // Bala Ged Sanctuary",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Land",
+      "Section": "main",
+      "SourceLine": 20,
+      "RawLine": "1 Bala Ged Recovery // Bala Ged Sanctuary [Land]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Boggart Trawler // Boggart Bog",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Value",
+      "Section": "main",
+      "SourceLine": 21,
+      "RawLine": "1 Boggart Trawler // Boggart Bog `Value`"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Crash Through",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Draw",
+      "Section": "main",
+      "SourceLine": 22,
+      "RawLine": "1 Crash Through [Draw]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Dramatic Reversal",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Combo",
+      "Section": "main",
+      "SourceLine": 23,
+      "RawLine": "1 Dramatic Reversal [Combo]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Enlightened Tutor",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Tutor",
+      "Section": "main",
+      "SourceLine": 24,
+      "RawLine": "1 Enlightened Tutor [Tutor]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Exotic Orchard",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ramp",
+      "Section": "main",
+      "SourceLine": 25,
+      "RawLine": "1 Exotic Orchard [Ramp]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Fabricate",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Combo",
+      "Section": "main",
+      "SourceLine": 26,
+      "RawLine": "1 Fabricate [Combo]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Faithless Looting",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Draw",
+      "Section": "main",
+      "SourceLine": 27,
+      "RawLine": "1 Faithless Looting [Draw]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Fellwar Stone",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Ramp",
+      "Section": "main",
+      "SourceLine": 28,
+      "RawLine": "1 Fellwar Stone [Ramp]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Gamble",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Tutor",
+      "Section": "main",
+      "SourceLine": 29,
+      "RawLine": "1 Gamble [Tutor]"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Argoth, Sanctum of Nature",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "Land",
+      "Section": "main",
+      "SourceLine": 30,
+      "RawLine": "1 Argoth, Sanctum of Nature [Land]"
+    }
+  ],
+  "Warnings": [
+    {
+      "SourceLine": 31,
+      "RawLine": "Sideboard (3)",
+      "Message": "3 sideboard card(s) ignored."
+    }
+  ],
+  "BlockingErrors": null,
+  "DroppedSectionRows": 3,
+  "NonBlankLines": 33,
+  "Source": "archidekt"
+}

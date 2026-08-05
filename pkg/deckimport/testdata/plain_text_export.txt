@@ -1,0 +1,35 @@
+Commander
+1 Narset, Parter of Veils
+
+1 Isochron Scepter
+1 Izzet Signet
+1 Jeskai Ascendancy
+1 Lotus Petal
+1 Magmatic Insight
+1 Magus of the Future
+1 Mana Confluence
+1 Mana Vault
+1 Memory Jar
+1 Merchant Scroll
+1 Misty Rainforest
+1 Mox Diamond
+1 Mox Opal
+1 Muddle the Mixture
+1 Mystic Remora
+1 Mystical Tutor
+1 Narset's Reversal
+1 Overmaster
+1 Pact of Negation
+1 Paradoxical Outcome
+1 Past in Flames
+1 Ponder
+1 Prismatic Vista
+1 Pyroblast
+1 Reflecting Pool
+1 Rhystic Study
+1 Bala Ged Recovery // Bala Ged Sanctuary
+1 Sensei's Divining Top
+1 Sol Ring
+Sideboard
+1 Vandalblast
+1 Whir of Invention

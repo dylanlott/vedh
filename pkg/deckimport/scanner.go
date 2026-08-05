@@ -76,6 +76,8 @@ func ParseWithSource(text string, source SourceType) ParsedDeck {
 		return deck
 	}
 
+	tracker := &sectionTracker{current: SectionMain}
+
 	for i, raw := range lines {
 		sourceLine := i + 1
 		line := raw
@@ -93,13 +95,19 @@ func ParseWithSource(text string, source SourceType) ParsedDeck {
 		// 2): "//" also separates the two faces of a double-faced card,
 		// and test/decklists/jarad.csv ships several of those unquoted.
 		// Checking only line-initial "//" means a double slash anywhere
-		// else on the line is never mistaken for a comment. Header
-		// words are recognized here too, so they are never mistaken for
-		// an entry — real section handling (dropping, D-11's summary
-		// warning, D-12's commander preselection) is added in a later
-		// plan; this task only guarantees a header line never becomes
-		// an Entry.
-		if isCommentLine(line) || isSectionHeaderWord(line) {
+		// else on the line is never mistaken for a comment.
+		if isCommentLine(line) {
+			continue
+		}
+		if kind := matchSectionHeader(line); kind != headerNone {
+			tracker.noteHeader(&deck, kind, sourceLine, raw)
+			continue
+		}
+		if tracker.dropping {
+			// A row that fell inside a Sideboard/Maybeboard section:
+			// never becomes an Entry, but is still accounted for via
+			// DroppedSectionRows (D-11).
+			tracker.dropRow(&deck)
 			continue
 		}
 
@@ -128,11 +136,15 @@ func ParseWithSource(text string, source SourceType) ParsedDeck {
 			SetCode:         setCode,
 			CollectorNumber: collectorNumber,
 			Category:        category,
-			Section:         SectionMain,
+			Section:         tracker.current,
 			SourceLine:      sourceLine,
 			RawLine:         raw,
 		})
 	}
+
+	// Flush a Sideboard/Maybeboard section that was still open at EOF, so
+	// its header row is accounted for even with no trailing header.
+	tracker.closeDropSection(&deck)
 
 	AssertAccounting(&deck)
 
@@ -199,41 +211,9 @@ func isCommentLine(line string) bool {
 	return strings.HasPrefix(line, "//") || strings.HasPrefix(line, "# ")
 }
 
-// sectionHeaderWords are the five words 01-CONTEXT.md's D-11/D-12 assign
-// section meaning to. isSectionHeaderWord below is deliberately the only
-// thing this task builds on top of them: recognizing a header line well
-// enough that it never becomes an Entry. Real section semantics — dropping
-// Sideboard/Maybeboard rows with a summary warning, preselecting Commander
-// candidates — are added by the next plan in this phase.
-var sectionHeaderWords = map[string]bool{
-	"commander":  true,
-	"sideboard":  true,
-	"maybeboard": true,
-	"deck":       true,
-	"companion":  true,
-}
-
-// isSectionHeaderWord reports whether line, once an optional trailing
-// "(<count>)" is stripped, is exactly one of the five section header words
-// (case-insensitive on the word, anchored to the whole line). Requiring the
-// header word to constitute the *whole* line — apart from that optional
-// count suffix — is what keeps "1 Commander's Sphere" an entry: it has
-// content beyond "Commander" plus an optional count, so it never matches.
-func isSectionHeaderWord(line string) bool {
-	trimmed := strings.TrimSpace(line)
-
-	if idx := strings.LastIndexByte(trimmed, '('); idx != -1 && strings.HasSuffix(trimmed, ")") {
-		inner := trimmed[idx+1 : len(trimmed)-1]
-		if inner != "" && isAllDigits(inner) {
-			trimmed = strings.TrimSpace(trimmed[:idx])
-		}
-	}
-
-	return sectionHeaderWords[strings.ToLower(trimmed)]
-}
-
 // isAllDigits reports whether s is non-empty and consists only of ASCII
-// digits, used to recognize a header's optional "(N)" count suffix.
+// digits, used by sections.go to recognize a header's optional "(N)" count
+// suffix.
 func isAllDigits(s string) bool {
 	if s == "" {
 		return false

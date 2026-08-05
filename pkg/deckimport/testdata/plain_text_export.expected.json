@@ -1,0 +1,315 @@
+{
+  "Entries": [
+    {
+      "Quantity": 1,
+      "Name": "Narset, Parter of Veils",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 2,
+      "RawLine": "1 Narset, Parter of Veils"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Isochron Scepter",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 4,
+      "RawLine": "1 Isochron Scepter"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Izzet Signet",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 5,
+      "RawLine": "1 Izzet Signet"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Jeskai Ascendancy",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 6,
+      "RawLine": "1 Jeskai Ascendancy"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Lotus Petal",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 7,
+      "RawLine": "1 Lotus Petal"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Magmatic Insight",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 8,
+      "RawLine": "1 Magmatic Insight"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Magus of the Future",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 9,
+      "RawLine": "1 Magus of the Future"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Mana Confluence",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 10,
+      "RawLine": "1 Mana Confluence"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Mana Vault",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 11,
+      "RawLine": "1 Mana Vault"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Memory Jar",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 12,
+      "RawLine": "1 Memory Jar"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Merchant Scroll",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 13,
+      "RawLine": "1 Merchant Scroll"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Misty Rainforest",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 14,
+      "RawLine": "1 Misty Rainforest"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Mox Diamond",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 15,
+      "RawLine": "1 Mox Diamond"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Mox Opal",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 16,
+      "RawLine": "1 Mox Opal"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Muddle the Mixture",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 17,
+      "RawLine": "1 Muddle the Mixture"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Mystic Remora",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 18,
+      "RawLine": "1 Mystic Remora"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Mystical Tutor",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 19,
+      "RawLine": "1 Mystical Tutor"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Narset's Reversal",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 20,
+      "RawLine": "1 Narset's Reversal"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Overmaster",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 21,
+      "RawLine": "1 Overmaster"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Pact of Negation",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 22,
+      "RawLine": "1 Pact of Negation"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Paradoxical Outcome",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 23,
+      "RawLine": "1 Paradoxical Outcome"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Past in Flames",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 24,
+      "RawLine": "1 Past in Flames"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Ponder",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 25,
+      "RawLine": "1 Ponder"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Prismatic Vista",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 26,
+      "RawLine": "1 Prismatic Vista"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Pyroblast",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 27,
+      "RawLine": "1 Pyroblast"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Reflecting Pool",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 28,
+      "RawLine": "1 Reflecting Pool"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Rhystic Study",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 29,
+      "RawLine": "1 Rhystic Study"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Bala Ged Recovery // Bala Ged Sanctuary",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 30,
+      "RawLine": "1 Bala Ged Recovery // Bala Ged Sanctuary"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Sensei's Divining Top",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 31,
+      "RawLine": "1 Sensei's Divining Top"
+    },
+    {
+      "Quantity": 1,
+      "Name": "Sol Ring",
+      "SetCode": "",
+      "CollectorNumber": "",
+      "Category": "",
+      "Section": "commander",
+      "SourceLine": 32,
+      "RawLine": "1 Sol Ring"
+    }
+  ],
+  "Warnings": [
+    {
+      "SourceLine": 33,
+      "RawLine": "Sideboard",
+      "Message": "2 sideboard card(s) ignored."
+    }
+  ],
+  "BlockingErrors": null,
+  "DroppedSectionRows": 2,
+  "NonBlankLines": 33,
+  "Source": "plain_text"
+}
