@@ -340,3 +340,64 @@ not check" is not "it probably passes."
 
 This document names one recommendation; it does not choose the branch. That is Task 2's
 `checkpoint:decision`, held for a human.
+
+---
+
+## 5. Decision (Task 2 checkpoint)
+
+**Selected: Moxfield.**
+
+**Decided by:** the user (dylan), at the Task 2 `checkpoint:decision` in `01-07-PLAN.md`.
+**Date:** 2026-08-05.
+
+This diverges from Section 4's recommendation above, which named Archidekt — the only
+candidate whose hard gate condition (response-shape stability, D-15) could actually be
+evaluated with observed evidence, while Moxfield's could not be evaluated at all within
+this spike's bounds. The user weighed that evidence and chose Moxfield anyway. That is
+the user's call to make at this checkpoint, not a correction to this record: Section 4's
+recommendation is left exactly as it was written before this decision, as the historical
+record of what the neutral comparison actually found.
+
+### Open blockers gating enablement
+
+Selecting Moxfield here does not make it usable. Two blockers, both already identified in
+Section 2 above, must be resolved before `DECK_PROVIDER_ENABLED` may be turned on for this
+provider in any real deployment:
+
+**(a) Authorization.** `api.moxfield.com/robots.txt` is a blanket `Disallow: /`
+(re-verified 2026-08-05, unchanged from Section 2.1's original observation). Automated
+access to that host requires either a credentialed developer program Moxfield may or may
+not operate (not discovered by this spike — see Section 2.8) or some other explicit
+authorization and agreed terms. Until that authorization exists, no request to
+`api.moxfield.com` should be made by this codebase, in test or in production, and none is
+made anywhere in the code this decision produced.
+
+**(b) Unobserved response contract.** No Moxfield deck response body has ever been
+captured (Sections 2.1–2.4). Task 3's adapter therefore ships with its normalizer
+deliberately unimplemented — see `server/deck_providers.go`'s `moxfieldAdapter` and
+`errMoxfieldContractUnverified` — rather than a fabricated field mapping. A real,
+authorized sample response is required before that seam can be filled in.
+
+### What Task 3 built instead
+
+Per the user's explicit direction at this checkpoint — build the skeleton, with the
+response contract marked unverified rather than invented — Task 3 shipped hostname-keyed
+routing plumbing through plan 01-06's secure fetch client (`newSafeProviderClient`,
+`fetchDeckProviderURL`), gated by the same default-off kill switch
+(`DECK_PROVIDER_ENABLED`/`providerEnabled()`), with an explicit fail-closed seam
+(`moxfieldAdapter.normalizeToDeckText`) where the response normalizer will go once blocker
+(b) above is resolved.
+
+This is scaffolding, not a working Moxfield import: a `moxfield.com` deck URL still
+resolves to the same paste-fallback product-language message today as it did before this
+task, the difference being that the message is now reached via a real hostname-routing
+decision (`deckProviderAdapterFor`) and a real, genuinely-invoked (and genuinely-failing)
+normalizer, rather than an unconditional stub. Every test added for this is hermetic — a
+spied `deckProviderFetch` or a direct call to the adapter's `normalizeToDeckText` with an
+in-memory byte slice — and none reaches any live Moxfield host, per this task's own
+constraint and per the standing project-wide prohibition on any test depending on a live
+provider.
+
+See `.planning/phases/01-measured-deck-import-foundation/01-07-SUMMARY.md` for the full
+account, including the deviation from this plan's originally anticipated Task 3 shape
+(a fixture-tested working adapter, or a no-go) that this decision produced.
