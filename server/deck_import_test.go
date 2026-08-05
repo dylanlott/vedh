@@ -589,3 +589,136 @@ func TestDeckImport_SuggestionTimeoutDegrades(t *testing.T) {
 		t.Fatalf("Warnings = %v, want one stating suggestions are temporarily unavailable", degraded.Warnings)
 	}
 }
+
+// TestDeckImport_UnresolvedAccounting proves D-05/D-06: an unresolved
+// entry counts toward neither the deck-size check nor the created
+// library, for the same parsed value the preview reported, and Pitfall
+// 5's ordering fix -- a hundred-and-one-card paste with two unmatched
+// names is accepted because resolution now precedes the size check.
+func TestDeckImport_UnresolvedAccounting(t *testing.T) {
+	s := testAPI(t)
+
+	t.Run("a hundred-card paste with three unmatched names yields a ninety-seven-card library and preview", func(t *testing.T) {
+		text := "97 Island\n1 Zzqunmatchedcardone\n1 Zzqunmatchedcardtwo\n1 Zzqunmatchedcardthree"
+		parsed := deckimport.Parse(text)
+
+		_, cardCount := s.buildDeckPreview(context.Background(), parsed)
+		if cardCount != 97 {
+			t.Fatalf("preview CardCount = %d, want 97", cardCount)
+		}
+
+		library, err := s.createLibraryFromDecklist(context.Background(), &parsed, nil)
+		if err != nil {
+			t.Fatalf("createLibraryFromDecklist() error = %v", err)
+		}
+		if len(library) != 97 {
+			t.Fatalf("len(library) = %d, want 97", len(library))
+		}
+	})
+
+	t.Run("a hundred-and-one-card paste with two unmatched names is accepted, not rejected as too large", func(t *testing.T) {
+		text := "99 Island\n1 Zzqunmatchedcardfour\n1 Zzqunmatchedcardfive"
+		parsed := deckimport.Parse(text)
+
+		library, err := s.createLibraryFromDecklist(context.Background(), &parsed, nil)
+		if err != nil {
+			t.Fatalf("createLibraryFromDecklist() error = %v, want no error: 99 countable cards is within the 100-card maximum even though 101 rows were parsed", err)
+		}
+		if len(library) != 99 {
+			t.Fatalf("len(library) = %d, want 99", len(library))
+		}
+	})
+}
+
+// TestDeckImport_SizeBoundary proves the 100-commanders size cap is
+// enforced at exactly its boundary: the maximum is accepted, and one more
+// is a blocking error naming both the actual and the maximum count.
+func TestDeckImport_SizeBoundary(t *testing.T) {
+	s := testAPI(t)
+
+	t.Run("exactly the maximum is accepted", func(t *testing.T) {
+		parsed := deckimport.Parse("100 Island")
+		library, err := s.createLibraryFromDecklist(context.Background(), &parsed, nil)
+		if err != nil {
+			t.Fatalf("createLibraryFromDecklist() error = %v, want none at exactly 100 with zero commanders", err)
+		}
+		if len(library) != 100 {
+			t.Fatalf("len(library) = %d, want 100", len(library))
+		}
+	})
+
+	t.Run("one more than the maximum is a blocking error naming both counts", func(t *testing.T) {
+		parsed := deckimport.Parse("101 Island")
+		_, err := s.createLibraryFromDecklist(context.Background(), &parsed, nil)
+		if err == nil {
+			t.Fatal("createLibraryFromDecklist() error = nil, want an error for 101 cards with zero commanders")
+		}
+		if !strings.Contains(err.Error(), "101") || !strings.Contains(err.Error(), "100") {
+			t.Fatalf("error = %q, want it to name both the actual (101) and maximum (100) counts", err.Error())
+		}
+	})
+}
+
+// TestDeckImport_DuplicateRowsAndCommanderOverlap proves that two rows
+// naming the same card contribute their summed quantity to the library
+// while remaining two separate ParsedEntry rows, and that a card named
+// both as a selected commander and in the main deck has exactly the
+// commander count removed from its quantity with the remainder kept.
+func TestDeckImport_DuplicateRowsAndCommanderOverlap(t *testing.T) {
+	s := testAPI(t)
+
+	text := "1 Island\n2 Island\n2 Gavi, Nest Warden"
+	parsed := deckimport.Parse(text)
+
+	islandEntries := 0
+	for _, e := range parsed.Entries {
+		if e.Name == "Island" {
+			islandEntries++
+		}
+	}
+	if islandEntries != 2 {
+		t.Fatalf("parsed Island entries = %d, want 2 separate reported entries for the two input rows", islandEntries)
+	}
+
+	library, err := s.createLibraryFromDecklist(context.Background(), &parsed, []*InputCard{{Name: "Gavi, Nest Warden"}})
+	if err != nil {
+		t.Fatalf("createLibraryFromDecklist() error = %v", err)
+	}
+
+	var islandCount, gaviCount int
+	for _, c := range library {
+		switch c.Name {
+		case "Island":
+			islandCount++
+		case "Gavi, Nest Warden":
+			gaviCount++
+		}
+	}
+	if islandCount != 3 {
+		t.Fatalf("Island count in library = %d, want 3 (1 + 2 summed across the two rows)", islandCount)
+	}
+	if gaviCount != 1 {
+		t.Fatalf("Gavi count in library = %d, want 1 (2 minus the 1 selected commander, remainder kept)", gaviCount)
+	}
+}
+
+// TestDeckImport_SingleParse proves the phase's central trust property:
+// the preview's card count equals the length of the library
+// createLibraryFromDecklist returns, for one parsed value fed to both
+// with no commander selection (which would otherwise reduce the library
+// count without the preview knowing, since previewDeck takes no
+// commander input at all).
+func TestDeckImport_SingleParse(t *testing.T) {
+	s := testAPI(t)
+
+	parsed := deckimport.Parse("1 Sol Ring\n1 Island\n1 Mountain")
+
+	_, cardCount := s.buildDeckPreview(context.Background(), parsed)
+	library, err := s.createLibraryFromDecklist(context.Background(), &parsed, nil)
+	if err != nil {
+		t.Fatalf("createLibraryFromDecklist() error = %v", err)
+	}
+	if cardCount != len(library) {
+		t.Fatalf("preview CardCount = %d, len(library) = %d, want equal for the same parsed value", cardCount, len(library))
+	}
+}

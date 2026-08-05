@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/matryer/is"
+	"github.com/openmtg/edh-go/pkg/deckimport"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -800,7 +801,8 @@ func TestCreateLibraryFromDecklist(t *testing.T) {
 	s := testAPI(t)
 	d := decklist()
 	ctx := context.Background()
-	got, err := s.createLibraryFromDecklist(ctx, *d, []*InputCard{{Name: "Gavi, Nest Warden"}})
+	parsed := deckimport.Parse(*d)
+	got, err := s.createLibraryFromDecklist(ctx, &parsed, []*InputCard{{Name: "Gavi, Nest Warden"}})
 	is.NoErr(err)
 	is.Equal(len(got), 99)
 	// assert that we get card data back as well
@@ -818,7 +820,8 @@ func TestCreateLibraryFromDecklist_RejectsTooLargeDeck(t *testing.T) {
 		return &v
 	}()
 
-	_, err := s.createLibraryFromDecklist(ctx, *d, []*InputCard{
+	parsed := deckimport.Parse(*d)
+	_, err := s.createLibraryFromDecklist(ctx, &parsed, []*InputCard{
 		{Name: "Gavi, Nest Warden"},
 		{Name: "Jarad, Golgari Lich Lord"},
 	})
@@ -834,7 +837,8 @@ func TestCreateLibraryFromDecklist_RemovesSelectedCommanders(t *testing.T) {
 		return &v
 	}()
 
-	got, err := s.createLibraryFromDecklist(ctx, *d, []*InputCard{
+	parsed := deckimport.Parse(*d)
+	got, err := s.createLibraryFromDecklist(ctx, &parsed, []*InputCard{
 		{Name: "Gavi, Nest Warden"},
 		{Name: "Jarad, Golgari Lich Lord"},
 	})

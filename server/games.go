@@ -3,17 +3,15 @@ package server
 import (
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/openmtg/edh-go/pkg/deckimport"
 )
 
 // GameObserver binds a UserID to a Channel.
@@ -548,8 +546,13 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		},
 	}
 
-	// hydrate and validate the library from the provided decklist
-	library, err := s.createLibraryFromDecklist(ctx, *input.Decklist, input.BoardState.Commander)
+	// hydrate and validate the library from the provided decklist. This is
+	// the single canonical parse site for the join path — see PreviewDeck
+	// for createGame's / previewDeck's own canonical site — so the join
+	// preview (if one is ever added) and the join-time library would
+	// consume the same normalized result.
+	parsedDeck := deckimport.Parse(*input.Decklist)
+	library, err := s.createLibraryFromDecklist(ctx, &parsedDeck, input.BoardState.Commander)
 	if err != nil {
 		return nil, fmt.Errorf("invalid decklist: %w", err)
 	}
@@ -677,8 +680,12 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			decklist = string(*player.Decklist)
 		}
 
-		// hydrate and validate the decklist for the player
-		library, err := s.createLibraryFromDecklist(ctx, decklist, player.Commander)
+		// hydrate and validate the decklist for the player. Pitfall
+		// 6/D-06: parse once here; createLibraryFromDecklist's signature
+		// only accepts an already-parsed *deckimport.ParsedDeck, so a
+		// second parse under divergent rules is not one refactor away.
+		parsedDeck := deckimport.Parse(decklist)
+		library, err := s.createLibraryFromDecklist(ctx, &parsedDeck, player.Commander)
 		if err != nil {
 			return nil, fmt.Errorf("invalid decklist for %s: %w", player.User, err)
 		}
@@ -776,32 +783,57 @@ func getBareCard(inputCards []*InputCard) []*Card {
 	return cardList
 }
 
-// createLibraryFromDecklist parses the provided decklist string as CSV.
-// If commander cards are present in the decklist, one copy of each selected
-// commander is removed from the library count before validating deck size.
-func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist string, commanders []*InputCard) ([]*Card, error) {
-	if decklist == "" {
+// createLibraryFromDecklist takes an already-parsed deck (never raw text —
+// Pitfall 6/D-06: a second parse of the same paste under divergent rules is
+// exactly what let previewDeck and createGame disagree about the same
+// paste) and builds the library the game actually gets. If commander cards
+// are present, one copy of each selected commander is removed from the
+// library count before validating deck size.
+//
+// Sequenced per Pitfall 5: resolve (step 2), then drop unresolved from both
+// the countable set and the library (step 3, D-05/D-06), THEN apply the
+// commander budget (step 4) and compare against the size cap (step 5).
+// Resolution and the commander budget both precede the size check, so a
+// hundred-and-one-card paste with two unmatched names is accepted (ninety-
+// nine countable cards) instead of being rejected for counting all 101
+// parsed rows before lookup ran.
+func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, parsed *deckimport.ParsedDeck, commanders []*InputCard) ([]*Card, error) {
+	// Step 1.
+	if parsed == nil || len(parsed.Entries) == 0 {
 		return []*Card{}, fmt.Errorf("must provide cards in decklist to create a library")
 	}
 
-	trimmed := strings.TrimSpace(decklist)
-	r := csv.NewReader(strings.NewReader(trimmed))
-
-	// set lazy quotes for using double quotes in csv files
-	r.LazyQuotes = true
-	// and trim leading spaces
-	r.TrimLeadingSpace = true
-
-	type deckEntry struct {
-		name string
-		qty  int64
+	// Step 2 (D-09): resolve through the exact shared helper previewDeck
+	// uses, so the library is built from the same resolution the player
+	// already saw for this same parsed deck.
+	resolvedCards, _, lookupErr := s.resolveDeckEntries(ctx, parsed.Entries)
+	if lookupErr != nil {
+		s.loggerFor(ctx).Warn("batch card lookup failed", "err", lookupErr)
 	}
-	entries := []deckEntry{}
-	lookupNames := []string{}
-	lookupSeen := map[string]struct{}{}
+
+	// Step 3 (D-05/D-06): an unresolved entry counts toward neither the
+	// deck-size check nor the created library. This deliberately deletes
+	// the substitution branch that used to hand back a bare &Card{Name:}
+	// for anything that failed lookup — that produced a card the player
+	// never typed and told nobody.
+	type countableEntry struct {
+		entry deckimport.ParsedEntry
+		card  *Card
+	}
+	countable := make([]countableEntry, 0, len(parsed.Entries))
+	for i, pe := range parsed.Entries {
+		card := resolvedCards[i]
+		if card == nil {
+			continue
+		}
+		countable = append(countable, countableEntry{entry: pe, card: card})
+	}
+
+	// Step 4: the commander-budget block, moved verbatim from its previous
+	// position at the top of the old CSV-reading loop — only its position
+	// relative to the size check (step 5) has changed.
 	commanderBudget := map[string]int64{}
 	commandersSpecified := int64(0)
-
 	for _, commander := range commanders {
 		if commander == nil {
 			continue
@@ -814,29 +846,14 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 		commanderBudget[strings.ToLower(name)]++
 	}
 
-	for {
-		record, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			s.loggerFor(ctx).Warn("error reading csv record", "err", err)
-			return nil, fmt.Errorf("failed to parse CSV: %s", err)
-		}
-
-		if len(record) < 2 {
-			return nil, fmt.Errorf("invalid decklist row: expected quantity and card name")
-		}
-		name := strings.TrimSpace(record[1])
-		quantity, err := strconv.ParseInt(record[0], 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse quantity: %w", err)
-		}
-		if quantity < 0 {
-			return nil, fmt.Errorf("invalid quantity %d for %q", quantity, name)
-		}
-
-		key := strings.ToLower(name)
+	type deckEntry struct {
+		card *Card
+		qty  int64
+	}
+	entries := make([]deckEntry, 0, len(countable))
+	for _, ce := range countable {
+		quantity := int64(ce.entry.Quantity)
+		key := strings.ToLower(strings.TrimSpace(ce.entry.Name))
 		if removeCount := commanderBudget[key]; removeCount > 0 && quantity > 0 {
 			if removeCount >= quantity {
 				commanderBudget[key] = removeCount - quantity
@@ -850,15 +867,16 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 			continue
 		}
 
-		entries = append(entries, deckEntry{name: name, qty: quantity})
-		if key != "" {
-			if _, ok := lookupSeen[key]; !ok {
-				lookupSeen[key] = struct{}{}
-				lookupNames = append(lookupNames, name)
-			}
-		}
+		entries = append(entries, deckEntry{
+			// D-07/D-08: the parsed printing metadata rides along onto
+			// every card value this entry expands into, regardless of
+			// which printing resolution actually found.
+			card: applyPrintingMetadata(ce.card, ce.entry, parsed.Source),
+			qty:  quantity,
+		})
 	}
 
+	// Step 5 (D-05, Pitfall 5).
 	maxLibraryCards := int64(100) - commandersSpecified
 	if maxLibraryCards < 0 {
 		return nil, fmt.Errorf("invalid commander count: %d", commandersSpecified)
@@ -877,35 +895,10 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, decklist 
 		)
 	}
 
-	lookup := map[string]*Card{}
-	if len(lookupNames) > 0 {
-		found, err := s.Cards(ctx, lookupNames)
-		if err != nil {
-			s.loggerFor(ctx).Warn("batch card lookup failed", "err", err)
-		}
-		for i, name := range lookupNames {
-			key := strings.ToLower(strings.TrimSpace(name))
-			if key == "" || i >= len(found) {
-				continue
-			}
-			if found[i] != nil {
-				lookup[key] = found[i]
-			}
-		}
-	}
-
+	// Step 6: expand each surviving entry into its quantity of card values.
 	cards := []*Card{}
 	for _, entry := range entries {
-		key := strings.ToLower(strings.TrimSpace(entry.name))
-		if key == "" {
-			cards = addX(entry.qty, cards, &Card{Name: entry.name})
-			continue
-		}
-		if found := lookup[key]; found != nil {
-			cards = addX(entry.qty, cards, found)
-		} else {
-			cards = addX(entry.qty, cards, &Card{Name: entry.name})
-		}
+		cards = addX(entry.qty, cards, entry.card)
 	}
 
 	return cards, nil
