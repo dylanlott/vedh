@@ -20,6 +20,12 @@ export const SIGNUP_MUTATION = gql`
   }
 `;
 
+export const TRACK_PRODUCT_EVENT_MUTATION = gql`
+  mutation TrackProductEvent($input: InputProductEvent!) {
+    trackProductEvent(input: $input)
+  }
+`;
+
 export const CREATE_GAME_MUTATION = gql`
   mutation CreateGame($input: InputCreateGame!) {
     createGame(input: $input) {

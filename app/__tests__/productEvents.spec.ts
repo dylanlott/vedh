@@ -25,7 +25,7 @@ const STORAGE_KEY = 'edhgo/session-id';
 const AUTH_STORAGE_KEY = 'edhgo/auth';
 
 function setLocationSearch(search: string) {
-  const url = `http://localhost/${search ? `?${search}` : ''}`;
+  const url = `${window.location.origin}/${search ? `?${search}` : ''}`;
   window.history.pushState({}, '', url);
 }
 
