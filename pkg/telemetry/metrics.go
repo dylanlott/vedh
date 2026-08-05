@@ -199,16 +199,24 @@ func NewCollectors(reg prometheus.Registerer) *Collectors {
 			Help: "Rate limiter decisions on a public surface, by surface and outcome (allowed|limited).",
 		}, []string{"surface", "outcome"}),
 
-		// First observed by plan 01-07, once the D-14 checkpoint's selected
-		// branch (or its no-go fallback) wires an emit site onto the
-		// secure client server/deck_providers.go builds in this plan.
+		// WR-04 fix (code review, phase 01): declared by plan 01-06, but
+		// still NOT yet observed as of plan 01-07's shipped code --
+		// server/deck_import.go's previewDeckURL never calls
+		// ObserveDeckProviderFetch in either its success or failure path.
+		// Plan 01-07's D-14 checkpoint selected Moxfield, but that
+		// adapter's response contract has never been observed
+		// (docs/research/deck-provider-feasibility.md section 2), so
+		// wiring an emit site onto server/deck_providers.go's secure
+		// client remains a future task, not something plan 01-07 shipped.
+		// See docs/analytics/product-event-vocabulary.md's "Metric
+		// families" table for the doc-facing statement of this same fact.
 		deckProviderFetchTotal: factory.NewCounterVec(prometheus.CounterOpts{
 			Name: "vedh_deck_provider_fetch_total",
-			Help: "Outbound deck-provider fetch attempts by provider and outcome. First observed by plan 01-07.",
+			Help: "Outbound deck-provider fetch attempts by provider and outcome. Declared by plan 01-06; not yet observed by any emit site.",
 		}, []string{"provider", "outcome"}),
 		deckProviderFetchDuration: factory.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "vedh_deck_provider_fetch_duration_seconds",
-			Help:    "Outbound deck-provider fetch latency by provider and outcome, with boundaries at the 3s connect and 8s total timeout budgets. First observed by plan 01-07.",
+			Help:    "Outbound deck-provider fetch latency by provider and outcome, with boundaries at the 3s connect and 8s total timeout budgets. Declared by plan 01-06; not yet observed by any emit site.",
 			Buckets: deckProviderFetchBuckets,
 		}, []string{"provider", "outcome"}),
 	}

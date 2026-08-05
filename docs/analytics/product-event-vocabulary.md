@@ -149,6 +149,7 @@ methods.
 | Board activation | `vedh_board_activation_total` | `vedh_board_activation_duration_seconds` | `role`, `outcome` (total); `role` (histogram) | ACT-009, Phase 3 |
 | Product events | `vedh_product_events_written_total` | — | `outcome` | This plan (01-01) |
 | Product events (dropped) | `vedh_product_events_dropped_total` | — | `reason` | This plan (01-01) |
+| Deck provider fetch | `vedh_deck_provider_fetch_total` | `vedh_deck_provider_fetch_duration_seconds` | `provider`, `outcome` | Not yet observed |
 
 Guest session, game create, game join, and board activation export **no
 child series** at `/prometheus` until their Phase 2/3 emit sites land — an
@@ -157,6 +158,17 @@ product-event families only. That is expected, and is exactly why
 `pkg/telemetry/metrics_test.go`'s registry-walk tests gather from a
 registry they exercise themselves, rather than from a real scrape that
 would be vacuously green for these three families.
+
+Deck provider fetch is in the same "declared, not yet observed" state, but
+unlike the four families above it has no scheduled milestone to land at
+all: `server/deck_import.go`'s `previewDeckURL` never calls
+`ObserveDeckProviderFetch` in either its success or failure path, and
+plan 01-07's D-14 checkpoint selected an adapter (Moxfield) whose response
+contract has never been observed
+(`docs/research/deck-provider-feasibility.md` section 2), so there is no
+verified shape to normalize even once an emit site is added. This remains
+unobserved pending a future task that both captures an authorized Moxfield
+response and wires `previewDeckURL` to call `ObserveDeckProviderFetch`.
 
 `Role`'s two values, `host` and `invitee`, are a discretionary choice
 recorded here because the PRD's vocabulary table names a "user role" field
