@@ -538,12 +538,31 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		return nil, errors.New("user already in game")
 	}
 
+	// CR-01 fix: InputBoardState.Life is a required, non-pointer Int!
+	// (server/schema.graphql), so there is no wire-level way to distinguish
+	// "the caller didn't set a life total" from "the caller explicitly
+	// wants 0" -- both arrive as the Go zero value. CreateGame resolves this
+	// ambiguity with defaultLifeForAll, a heuristic that looks across every
+	// player in a single call. JoinGame adds exactly one player per call, so
+	// that heuristic doesn't apply directly; instead we treat a
+	// non-positive Life on a JOINING player as "unspecified," since a
+	// player cannot join a game already dead/eliminated. Without this, an
+	// omitted (zero-value) Life leaves the new player at Boardstate.Life ==
+	// 0, and game_finish.go's alivePlayerNames treats Life <= 0 as already
+	// eliminated -- the very next UpdateBoardState call from anyone would
+	// end the game as a win for the other side before the joining player
+	// ever acted. See CreateGame's defaultLifeForAll comment for the
+	// matching rationale on the multi-player path.
+	life := input.BoardState.Life
+	if life <= 0 {
+		life = formatFromRules(game.Rules).StartingLife
+	}
 	user := &User{
 		Username: input.BoardState.User,
 		ID:       input.BoardState.UserID,
 		Boardstate: &BoardState{
 			User:        input.BoardState.User,
-			Life:        input.BoardState.Life,
+			Life:        life,
 			Exiled:      getBareCard(input.BoardState.Exiled),
 			Revealed:    getBareCard(input.BoardState.Revealed),
 			Battlefield: getBareCard(input.BoardState.Battlefield),

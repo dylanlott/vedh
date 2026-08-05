@@ -362,6 +362,51 @@ func TestJoinGame(t *testing.T) {
 	}
 }
 
+// TestJoinGame_DefaultsLifeWhenOmitted is a regression test for CR-01: a
+// joining player who omits (or zero-values) BoardState.Life must start at
+// the game's format StartingLife, not at 0. Before the fix, the joining
+// player's Boardstate.Life was set verbatim to the zero value, which
+// game_finish.go's alivePlayerNames treats as "already eliminated" --
+// letting the very next UpdateBoardState call from anyone finish the game
+// as a win for the other side.
+func TestJoinGame_DefaultsLifeWhenOmitted(t *testing.T) {
+	userID2 := "abc123"
+	s := testAPI(t)
+
+	_, err := s.CreateGame(authCtx(mastershake), *seedInputGame)
+	assert.NoError(t, err)
+	t.Cleanup(func() {
+		query := `DELETE FROM games WHERE id = $1;`
+		_, err := s.db.Exec(query, seedGameID)
+		assert.NoError(t, err)
+	})
+
+	got, err := s.JoinGame(authCtxWithID(userID2, "meatwad"), &InputJoinGame{
+		ID:       seedGameID,
+		Decklist: decklist(),
+		BoardState: &InputBoardState{
+			UserID: userID2,
+			User:   "meatwad",
+			GameID: seedGameID,
+			// Life deliberately omitted (zero value) to simulate a caller
+			// that never set it.
+		},
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+
+	var joined *User
+	for _, p := range got.Players {
+		if p != nil && p.ID == userID2 {
+			joined = p
+		}
+	}
+	if assert.NotNil(t, joined, "joining player not found in game.Players") {
+		format := formatFromRules(got.Rules)
+		assert.Equal(t, format.StartingLife, joined.Boardstate.Life, "joining player with omitted Life must default to format.StartingLife, not 0")
+	}
+}
+
 func TestUpdateGame(t *testing.T) {
 	userID := string("deadbeef")
 	userID2 := string("deadbeef2")
