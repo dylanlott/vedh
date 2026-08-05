@@ -210,6 +210,7 @@ Each task was committed atomically:
 - The dropped-section header row is accounted for via D-11's one summary warning (attributed to the header's own `SourceLine`), not via `DroppedSectionRows`. This is the only assignment that makes the accounting invariant balance exactly: the header row becomes the `Warning`, the rows beneath it become `DroppedSectionRows`. Commander/Deck/Companion headers and comment lines, having no natural warning, are excluded from `NonBlankLines` entirely (treated like blank lines).
 - A leading `-` followed by digits is read as a failed quantity attempt (one `Warning`, zero entries) rather than "no leading digits" (which would otherwise silently swallow the minus sign into the name) — required to satisfy the `-1 Sol Ring` corpus row.
 - `DetectPasteSource`'s Moxfield threshold is a strict majority (`moxfieldLines*2 > entryLines`), matching "majority of entry lines" literally.
+- Per 01-01-SUMMARY.md's precedent, `REQ-ACT-002` in `.planning/REQUIREMENTS.md` was deliberately NOT marked complete during the state-update step, even though it is this plan's sole `requirements` frontmatter entry. It is also claimed by plans 01-04 and 01-05 (card-name search/suggestions, and the `createLibraryFromDecklist` single-canonical-parse-site extraction), neither of which exists yet. Marking it complete now would misrepresent the requirement's actual traceability state to any later reader. `requirements-completed` in this SUMMARY's frontmatter still lists `REQ-ACT-002` per the template's instruction to record what this plan *contributed to*.
 
 ## Deviations from Plan
 
@@ -234,3 +235,9 @@ None — no external service configuration required.
 ---
 *Phase: 01-measured-deck-import-foundation*
 *Completed: 2026-08-04*
+
+## Self-Check: PASSED
+
+All 13 files listed under `key-files` (created/modified) exist on disk, and all four
+commit hashes (`d734e25`, `69cb8f3`, `3396d0f`, `3336efe`) are present in
+`git log --oneline --all`.
