@@ -21,6 +21,7 @@ import (
 	"github.com/99designs/gqlgen/handler"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/openmtg/edh-go/pkg/ratelimit"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 )
@@ -40,6 +41,17 @@ type Conf struct {
 	AllowedOrigins string `envconfig:"ALLOWED_ORIGINS" default:"http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080"`
 	MetricsEnabled bool   `envconfig:"METRICS_ENABLED" default:"false"`
 	MetricsToken   string `envconfig:"METRICS_TOKEN" default:""`
+
+	// DeckImportRatePerMinute and DeckImportRateBurst bound the token
+	// bucket server/ratelimit.go constructs for previewDeck and
+	// trackProductEvent (pkg/ratelimit.Registry). Tuned generously per
+	// 01-RESEARCH.md Open Question 2: previewDeck sits on the activation
+	// critical path, and a limit set too tight would throttle the very
+	// funnel this phase exists to measure. The idle-eviction window that
+	// bounds the registry's own growth is deliberately not a third
+	// variable here — see pkg/ratelimit's idleWindow constant.
+	DeckImportRatePerMinute int `envconfig:"DECK_IMPORT_RATE_PER_MINUTE" default:"30"`
+	DeckImportRateBurst     int `envconfig:"DECK_IMPORT_RATE_BURST" default:"10"`
 }
 
 // var userCtxKey = &contextKey{"user"}
@@ -66,6 +78,14 @@ type graphQLServer struct {
 
 	// allowedOrigins holds normalized origins permitted for CORS and websocket checks.
 	allowedOrigins map[string]struct{}
+
+	// limiter is the per-surface, per-client token-bucket registry
+	// server/ratelimit.go's allowRequest consults for previewDeck and
+	// trackProductEvent. A nil limiter (e.g. a graphQLServer built as a
+	// struct literal by a test rather than through NewGraphQLServer)
+	// allows every request, so tests that do not care about rate
+	// limiting are unaffected.
+	limiter *ratelimit.Registry
 }
 
 // NewGraphQLServer creates a new server to attach the database, game engine,
@@ -86,6 +106,7 @@ func NewGraphQLServer(
 		games:          map[string]*FullGame{},
 		boards:         map[string]*FullBoardstate{},
 		allowedOrigins: parseAllowedOrigins(cfg.AllowedOrigins),
+		limiter:        ratelimit.NewRegistry(cfg.DeckImportRatePerMinute, cfg.DeckImportRateBurst),
 	}, nil
 }
 
@@ -120,6 +141,50 @@ func normalizeOrigin(origin string) (string, bool) {
 }
 
 type requestIDContextKey struct{}
+
+// remoteAddrContextKey holds the caller's IP address (port stripped) in the
+// request context, for server/ratelimit.go's client-key derivation to fall
+// back on when a caller supplies no session ID.
+type remoteAddrContextKey struct{}
+
+// withClientAddr attaches the caller's remote address to the request
+// context under remoteAddrContextKey. It deliberately reads only
+// r.RemoteAddr, never the X-Forwarded-For header: X-Forwarded-For is
+// client-supplied, and trusting it by default would let an unauthenticated
+// caller mint an unlimited number of distinct rate-limit keys simply by
+// varying the header on each request. A deployment sitting behind a
+// trusted reverse proxy that itself sets or strips this header would need
+// an explicit opt-in to trust it — no such opt-in exists yet because no
+// proxy of that kind fronts this deployment today.
+func (s *graphQLServer) withClientAddr(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), remoteAddrContextKey{}, remoteHostFromRequest(r))
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// remoteHostFromRequest returns r.RemoteAddr with any port stripped, or the
+// raw value if it is not in host:port form.
+func remoteHostFromRequest(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return strings.TrimSpace(r.RemoteAddr)
+	}
+	return host
+}
+
+// remoteAddrFromContext reads the value withClientAddr attaches to the
+// request context.
+func remoteAddrFromContext(ctx context.Context) (string, bool) {
+	if ctx == nil {
+		return "", false
+	}
+	addr, ok := ctx.Value(remoteAddrContextKey{}).(string)
+	return addr, ok
+}
 
 func (s *graphQLServer) loggerFor(ctx context.Context) *slog.Logger {
 	if s.logger == nil {
@@ -288,6 +353,7 @@ func (s *graphQLServer) Serve(route string, port int) error {
 		MaxAge:           600,
 	})
 	h := corsMiddleware.Handler(s.withAuthContext(mux))
+	h = s.withClientAddr(h)
 	h = s.withRequestLogging(h)
 	h = s.withRequestID(h)
 	mux.Handle("/playground", playground.Handler("GraphQL", route))

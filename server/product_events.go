@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/openmtg/edh-go/pkg/ratelimit"
 	"github.com/openmtg/edh-go/pkg/telemetry"
 )
 
@@ -148,6 +149,15 @@ func recordProductEventWith(ctx context.Context, logger *slog.Logger, w EventWri
 // virtue of not calling requireAuth, and must not be added to that map,
 // where it would be dead code that reads like a security control.
 func (s *graphQLServer) TrackProductEvent(ctx context.Context, input InputProductEvent) (bool, error) {
+	// A limited call still returns true, nil, consistent with D-19/D-22:
+	// nothing awaits trackProductEvent's result and the rate-limit
+	// counter (incremented inside allowRequest, on both outcomes) is the
+	// only surface anyone reads.
+	clientKey := clientKeyFor(ctx, input.SessionID)
+	if !s.allowRequest(ctx, ratelimit.SurfaceProductEvent, clientKey) {
+		return true, nil
+	}
+
 	metadata := map[string]string{}
 	for _, kv := range input.Metadata {
 		if kv == nil {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/lib/pq"
 	"github.com/openmtg/edh-go/pkg/deckimport"
+	"github.com/openmtg/edh-go/pkg/ratelimit"
 	"github.com/zeebo/errs"
 )
 
@@ -184,6 +185,14 @@ func (s *graphQLServer) suggestFor(ctx context.Context, needles []string, budget
 func (s *graphQLServer) PreviewDeck(ctx context.Context, input InputDeckImport) (*DeckPreview, error) {
 	start := time.Now()
 
+	// Rate limiting is the first thing this resolver does after reading
+	// its input, and a limited call returns before ever reaching the
+	// parser, the suggestion query, or a product-event write.
+	clientKey := clientKeyFor(ctx, input.SessionID)
+	if !s.allowRequest(ctx, ratelimit.SurfaceDeckImport, clientKey) {
+		return rateLimitedPreview(), nil
+	}
+
 	hasText := input.Text != nil && strings.TrimSpace(*input.Text) != ""
 	hasURL := input.SourceURL != nil && strings.TrimSpace(*input.SourceURL) != ""
 
@@ -206,6 +215,18 @@ func (s *graphQLServer) PreviewDeck(ctx context.Context, input InputDeckImport) 
 	parsed := deckimport.Parse(*input.Text)
 	preview, cardCount := s.buildDeckPreview(ctx, parsed)
 	return s.finishPreviewDeck(ctx, input, start, parsed.Source, cardCount, preview)
+}
+
+// rateLimitedPreview builds the DeckPreview a rate-limited previewDeck call
+// returns: one product-language blocking error naming no limit value,
+// window, or remaining count, and CanContinue false. It never reaches
+// finishPreviewDeck, so a rate-limited call neither writes a product event
+// nor observes the deck-import outcome counter — the point of limiting the
+// surface is to shed load on it, not to spend a database write proving the
+// load was shed.
+func rateLimitedPreview() *DeckPreview {
+	return blockedPreview(deckimport.SourceUnknown,
+		"You're sending requests a bit too quickly. Please wait a moment and try again.")
 }
 
 // blockedPreview builds a DeckPreview whose only content is one blocking

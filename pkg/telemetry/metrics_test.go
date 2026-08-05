@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/openmtg/edh-go/pkg/deckimport"
+	"github.com/openmtg/edh-go/pkg/ratelimit"
 )
 
 // TestNewCollectors_ConstructionSmoke is a minimal smoke test written by
@@ -51,6 +52,9 @@ func exerciseAndGather(t *testing.T) []*dto.MetricFamily {
 	c.RecordProductEventDropped(RejectionUnknownEvent)
 	c.ObserveDeckSuggestion("success", 10*time.Millisecond)
 	c.IncDeckSuggestionTruncated()
+	c.ObserveRateLimit(ratelimit.SurfaceDeckImport, "allowed")
+	c.ObserveRateLimit(ratelimit.SurfaceProductEvent, "limited")
+	c.ObserveDeckProviderFetch("archidekt", "success", 100*time.Millisecond)
 
 	families, err := reg.Gather()
 	if err != nil {
@@ -200,4 +204,41 @@ func TestMetrics_ReasonLabelValuesAreBounded(t *testing.T) {
 
 func hasVedhPrefix(name string) bool {
 	return len(name) >= len("vedh_") && name[:len("vedh_")] == "vedh_"
+}
+
+// TestMetrics_RateLimitLabelsAreDeclaredConstants asserts that every
+// vedh_rate_limit_total sample carries a surface value from the declared
+// ratelimit.Surface constants and an outcome value from the declared
+// allowed/limited pair — never an arbitrary string.
+func TestMetrics_RateLimitLabelsAreDeclaredConstants(t *testing.T) {
+	validSurface := map[string]struct{}{
+		string(ratelimit.SurfaceDeckImport):   {},
+		string(ratelimit.SurfaceProductEvent): {},
+	}
+	validOutcome := map[string]struct{}{
+		"allowed": {},
+		"limited": {},
+	}
+
+	for _, fam := range exerciseAndGather(t) {
+		if fam.GetName() != "vedh_rate_limit_total" {
+			continue
+		}
+		for _, m := range fam.GetMetric() {
+			for _, lp := range m.GetLabel() {
+				switch lp.GetName() {
+				case "surface":
+					if _, ok := validSurface[lp.GetValue()]; !ok {
+						t.Errorf("metric %s carries surface=%q, not a declared ratelimit.Surface constant",
+							fam.GetName(), lp.GetValue())
+					}
+				case "outcome":
+					if _, ok := validOutcome[lp.GetValue()]; !ok {
+						t.Errorf("metric %s carries outcome=%q, not \"allowed\" or \"limited\"",
+							fam.GetName(), lp.GetValue())
+					}
+				}
+			}
+		}
+	}
 }

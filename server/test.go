@@ -22,6 +22,18 @@ func testAPI(t *testing.T) *graphQLServer {
 	cfg := Conf{
 		PostgresURL: "postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable&connect_timeout=3",
 		DefaultPort: 8080,
+		// fix(01-06): testAPI builds Conf as a literal rather than through
+		// envconfig.Process (main.go's production path), so the `default`
+		// tags on DeckImportRatePerMinute/DeckImportRateBurst are never
+		// applied here -- an unset field would be Go's zero value, which
+		// would make NewGraphQLServer construct a burst-0 registry that
+		// denies every single PreviewDeck/TrackProductEvent call this
+		// package's many existing tests make. Set high enough that no
+		// existing test's call volume ever approaches it; only
+		// server/ratelimit_test.go constructs its own small registry
+		// directly to exercise the limited path.
+		DeckImportRatePerMinute: 100000,
+		DeckImportRateBurst:     100000,
 	}
 	if err := ensurePostgresReachable(cfg.PostgresURL); err != nil {
 		t.Skipf("postgres unavailable: %s", err)

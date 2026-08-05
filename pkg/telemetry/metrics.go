@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/openmtg/edh-go/pkg/deckimport"
+	"github.com/openmtg/edh-go/pkg/ratelimit"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -40,6 +41,13 @@ var AllowedLabelNames = map[string]struct{}{
 // still bounding the tail (RESEARCH Pattern 6).
 var previewDeckBuckets = []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 4, 8}
 
+// deckProviderFetchBuckets places a boundary at exactly 3 and 8 seconds —
+// the locked connect and total timeout budgets — so a pile-up at the
+// connect timeout and one at the total timeout are separately readable.
+// The default Prometheus bucket set has neither boundary and cannot show
+// that distinction.
+var deckProviderFetchBuckets = []float64{0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 8, 10}
+
 // Collectors holds every vedh_-prefixed Prometheus collector declared by
 // this phase. Construct with NewCollectors — never by declaring
 // package-level vars built directly with promauto against
@@ -70,6 +78,23 @@ type Collectors struct {
 	// a funnel step.
 	deckSuggestionDuration  *prometheus.HistogramVec
 	deckSuggestionTruncated prometheus.Counter
+
+	// rateLimitTotal instruments plan 01-06's per-surface, per-client
+	// limiter (server/ratelimit.go). It is incremented on both the
+	// allowed and the limited outcome — never only on rejection — so the
+	// ratio between them is readable in Grafana before a too-tight limit
+	// shows up as a funnel dip.
+	rateLimitTotal *prometheus.CounterVec
+
+	// deckProviderFetchTotal and deckProviderFetchDuration instrument
+	// plan 01-06's provider-agnostic secure outbound fetch client
+	// (server/deck_providers.go). Declared here, ahead of the D-14
+	// checkpoint that selects (or declines) a provider, exactly like the
+	// four criterion-4 families above: the name, label set, and bucket
+	// boundaries are closed now, and stay unobserved until plan 01-07
+	// wires an emit site.
+	deckProviderFetchTotal    *prometheus.CounterVec
+	deckProviderFetchDuration *prometheus.HistogramVec
 }
 
 // NewCollectors registers every collector family into reg via
@@ -168,6 +193,24 @@ func NewCollectors(reg prometheus.Registerer) *Collectors {
 			Name: "vedh_deck_suggestion_truncated_total",
 			Help: "Times the eager suggestion lookup truncated its needle set to the first 25 distinct unresolved names in one preview.",
 		}),
+
+		rateLimitTotal: factory.NewCounterVec(prometheus.CounterOpts{
+			Name: "vedh_rate_limit_total",
+			Help: "Rate limiter decisions on a public surface, by surface and outcome (allowed|limited).",
+		}, []string{"surface", "outcome"}),
+
+		// First observed by plan 01-07, once the D-14 checkpoint's selected
+		// branch (or its no-go fallback) wires an emit site onto the
+		// secure client server/deck_providers.go builds in this plan.
+		deckProviderFetchTotal: factory.NewCounterVec(prometheus.CounterOpts{
+			Name: "vedh_deck_provider_fetch_total",
+			Help: "Outbound deck-provider fetch attempts by provider and outcome. First observed by plan 01-07.",
+		}, []string{"provider", "outcome"}),
+		deckProviderFetchDuration: factory.NewHistogramVec(prometheus.HistogramOpts{
+			Name:    "vedh_deck_provider_fetch_duration_seconds",
+			Help:    "Outbound deck-provider fetch latency by provider and outcome, with boundaries at the 3s connect and 8s total timeout budgets. First observed by plan 01-07.",
+			Buckets: deckProviderFetchBuckets,
+		}, []string{"provider", "outcome"}),
 	}
 }
 
@@ -270,4 +313,36 @@ func (c *Collectors) IncDeckSuggestionTruncated() {
 // prometheus/testutil.ToFloat64.
 func (c *Collectors) DeckSuggestionTruncatedCounter() prometheus.Counter {
 	return c.deckSuggestionTruncated
+}
+
+// ObserveRateLimit increments vedh_rate_limit_total for one allowRequest
+// decision. surface is a ratelimit.Surface and outcome is a small,
+// server-controlled string ("allowed" | "limited") — a client-controlled
+// value can never reach WithLabelValues here because the compiler requires
+// the enum type for surface, and outcome is derived only from the
+// registry's own boolean decision in server/ratelimit.go, never from
+// caller input.
+func (c *Collectors) ObserveRateLimit(surface ratelimit.Surface, outcome string) {
+	c.rateLimitTotal.WithLabelValues(string(surface), outcome).Inc()
+}
+
+// RateLimitCounter returns the vedh_rate_limit_total counter for one
+// surface/outcome pair, for use with prometheus/testutil.ToFloat64.
+func (c *Collectors) RateLimitCounter(surface ratelimit.Surface, outcome string) prometheus.Counter {
+	return c.rateLimitTotal.WithLabelValues(string(surface), outcome)
+}
+
+// ObserveDeckProviderFetch records one outbound deck-provider fetch
+// attempt. provider and outcome are both small, bounded strings — never a
+// caller-supplied host or error string. First observed by plan 01-07.
+func (c *Collectors) ObserveDeckProviderFetch(provider, outcome string, duration time.Duration) {
+	c.deckProviderFetchTotal.WithLabelValues(provider, outcome).Inc()
+	c.deckProviderFetchDuration.WithLabelValues(provider, outcome).Observe(duration.Seconds())
+}
+
+// DeckProviderFetchCounter returns the vedh_deck_provider_fetch_total
+// counter for one provider/outcome pair, for use with
+// prometheus/testutil.ToFloat64.
+func (c *Collectors) DeckProviderFetchCounter(provider, outcome string) prometheus.Counter {
+	return c.deckProviderFetchTotal.WithLabelValues(provider, outcome)
 }
