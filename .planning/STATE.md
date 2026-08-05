@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: measured-deck-import-foundation
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-08-05T04:41:41.100Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-08-05T05:05:58.253Z"
 last_activity: 2026-08-04
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 01 (measured-deck-import-foundation) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-08-04 — Phase 01 execution started
 
-Progress: [████░░░░░░] 43%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [████░░░░░░] 43%
 | Phase 01 P01 | 13min | 3 tasks | 24 files |
 | Phase 01 P02 | 37min | 2 tasks | 13 files |
 | Phase 01 P03 | 8min | 2 tasks | 3 files |
+| Phase 01 P04 | 31min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,7 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase ?]: Task 1's scanner.go rewrite deliberately does not depend on sections.go (Task 2's file); header words are recognized well enough to never become an Entry, with real drop/warning/preselect semantics added only in Task 2, keeping the tasks independently buildable.
 - [Phase ?]: D-11's dropped-section header row is accounted for via its own summary warning (attributed to the header's SourceLine), not via DroppedSectionRows -- this is the assignment that makes the no-row-disappears invariant balance exactly.
 - [Phase ?]: REQ-ACT-001 not marked complete: also claimed by plan 01-06 (not yet executed), following 01-01-SUMMARY.md precedent
+- [Phase ?]: D-09/D-10 printing resolution: card_names is a plain incrementally-refreshed table (not a materialized view); GiST gist_trgm_ops chosen over GIN for card_names' trigram index because D-03 requires below-cutoff nearest matches; DeckPreviewEntry.SetCode/CollectorNumber/Category (declared since 01-01, never wired) now populated for every entry as a Rule 2 fix, since D-10's 'keeps the parsed set code on the entry' criterion is otherwise untestable at the GraphQL boundary.
 
 ### Pending Todos
 
@@ -106,6 +108,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-05T04:41:41.094Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-08-05T05:05:58.247Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
