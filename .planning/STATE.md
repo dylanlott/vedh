@@ -4,16 +4,16 @@ milestone: v1.1
 milestone_name: milestone
 current_phase: 01
 current_phase_name: measured-deck-import-foundation
-status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-08-05T06:45:34.388Z"
+status: verifying
+stopped_at: Completed 01-07-PLAN.md (Phase 1 complete)
+last_updated: "2026-08-05T21:16:35.367Z"
 last_activity: 2026-08-04
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 
 Phase: 01 (measured-deck-import-foundation) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-04 — Phase 01 execution started
 
-Progress: [█████████░] 86%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [█████████░] 86%
 | Phase 01 P04 | 31min | 2 tasks | 9 files |
 | Phase 01 P05 | 55min | 2 tasks | 8 files |
 | Phase 01 P06 | 2h | 3 tasks | 14 files |
+| Phase 01 P07 | 45min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,9 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase ?]: 01-06: golang.org/x/time pinned to v0.14.0 (not the research-cited v0.15.0) to avoid an unrelated go.mod/toolchain bump against the pinned go1.24.2 and the +heroku goVersion go1.24 directive
 - [Phase ?]: 01-06: previewDeck (SurfaceDeckImport) and trackProductEvent (SurfaceProductEvent) share one pkg/ratelimit.Registry built from a single Conf-derived budget (DECK_IMPORT_RATE_PER_MINUTE/BURST), since only one budget pair is specified anywhere in this phase's intel
 - [Phase ?]: 01-06: DECK_PROVIDER_ENABLED defaults false and providerEnabled() also requires a non-empty DECK_PROVIDER_ALLOWED_HOSTS even when the flag is set; disabled/half-configured traffic never calls the fetch seam at all (proven via a spy)
+- [Phase ?]: 01-07: Neutral comparison recommended Archidekt (D-15 hard gate observed and consistent); the user selected Moxfield anyway at the D-14 checkpoint, diverging from that recommendation -- recorded factually, not corrected
+- [Phase ?]: 01-07: Task 3 executed as a Rule-2 deviation directed by the user -- hostname-keyed Moxfield adapter routing and kill-switch reuse shipped as scaffolding; normalizeToDeckText deliberately unimplemented (errMoxfieldContractUnverified) since api.moxfield.com/robots.txt disallows automated access and no authorized sample response has ever been captured
+- [Phase ?]: 01-07: REQ-ACT-003 deliberately left NOT complete -- the requirement's substance (a working first-provider import) does not exist; marking it complete would overstate what shipped
 
 ### Pending Todos
 
@@ -97,13 +101,21 @@ None yet.
 
 ### Blockers/Concerns
 
-Four open decisions carried forward unresolved (`status: open`). Each is surfaced in
+Three open decisions carried forward unresolved (`status: open`). Each is surfaced in
 its owning phase for `/gsd-discuss-phase` — do not pre-answer:
 
-- OPEN-1 (Phase 1, ACT-003): which public deck provider passes the one-day feasibility gate
 - OPEN-2 (Phase 2, ACT-005): guest expiry 24 hours or seven days; token stays 24h either way
 - OPEN-3 (Phase 2 ACT-004, revisited Phase 4 ACT-011): quiet beta desktop-only or a tablet breakpoint
 - OPEN-4 (Phase 4, ACT-012): operational surface for product-funnel queries pre-dashboard
+
+OPEN-1 (Phase 1, ACT-003) is resolved: the user selected Moxfield at the 01-07 D-14
+checkpoint, diverging from the feasibility spike's own Archidekt recommendation. This is
+not a fully closed matter, though: two implementation blockers remain before Moxfield can
+be enabled for real (authorization for `api.moxfield.com`; a captured, authorized sample
+response to build a real normalizer from) — see
+`docs/research/deck-provider-feasibility.md` section 5 and
+`.planning/phases/01-measured-deck-import-foundation/01-07-SUMMARY.md`. REQ-ACT-003
+remains open in REQUIREMENTS.md pending those two blockers.
 
 Baseline is an existing working codebase at `main@ef2732a` (verified = HEAD at ingest).
 No greenfield scaffolding — this milestone changes the path to existing value.
@@ -116,6 +128,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-05T06:45:34.382Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-08-05T21:16:35.358Z
+Stopped at: Completed 01-07-PLAN.md (Phase 1 complete)
 Resume file: None

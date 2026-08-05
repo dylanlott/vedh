@@ -204,3 +204,14 @@ None for this plan's code. The `DECK_PROVIDER_API_KEY`/`DECK_PROVIDER_ENABLED`/`
 ---
 *Phase: 01-measured-deck-import-foundation*
 *Completed: 2026-08-05*
+
+## Self-Check: PASSED
+
+All 7 files (docs/research/deck-provider-feasibility.md,
+server/testdata/deck_providers/archidekt_deck_2026-08-05.json,
+server/deck_providers.go, server/deck_import.go,
+server/deck_providers_test.go,
+.planning/phases/01-measured-deck-import-foundation/COVERAGE.md,
+.planning/phases/01-measured-deck-import-foundation/01-07-SUMMARY.md) exist
+on disk, and all four commit hashes (`6344381`, `29affa1`, `2f31820`,
+`dff1d80`) are present in `git log --oneline --all`.
