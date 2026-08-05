@@ -56,7 +56,7 @@ const (
 	deckProviderSecurePort = "443"
 )
 
-// deniedV4 is the IANA-derived deny list for IPv4 literals, transcribed
+// deniedPrefixesV4 is the IANA-derived deny list for IPv4 literals, transcribed
 // from the registry used by code.dny.dev/ssrf (01-RESEARCH.md Pattern 8).
 // Declared in this fixed order: firstMatchingDenyPrefix names the first
 // entry an address falls inside, so an address inside two produces a
@@ -74,7 +74,7 @@ const (
 // (100.64.0.0/10), protocol-assignment (192.0.0.0/24, 192.0.2.0/24, ...),
 // or benchmarking (198.18.0.0/15) ranges below — which is exactly where
 // the cloud-metadata address (169.254.169.254) has neighbours.
-var deniedV4 = []netip.Prefix{
+var deniedPrefixesV4 = []netip.Prefix{
 	netip.MustParsePrefix("0.0.0.0/8"),       // "this network"
 	netip.MustParsePrefix("10.0.0.0/8"),      // RFC 1918 private
 	netip.MustParsePrefix("100.64.0.0/10"),   // shared address space (CGN)
@@ -98,13 +98,13 @@ var deniedV4 = []netip.Prefix{
 // globalUnicastV6 is the only zone an IPv6 literal may ever dial into:
 // everything outside 2000::/3 (loopback, unspecified, link-local, unique
 // local, multicast, and every other special-purpose block) is refused
-// before the more specific deniedV6 entries are even considered.
+// before the more specific deniedPrefixesV6 entries are even considered.
 var globalUnicastV6 = netip.MustParsePrefix("2000::/3")
 
-// deniedV6 further restricts the global-unicast zone to exclude the
+// deniedPrefixesV6 further restricts the global-unicast zone to exclude the
 // special-purpose IPv6 blocks nested inside it (01-RESEARCH.md Pattern 8).
-// Same fixed-order, first-match contract as deniedV4.
-var deniedV6 = []netip.Prefix{
+// Same fixed-order, first-match contract as deniedPrefixesV4.
+var deniedPrefixesV6 = []netip.Prefix{
 	netip.MustParsePrefix("2001::/23"),         // IETF protocol assignments (incl. Teredo)
 	netip.MustParsePrefix("2001:db8::/32"),     // documentation
 	netip.MustParsePrefix("2002::/16"),         // 6to4
@@ -126,12 +126,12 @@ func firstMatchingDenyPrefix(addr netip.Addr, prefixes []netip.Prefix) (netip.Pr
 	return netip.Prefix{}, false
 }
 
-// safeDialControl is the ControlContext hook: address and port policy,
+// safeControl is the ControlContext hook: address and port policy,
 // enforced against the literal address the dialer already resolved and is
 // about to connect(2) to — never against a name, and never in a separate
 // pre-flight lookup (see this file's header comment on why that would be
 // TOCTOU-vulnerable).
-func safeDialControl(_ context.Context, network, address string, _ syscall.RawConn) error {
+func safeControl(_ context.Context, network, address string, _ syscall.RawConn) error {
 	if network != "tcp4" && network != "tcp6" {
 		return fmt.Errorf("deck provider: blocked network %q", network)
 	}
@@ -162,7 +162,7 @@ func safeDialControl(_ context.Context, network, address string, _ syscall.RawCo
 	}
 
 	if addr.Is4() {
-		if p, blocked := firstMatchingDenyPrefix(addr, deniedV4); blocked {
+		if p, blocked := firstMatchingDenyPrefix(addr, deniedPrefixesV4); blocked {
 			return fmt.Errorf("deck provider: blocked address %s (in %s)", addr, p)
 		}
 		return nil
@@ -171,7 +171,7 @@ func safeDialControl(_ context.Context, network, address string, _ syscall.RawCo
 	if !globalUnicastV6.Contains(addr) {
 		return fmt.Errorf("deck provider: blocked address %s (outside %s)", addr, globalUnicastV6)
 	}
-	if p, blocked := firstMatchingDenyPrefix(addr, deniedV6); blocked {
+	if p, blocked := firstMatchingDenyPrefix(addr, deniedPrefixesV6); blocked {
 		return fmt.Errorf("deck provider: blocked address %s (in %s)", addr, p)
 	}
 	return nil
@@ -210,10 +210,10 @@ func newDeckProviderCheckRedirect(allowedHosts map[string]struct{}) func(req *ht
 type dialControlFunc func(ctx context.Context, network, address string, c syscall.RawConn) error
 
 // newSafeProviderClient is production's entry point: the locked 3-second
-// connect and 8-second total budgets, the real safeDialControl, the
+// connect and 8-second total budgets, the real safeControl, the
 // default resolver, and CheckRedirect bound to allowedHosts.
 func newSafeProviderClient(allowedHosts map[string]struct{}) *http.Client {
-	return newSafeProviderClientWithOptions(allowedHosts, deckProviderConnectTimeout, deckProviderTotalTimeout, safeDialControl, nil)
+	return newSafeProviderClientWithOptions(allowedHosts, deckProviderConnectTimeout, deckProviderTotalTimeout, safeControl, nil)
 }
 
 // newSafeProviderClientWithOptions is newSafeProviderClient's parameterised
@@ -308,4 +308,15 @@ func fetchDeckProviderURL(ctx context.Context, client *http.Client, rawURL strin
 		return nil, errors.New("deck provider: empty response body")
 	}
 	return data, nil
+}
+
+// providerEnabled reports whether the deck-provider fetch path
+// (server/deck_import.go's previewDeckURL) may run at all. Both the flag
+// and a non-empty host allowlist are required: a flag set with nothing
+// allowlisted would enable a fetch path that can reach nothing, which is a
+// confusing half-state rather than a safe one. This mirrors
+// shouldExposeMetrics' shape (server/graphql.go), which already ANDs a
+// flag against a non-empty configuration value for the same reason.
+func (s *graphQLServer) providerEnabled() bool {
+	return s != nil && s.cfg.DeckProviderEnabled && len(s.deckProviderAllowedHosts) > 0
 }

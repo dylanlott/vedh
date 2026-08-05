@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -204,17 +205,57 @@ func (s *graphQLServer) PreviewDeck(ctx context.Context, input InputDeckImport) 
 		return s.finishPreviewDeck(ctx, input, start, deckimport.SourceUnknown, 0,
 			blockedPreview(deckimport.SourceUnknown, "Provide either a pasted decklist or a deck link, not both."))
 	case hasURL:
-		// A non-empty sourceURL returns a normalized "deck links are not
-		// enabled" blocking error in this task; plan 01-06 replaces this
-		// branch with the real provider fetch.
-		return s.finishPreviewDeck(ctx, input, start, deckimport.SourceUnknown, 0,
-			blockedPreview(deckimport.SourceUnknown, "Deck links are not enabled yet. Paste your decklist instead."))
+		return s.finishPreviewDeck(ctx, input, start, deckimport.SourceUnknown, 0, s.previewDeckURL(ctx, *input.SourceURL))
 	}
 
 	// This is the single canonical parse site for the whole codebase.
 	parsed := deckimport.Parse(*input.Text)
 	preview, cardCount := s.buildDeckPreview(ctx, parsed)
 	return s.finishPreviewDeck(ctx, input, start, parsed.Source, cardCount, preview)
+}
+
+// deckProviderFetch is the fetch call previewDeckURL makes when
+// providerEnabled() is true. A package-level variable, never a hardcoded
+// call, so a test can substitute a spy and assert it was never invoked
+// when the kill switch is off (or off-by-empty-allowlist) — proving zero
+// dial attempts were made, not merely that an error was returned.
+// Production always leaves this at its zero value, fetchDeckProviderURL.
+var deckProviderFetch = fetchDeckProviderURL
+
+// previewDeckURL handles a non-empty deck URL: the provider kill switch
+// (D-16/T-01-28), defaulting to off, and treated as off whenever the host
+// allowlist is empty even if the flag itself is set — a flag set with
+// nothing allowlisted would open a fetch path that can reach nothing, a
+// confusing half-state rather than a safe one. Neither the flag name, the
+// allowlist contents, a host, nor any transport detail is ever named in
+// the text this returns; PROJECT.md and 01-VALIDATION.md's provider
+// runbook note require the disabled path to read as ordinary product
+// language, not a configuration error.
+func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) *DeckPreview {
+	if !s.providerEnabled() {
+		return blockedPreview(deckimport.SourceUnknown,
+			"Deck links aren't available right now. Paste your decklist as text instead.")
+	}
+
+	// The adapter that turns a provider response into a parsed deck is
+	// deliberately absent until the D-14 checkpoint (plan 01-07) selects
+	// — or declines — a provider; until then this always returns the
+	// same normalized provider error regardless of the fetch's own
+	// outcome, but it does genuinely reach the secure client from task 2,
+	// so the flag, the allowlist, and the client are all exercised for
+	// real rather than only once an adapter lands.
+	if _, err := deckProviderFetch(ctx, s.deckProviderClient(), rawURL); err != nil {
+		s.loggerFor(ctx).Warn("deck provider fetch failed", "err", err)
+	}
+	return blockedPreview(deckimport.SourceUnknown,
+		"We couldn't load that deck link right now. Paste your decklist as text instead.")
+}
+
+// deckProviderClient builds task 2's secure fetch client, scoped to this
+// server's parsed host allowlist. Called only once providerEnabled() has
+// already confirmed the allowlist is non-empty.
+func (s *graphQLServer) deckProviderClient() *http.Client {
+	return newSafeProviderClient(s.deckProviderAllowedHosts)
 }
 
 // rateLimitedPreview builds the DeckPreview a rate-limited previewDeck call

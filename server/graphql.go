@@ -59,6 +59,14 @@ type Conf struct {
 	// empty, which is the correct default: with nothing allowlisted,
 	// nothing is fetchable.
 	DeckProviderAllowedHosts string `envconfig:"DECK_PROVIDER_ALLOWED_HOSTS" default:""`
+
+	// DeckProviderEnabled is the provider kill switch (D-16/T-01-28).
+	// Defaults to false: a deploy must be safe before this is
+	// deliberately turned on, and the release must be able to drop to
+	// paste-only activation independently of any other switch.
+	// providerEnabled() (server/deck_providers.go) also requires a
+	// non-empty DeckProviderAllowedHosts even when this is true.
+	DeckProviderEnabled bool `envconfig:"DECK_PROVIDER_ENABLED" default:"false"`
 }
 
 // var userCtxKey = &contextKey{"user"}

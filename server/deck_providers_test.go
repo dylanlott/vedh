@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -18,12 +19,12 @@ import (
 // allowAnyDialControl is a permissive ControlContext stand-in used by the
 // tests below that need a real dial to a loopback httptest server —
 // deliberately bypassing this file's own strict address/port denial
-// (safeDialControl), which is proven separately and exhaustively by
+// (safeControl), which is proven separately and exhaustively by
 // TestSafeControl_DeniedAddresses (direct calls, no socket at all) and
 // TestSafeClient_RebindingFailsClosed (a real dial against the actual
-// production safeDialControl). newSafeProviderClient — the zero-option
+// production safeControl). newSafeProviderClient — the zero-option
 // constructor every production call site uses — always wires the real
-// safeDialControl; nothing in this file ever changes that.
+// safeControl; nothing in this file ever changes that.
 func allowAnyDialControl(context.Context, string, string, syscall.RawConn) error {
 	return nil
 }
@@ -40,7 +41,7 @@ func hermeticTestClient(allowedHosts map[string]struct{}, connectTimeout, totalT
 	return c
 }
 
-// TestSafeControl_DeniedAddresses calls safeDialControl directly, opening
+// TestSafeControl_DeniedAddresses calls safeControl directly, opening
 // no socket at all, over the nine cases 01-06-PLAN.md names: the metadata
 // address, a loopback address, a shared-address-space address, the
 // metadata address written as an IPv4-mapped IPv6 literal, a
@@ -67,12 +68,12 @@ func TestSafeControl_DeniedAddresses(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := safeDialControl(context.Background(), tc.network, tc.address, nil)
+			err := safeControl(context.Background(), tc.network, tc.address, nil)
 			if tc.wantErr && err == nil {
-				t.Fatalf("safeDialControl(%q, %q) = nil, want an error", tc.network, tc.address)
+				t.Fatalf("safeControl(%q, %q) = nil, want an error", tc.network, tc.address)
 			}
 			if !tc.wantErr && err != nil {
-				t.Fatalf("safeDialControl(%q, %q) = %v, want nil", tc.network, tc.address, err)
+				t.Fatalf("safeControl(%q, %q) = %v, want nil", tc.network, tc.address, err)
 			}
 		})
 	}
@@ -80,7 +81,7 @@ func TestSafeControl_DeniedAddresses(t *testing.T) {
 
 // TestSafeControl_ReportsFirstMatchingPrefix asserts firstMatchingDenyPrefix
 // names the first prefix in declared order for an address inside two — a
-// deliberately synthetic, overlapping pair, since the real deniedV4/deniedV6
+// deliberately synthetic, overlapping pair, since the real deniedPrefixesV4/deniedPrefixesV6
 // lists are disjoint IANA-registered blocks by construction. The property
 // under test is generic to the ordering rule itself, not specific to
 // today's production list.
@@ -236,7 +237,7 @@ func TestSafeClient_RejectsBeforeResolution(t *testing.T) {
 			return nil, errors.New("resolver dial invoked unexpectedly")
 		},
 	}
-	client := newSafeProviderClientWithOptions(nil, 2*time.Second, 5*time.Second, safeDialControl, resolver)
+	client := newSafeProviderClientWithOptions(nil, 2*time.Second, 5*time.Second, safeControl, resolver)
 
 	if _, err := fetchDeckProviderURL(context.Background(), client, "https://"); err == nil {
 		t.Fatal("expected an error for an empty host")
@@ -257,7 +258,7 @@ func TestSafeClient_RejectsBeforeResolution(t *testing.T) {
 	}
 }
 
-// TestSafeClient_RebindingFailsClosed proves safeDialControl is actually
+// TestSafeClient_RebindingFailsClosed proves safeControl is actually
 // wired into the real production client (newSafeProviderClient, the
 // zero-option constructor every production call site uses), not merely
 // correct in isolation: a request to a hostname that resolves to loopback
@@ -275,7 +276,7 @@ func TestSafeClient_RebindingFailsClosed(t *testing.T) {
 		t.Fatal("expected a request to a hostname resolving to loopback to be refused")
 	}
 	if !strings.Contains(err.Error(), "blocked address") {
-		t.Fatalf("error = %v, want a blocked-address error from safeDialControl", err)
+		t.Fatalf("error = %v, want a blocked-address error from safeControl", err)
 	}
 }
 
@@ -364,7 +365,7 @@ func TestSafeClient_Timeouts(t *testing.T) {
 		// black-hole target for a connect-timeout test. This is not "a
 		// live deck provider": nothing is ever served, read, or depended
 		// on from it, and allowAnyDialControl (not the production
-		// safeDialControl, which would refuse a 10.0.0.0/8 literal
+		// safeControl, which would refuse a 10.0.0.0/8 literal
 		// outright) is what's actually under test here -- the connect
 		// budget, not the address deny list, which TestSafeControl_
 		// DeniedAddresses already covers hermetically with no socket at
@@ -439,4 +440,116 @@ func portOf(t *testing.T, srv *httptest.Server) string {
 		t.Fatalf("portOf(%q): %v", srv.URL, err)
 	}
 	return port
+}
+
+// withDeckProviderFetchSpy substitutes deckProviderFetch with a spy that
+// increments called, restoring the real fetchDeckProviderURL via
+// t.Cleanup. Every kill-switch test uses this to prove zero dial attempts
+// were made -- not merely that an error was returned -- since a call this
+// resolver never makes is a call this spy never counts.
+func withDeckProviderFetchSpy(t *testing.T) *int {
+	t.Helper()
+	called := 0
+	original := deckProviderFetch
+	deckProviderFetch = func(ctx context.Context, client *http.Client, rawURL string) ([]byte, error) {
+		called++
+		return nil, nil
+	}
+	t.Cleanup(func() { deckProviderFetch = original })
+	return &called
+}
+
+// TestProvider_KillSwitch asserts that with the flag unset, a deck URL
+// yields exactly one blocking error mentioning pasting text, CanContinue
+// is false, and deckProviderFetch is never called -- proving zero dial
+// attempts, not merely that an error was returned.
+func TestProvider_KillSwitch(t *testing.T) {
+	s := testAPI(t)
+	s.cfg.DeckProviderEnabled = false
+	s.deckProviderAllowedHosts = map[string]struct{}{"moxfield.com": {}}
+	called := withDeckProviderFetchSpy(t)
+
+	rawURL := "https://moxfield.com/decks/abc123"
+	input := InputDeckImport{SourceURL: &rawURL, SessionID: "kill-switch-test"}
+
+	preview, err := s.PreviewDeck(context.Background(), input)
+	if err != nil {
+		t.Fatalf("PreviewDeck() error = %v", err)
+	}
+	if preview.CanContinue {
+		t.Fatal("expected CanContinue = false with the provider flag unset")
+	}
+	if len(preview.BlockingErrors) != 1 {
+		t.Fatalf("expected exactly one blocking error, got %d: %v", len(preview.BlockingErrors), preview.BlockingErrors)
+	}
+	if !strings.Contains(strings.ToLower(preview.BlockingErrors[0]), "paste") {
+		t.Fatalf("blocking error %q does not mention pasting text as a fallback", preview.BlockingErrors[0])
+	}
+	if *called != 0 {
+		t.Fatalf("deckProviderFetch was called %d times, want 0", *called)
+	}
+}
+
+// TestProvider_KillSwitchRequiresAllowlist asserts the flag set with an
+// empty allowlist is treated as disabled, identically to the flag being
+// unset: still no dial attempt.
+func TestProvider_KillSwitchRequiresAllowlist(t *testing.T) {
+	s := testAPI(t)
+	s.cfg.DeckProviderEnabled = true
+	s.deckProviderAllowedHosts = map[string]struct{}{}
+	called := withDeckProviderFetchSpy(t)
+
+	if s.providerEnabled() {
+		t.Fatal("expected providerEnabled() = false when the allowlist is empty, even with the flag set")
+	}
+
+	rawURL := "https://moxfield.com/decks/abc123"
+	input := InputDeckImport{SourceURL: &rawURL, SessionID: "kill-switch-allowlist-test"}
+
+	preview, err := s.PreviewDeck(context.Background(), input)
+	if err != nil {
+		t.Fatalf("PreviewDeck() error = %v", err)
+	}
+	if preview.CanContinue {
+		t.Fatal("expected CanContinue = false with an empty allowlist")
+	}
+	if *called != 0 {
+		t.Fatalf("deckProviderFetch was called %d times, want 0", *called)
+	}
+}
+
+// TestProvider_PasteUnaffectedByFlag asserts a text-only preview produces
+// a byte-equal result whether the provider flag is set or unset -- the
+// pasted-text path must be entirely unaffected by the flag in either
+// state.
+func TestProvider_PasteUnaffectedByFlag(t *testing.T) {
+	text := "1 Sol Ring"
+
+	run := func(t *testing.T, enabled bool) []byte {
+		s := testAPI(t)
+		s.cfg.DeckProviderEnabled = enabled
+		if enabled {
+			s.deckProviderAllowedHosts = map[string]struct{}{"moxfield.com": {}}
+		} else {
+			s.deckProviderAllowedHosts = map[string]struct{}{}
+		}
+
+		input := InputDeckImport{Text: &text, SessionID: "paste-unaffected-test"}
+		preview, err := s.PreviewDeck(context.Background(), input)
+		if err != nil {
+			t.Fatalf("PreviewDeck() error = %v", err)
+		}
+		data, err := json.Marshal(preview)
+		if err != nil {
+			t.Fatalf("json.Marshal(preview) error = %v", err)
+		}
+		return data
+	}
+
+	disabled := run(t, false)
+	enabled := run(t, true)
+
+	if string(disabled) != string(enabled) {
+		t.Fatalf("preview differs by provider flag state:\ndisabled: %s\nenabled:  %s", disabled, enabled)
+	}
 }
