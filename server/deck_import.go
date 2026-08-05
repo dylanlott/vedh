@@ -231,24 +231,57 @@ var deckProviderFetch = fetchDeckProviderURL
 // the text this returns; PROJECT.md and 01-VALIDATION.md's provider
 // runbook note require the disabled path to read as ordinary product
 // language, not a configuration error.
+//
+// Once the flag is on, rawURL's hostname is looked up in
+// deckProviderAdapters (server/deck_providers.go) — the D-14 checkpoint
+// (plan 01-07) selected Moxfield, and that registry's only entry today is
+// a deliberately incomplete moxfieldAdapter whose response contract has
+// never been observed (docs/research/deck-provider-feasibility.md section
+// 5). A host with no registered adapter is refused here, before any fetch
+// is attempted, the same as a host absent from the allowlist — the
+// allowlist and this registry are independent gates. A recognized host
+// does genuinely reach the secure client and, on a successful fetch,
+// genuinely reaches the adapter's normalizer; for Moxfield today that
+// normalizer always fails closed, so the end-to-end outcome is still the
+// same paste-fallback message, just reached by a real routing decision
+// rather than a hardcoded skip.
 func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) *DeckPreview {
 	if !s.providerEnabled() {
 		return blockedPreview(deckimport.SourceUnknown,
 			"Deck links aren't available right now. Paste your decklist as text instead.")
 	}
 
-	// The adapter that turns a provider response into a parsed deck is
-	// deliberately absent until the D-14 checkpoint (plan 01-07) selects
-	// — or declines — a provider; until then this always returns the
-	// same normalized provider error regardless of the fetch's own
-	// outcome, but it does genuinely reach the secure client from task 2,
-	// so the flag, the allowlist, and the client are all exercised for
-	// real rather than only once an adapter lands.
-	if _, err := deckProviderFetch(ctx, s.deckProviderClient(), rawURL); err != nil {
-		s.loggerFor(ctx).Warn("deck provider fetch failed", "err", err)
+	adapter, ok := deckProviderAdapterFor(rawURL)
+	if !ok {
+		return blockedPreview(deckimport.SourceUnknown,
+			"Deck links aren't available right now. Paste your decklist as text instead.")
 	}
-	return blockedPreview(deckimport.SourceUnknown,
-		"We couldn't load that deck link right now. Paste your decklist as text instead.")
+
+	body, err := deckProviderFetch(ctx, s.deckProviderClient(), rawURL)
+	if err != nil {
+		s.loggerFor(ctx).Warn("deck provider fetch failed", "err", err)
+		return blockedPreview(deckimport.SourceUnknown,
+			"We couldn't load that deck link right now. Paste your decklist as text instead.")
+	}
+
+	// normalizeToDeckText's error never carries provider response
+	// content for any adapter shipped so far (moxfieldAdapter's sentinel
+	// is a static string), so logging it here is safe by construction,
+	// not merely by convention.
+	text, err := adapter.normalizeToDeckText(body)
+	if err != nil {
+		s.loggerFor(ctx).Warn("deck provider response could not be normalized", "err", err)
+		return blockedPreview(deckimport.SourceUnknown,
+			"We couldn't load that deck link right now. Paste your decklist as text instead.")
+	}
+
+	// Unreachable with today's only registered adapter (it never returns
+	// a nil error), but this is the real success path a future adapter
+	// with a verified contract will exercise: normalize, then hand off
+	// to the single canonical parser, exactly like the pasted-text path.
+	parsed := deckimport.ParseWithSource(text, adapter.source())
+	preview, _ := s.buildDeckPreview(ctx, parsed)
+	return preview
 }
 
 // deckProviderClient builds task 2's secure fetch client, scoped to this

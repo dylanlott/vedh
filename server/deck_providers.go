@@ -12,6 +12,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/openmtg/edh-go/pkg/deckimport"
 )
 
 // This file implements 01-06's provider-agnostic secure outbound fetch
@@ -319,4 +321,108 @@ func fetchDeckProviderURL(ctx context.Context, client *http.Client, rawURL strin
 // flag against a non-empty configuration value for the same reason.
 func (s *graphQLServer) providerEnabled() bool {
 	return s != nil && s.cfg.DeckProviderEnabled && len(s.deckProviderAllowedHosts) > 0
+}
+
+// -----------------------------------------------------------------------
+// D-14 checkpoint outcome: Moxfield adapter scaffold (plan 01-07, task 3)
+// -----------------------------------------------------------------------
+//
+// The human selected Moxfield at the task 2 checkpoint
+// (docs/research/deck-provider-feasibility.md section 5), diverging from
+// task 1's neutral recommendation of Archidekt. What follows is
+// deliberately NOT a working Moxfield import: the feasibility record's
+// section 2 documents that no Moxfield response body was ever observed --
+// api.moxfield.com/robots.txt is a blanket "Disallow: /", and
+// moxfield.com's web frontend returned a Cloudflare bot-management 403 on
+// every probe attempted across three User-Agents. Fabricating a field
+// mapping for a shape that was never seen would be worse than shipping
+// nothing: a wrong mapping fails silently by producing a different deck,
+// while an explicit unverified-contract seam fails loudly every time it is
+// reached.
+//
+// What IS real below: hostname-keyed routing through this file's secure
+// fetch client, gated by the same default-off kill switch providerEnabled
+// already enforces, with an explicit seam a future author fills in once an
+// authorized sample response exists. No live request to any Moxfield host
+// is made by this repository's tests, or by any code path reachable with
+// the kill switch at its default (off).
+
+// errMoxfieldContractUnverified is the sentinel normalizeToDeckText
+// returns on every call: a compile-time-visible placeholder for "the
+// response shape has never been observed," not a bug to be fixed by
+// guessing at field names. It must never reach a client -- previewDeckURL
+// (server/deck_import.go) maps it onto the same generic paste-fallback
+// message every other provider failure already uses (T-01-11), and this
+// error's own text carries no provider response content, so logging it
+// carries nothing sensitive either.
+var errMoxfieldContractUnverified = errors.New("deck provider: moxfield response contract is unverified -- api.moxfield.com/robots.txt disallows automated access and no authorized sample response has ever been captured; see docs/research/deck-provider-feasibility.md section 2")
+
+// moxfieldHost is the exact, lower-cased hostname a pasted Moxfield deck
+// URL is expected to name. Deliberately the user-facing web host
+// (moxfield.com) rather than the api.moxfield.com data host the
+// feasibility record found blocked by robots.txt: this is the host a
+// player would actually paste, and the value this file's own
+// TestProvider_KillSwitch/TestProvider_KillSwitchRequiresAllowlist tests
+// (plan 01-06) already used before this task existed.
+const moxfieldHost = "moxfield.com"
+
+// deckProviderAdapter converts one provider's raw fetch response into
+// decklist text the canonical parser (pkg/deckimport.Parse) can consume.
+// Keyed by hostname in deckProviderAdapters below, so a second provider in
+// a later milestone is an added map entry, not a rewrite of
+// previewDeckURL (server/deck_import.go).
+type deckProviderAdapter interface {
+	// source identifies the deckimport.SourceType a successful
+	// normalization through this adapter should be attributed to.
+	source() deckimport.SourceType
+	// normalizeToDeckText converts body into decklist text. An adapter
+	// whose response contract has never been observed from a real
+	// authorized response MUST return an error naming that fact rather
+	// than a fabricated mapping -- see moxfieldAdapter below.
+	normalizeToDeckText(body []byte) (string, error)
+}
+
+// moxfieldAdapter is deliberately incomplete: its only implemented
+// behaviour is refusing to guess. Enabling this provider for a real
+// import (not merely routing) requires replacing normalizeToDeckText's
+// body with a mapping derived from a real, authorized Moxfield API
+// response -- see the two open blockers recorded in
+// docs/research/deck-provider-feasibility.md section 5.
+type moxfieldAdapter struct{}
+
+func (moxfieldAdapter) source() deckimport.SourceType { return deckimport.SourceMoxfield }
+
+func (moxfieldAdapter) normalizeToDeckText([]byte) (string, error) {
+	return "", errMoxfieldContractUnverified
+}
+
+// deckProviderAdapters is the hostname-keyed adapter registry
+// previewDeckURL consults. A host with no entry here is unsupported
+// regardless of whether it appears in the operator's
+// DECK_PROVIDER_ALLOWED_HOSTS configuration: the allowlist bounds what
+// the secure client may dial, and this map bounds what this codebase
+// knows how to interpret once it gets there. These are two independent
+// gates, deliberately not merged into one -- the same separation of
+// concerns safeControl and newDeckProviderCheckRedirect already apply to
+// address policy and host policy respectively.
+var deckProviderAdapters = map[string]deckProviderAdapter{
+	moxfieldHost: moxfieldAdapter{},
+}
+
+// deckProviderAdapterFor returns the adapter registered for rawURL's
+// lower-cased hostname, and whether one was found. An unparseable URL or
+// an empty host both report "not found" -- previewDeckURL treats either
+// the same as an unsupported host, never as a special case needing its
+// own message.
+func deckProviderAdapterFor(rawURL string) (deckProviderAdapter, bool) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "" {
+		return nil, false
+	}
+	adapter, ok := deckProviderAdapters[host]
+	return adapter, ok
 }
