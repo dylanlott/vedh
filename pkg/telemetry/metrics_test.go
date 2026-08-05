@@ -54,7 +54,7 @@ func exerciseAndGather(t *testing.T) []*dto.MetricFamily {
 	c.IncDeckSuggestionTruncated()
 	c.ObserveRateLimit(ratelimit.SurfaceDeckImport, "allowed")
 	c.ObserveRateLimit(ratelimit.SurfaceProductEvent, "limited")
-	c.ObserveDeckProviderFetch("archidekt", "success", 100*time.Millisecond)
+	c.ObserveDeckProviderFetch(DeckProviderMoxfield, "success", 100*time.Millisecond)
 
 	families, err := reg.Gather()
 	if err != nil {
@@ -204,6 +204,36 @@ func TestMetrics_ReasonLabelValuesAreBounded(t *testing.T) {
 
 func hasVedhPrefix(name string) bool {
 	return len(name) >= len("vedh_") && name[:len("vedh_")] == "vedh_"
+}
+
+// TestMetrics_ProviderLabelValuesAreEnumMembers is a regression test for
+// WR-03: every `provider` label value vedh_deck_provider_fetch_total or
+// vedh_deck_provider_fetch_duration_seconds carries must be a member of
+// AllDeckProviders() — mirroring TestMetrics_SourceLabelValuesAreEnumMembers
+// for the `source` label. Before the fix, provider was a plain string
+// parameter with no enum to check against at all.
+func TestMetrics_ProviderLabelValuesAreEnumMembers(t *testing.T) {
+	validProvider := map[string]struct{}{}
+	for _, p := range AllDeckProviders() {
+		validProvider[string(p)] = struct{}{}
+	}
+
+	for _, fam := range exerciseAndGather(t) {
+		if !hasVedhPrefix(fam.GetName()) {
+			continue
+		}
+		for _, m := range fam.GetMetric() {
+			for _, lp := range m.GetLabel() {
+				if lp.GetName() != "provider" {
+					continue
+				}
+				if _, ok := validProvider[lp.GetValue()]; !ok {
+					t.Errorf("metric %s carries provider=%q, not an AllDeckProviders() member",
+						fam.GetName(), lp.GetValue())
+				}
+			}
+		}
+	}
 }
 
 // TestMetrics_RateLimitLabelsAreDeclaredConstants asserts that every

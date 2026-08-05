@@ -332,17 +332,51 @@ func (c *Collectors) RateLimitCounter(surface ratelimit.Surface, outcome string)
 	return c.rateLimitTotal.WithLabelValues(string(surface), outcome)
 }
 
+// DeckProvider identifies which outbound provider adapter a deck-provider
+// fetch reached. WR-03 fix (code review, phase 01): it is a named type,
+// deliberately unlike a raw string, mirroring deckimport.SourceType's and
+// ratelimit.Surface's own reasoning in this same package/file family — so a
+// Prometheus label built from it is bounded by the compiler rather than by
+// review, the same guarantee every other Observe* method on Collectors
+// already gives its label-bound parameter. Before this fix, provider was a
+// plain string, which meant nothing stopped a hostname or an error string
+// from reaching WithLabelValues the moment a future author wired this
+// method up to a real emit site.
+//
+// One constant is declared per adapter actually registered in
+// server/deck_providers.go's deckProviderAdapters map (currently just
+// moxfieldHost) — the same "declare only what is actually used" discipline
+// ratelimit.Surface documents for itself, rather than speculatively listing
+// every provider this codebase might ever support.
+type DeckProvider string
+
+const (
+	// DeckProviderMoxfield identifies server/deck_providers.go's
+	// moxfieldHost adapter.
+	DeckProviderMoxfield DeckProvider = "moxfield"
+)
+
+// AllDeckProviders returns every declared DeckProvider value. It exists so
+// a test can assert a Prometheus `provider` label value is always a member
+// of the enum, never an arbitrary string — the same role
+// deckimport.AllSourceTypes plays for the `source` label.
+func AllDeckProviders() []DeckProvider {
+	return []DeckProvider{DeckProviderMoxfield}
+}
+
 // ObserveDeckProviderFetch records one outbound deck-provider fetch
-// attempt. provider and outcome are both small, bounded strings — never a
-// caller-supplied host or error string. First observed by plan 01-07.
-func (c *Collectors) ObserveDeckProviderFetch(provider, outcome string, duration time.Duration) {
-	c.deckProviderFetchTotal.WithLabelValues(provider, outcome).Inc()
-	c.deckProviderFetchDuration.WithLabelValues(provider, outcome).Observe(duration.Seconds())
+// attempt. provider is a DeckProvider — a compile-time-enforced enum, never
+// a caller-supplied host — and outcome is a small, server-controlled
+// string, never a caller-supplied error string. First observed by plan
+// 01-07.
+func (c *Collectors) ObserveDeckProviderFetch(provider DeckProvider, outcome string, duration time.Duration) {
+	c.deckProviderFetchTotal.WithLabelValues(string(provider), outcome).Inc()
+	c.deckProviderFetchDuration.WithLabelValues(string(provider), outcome).Observe(duration.Seconds())
 }
 
 // DeckProviderFetchCounter returns the vedh_deck_provider_fetch_total
 // counter for one provider/outcome pair, for use with
 // prometheus/testutil.ToFloat64.
-func (c *Collectors) DeckProviderFetchCounter(provider, outcome string) prometheus.Counter {
-	return c.deckProviderFetchTotal.WithLabelValues(provider, outcome)
+func (c *Collectors) DeckProviderFetchCounter(provider DeckProvider, outcome string) prometheus.Counter {
+	return c.deckProviderFetchTotal.WithLabelValues(string(provider), outcome)
 }
