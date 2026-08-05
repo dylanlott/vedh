@@ -273,13 +273,23 @@ func readBodyWithCap(body io.Reader) ([]byte, error) {
 }
 
 // fetchDeckProviderURL performs one GET against rawURL through client,
-// refusing an empty host or a non-secure scheme before any request is
-// built — and therefore before any name resolution is attempted — and
-// returns the capped, counted response body. A zero-byte body is reported
-// as a normalized provider error rather than treated as an empty deck, so
-// a caller can never mistake "the provider returned nothing" for "the
-// provider returned an empty decklist".
-func fetchDeckProviderURL(ctx context.Context, client *http.Client, rawURL string) ([]byte, error) {
+// refusing an empty host, a non-secure scheme, or a host outside
+// allowedHosts before any request is built — and therefore before any name
+// resolution is attempted — and returns the capped, counted response body.
+// A zero-byte body is reported as a normalized provider error rather than
+// treated as an empty deck, so a caller can never mistake "the provider
+// returned nothing" for "the provider returned an empty decklist".
+//
+// WR-01 fix (code review, phase 01): allowedHosts was previously enforced
+// only inside newDeckProviderCheckRedirect, which Go's http.Client invokes
+// solely before following a *redirect* hop — never for the first request
+// of a chain. That left the initial dial target bounded only by the
+// hardcoded deckProviderAdapters registry, contradicting this codebase's
+// own documentation that DECK_PROVIDER_ALLOWED_HOSTS is the authoritative
+// host allowlist for every outbound dial. Checking here, before the
+// request is even built, closes that gap for the hop that actually matters
+// today and for every hop going forward.
+func fetchDeckProviderURL(ctx context.Context, client *http.Client, allowedHosts map[string]struct{}, rawURL string) ([]byte, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("deck provider: invalid URL: %w", err)
@@ -287,8 +297,12 @@ func fetchDeckProviderURL(ctx context.Context, client *http.Client, rawURL strin
 	if parsed.Scheme != deckProviderSecureScheme {
 		return nil, fmt.Errorf("deck provider: blocked scheme %q", parsed.Scheme)
 	}
-	if parsed.Hostname() == "" {
+	host := strings.ToLower(parsed.Hostname())
+	if host == "" {
 		return nil, errors.New("deck provider: empty host")
+	}
+	if _, ok := allowedHosts[host]; !ok {
+		return nil, fmt.Errorf("deck provider: blocked host %q", host)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)

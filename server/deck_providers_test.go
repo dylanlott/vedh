@@ -226,6 +226,41 @@ func TestSafeClient_HostAndRedirect(t *testing.T) {
 	})
 }
 
+// TestSafeClient_InitialRequestHostEnforced is a regression test for
+// WR-01: the host allowlist must be enforced on the INITIAL request, not
+// only on redirect targets. Before the fix, fetchDeckProviderURL validated
+// only the scheme and that the host was non-empty; DECK_PROVIDER_ALLOWED_
+// HOSTS was consulted only inside newDeckProviderCheckRedirect, which Go's
+// http.Client invokes solely before following a redirect hop. This proves
+// a host absent from allowedHosts is refused before any dial is attempted
+// -- the target server's handler is never invoked -- exactly the same
+// zero-dial-attempt proof this file's kill-switch tests already use for
+// deckProviderFetch, applied one layer down to fetchDeckProviderURL itself.
+func TestSafeClient_InitialRequestHostEnforced(t *testing.T) {
+	var invoked atomic.Bool
+	target := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		invoked.Store(true)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+
+	client := hermeticTestClient(nil, 2*time.Second, 5*time.Second)
+
+	// Deliberately an allowlist that does NOT contain target's host, so
+	// the initial-request check must refuse the dial on its own -- there
+	// is no redirect involved here at all.
+	_, err := fetchDeckProviderURL(context.Background(), client, map[string]struct{}{"totally-unrelated.example": {}}, target.URL)
+	if err == nil {
+		t.Fatal("expected an error for a host absent from the allowlist on the initial request")
+	}
+	if !strings.Contains(err.Error(), "blocked host") {
+		t.Fatalf("error = %v, want a blocked-host error", err)
+	}
+	if invoked.Load() {
+		t.Fatal("the unallowlisted target's handler was invoked; the initial request must never dial it")
+	}
+}
+
 // TestSafeClient_RejectsBeforeResolution asserts an empty host and a
 // non-secure scheme are refused by fetchDeckProviderURL before any name
 // resolution is attempted, using a resolver stub that records whether it
@@ -241,7 +276,7 @@ func TestSafeClient_RejectsBeforeResolution(t *testing.T) {
 	}
 	client := newSafeProviderClientWithOptions(nil, 2*time.Second, 5*time.Second, safeControl, resolver)
 
-	if _, err := fetchDeckProviderURL(context.Background(), client, "https://"); err == nil {
+	if _, err := fetchDeckProviderURL(context.Background(), client, nil, "https://"); err == nil {
 		t.Fatal("expected an error for an empty host")
 	}
 	if resolverCalled.Load() {
@@ -252,7 +287,7 @@ func TestSafeClient_RejectsBeforeResolution(t *testing.T) {
 	// here is itself part of the proof that no resolution is attempted --
 	// unlike a real domain, there is no ambiguity about whether this host
 	// could ever be "reached".
-	if _, err := fetchDeckProviderURL(context.Background(), client, "http://deck-provider.invalid/deck"); err == nil {
+	if _, err := fetchDeckProviderURL(context.Background(), client, nil, "http://deck-provider.invalid/deck"); err == nil {
 		t.Fatal("expected an error for a non-secure scheme")
 	}
 	if resolverCalled.Load() {
@@ -303,7 +338,7 @@ func TestSafeClient_BodyCap(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		data, err := fetchDeckProviderURL(context.Background(), client, srv.URL)
+		data, err := fetchDeckProviderURL(context.Background(), client, allowedHostsForServer(t, srv), srv.URL)
 		if err != nil {
 			t.Fatalf("fetchDeckProviderURL() error = %v", err)
 		}
@@ -318,7 +353,7 @@ func TestSafeClient_BodyCap(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, err := fetchDeckProviderURL(context.Background(), client, srv.URL)
+		_, err := fetchDeckProviderURL(context.Background(), client, allowedHostsForServer(t, srv), srv.URL)
 		if err == nil {
 			t.Fatal("expected an error for a body one byte over the cap")
 		}
@@ -343,7 +378,7 @@ func TestSafeClient_BodyCap(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, err := fetchDeckProviderURL(context.Background(), client, srv.URL)
+		_, err := fetchDeckProviderURL(context.Background(), client, allowedHostsForServer(t, srv), srv.URL)
 		if err == nil {
 			t.Fatal("expected an error for a chunked, undeclared-length body over the cap")
 		}
@@ -424,7 +459,7 @@ func TestSafeClient_ZeroByteBodyIsProviderError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := fetchDeckProviderURL(context.Background(), client, srv.URL)
+	_, err := fetchDeckProviderURL(context.Background(), client, allowedHostsForServer(t, srv), srv.URL)
 	if err == nil {
 		t.Fatal("expected an error for a zero-byte response body")
 	}
@@ -444,6 +479,22 @@ func portOf(t *testing.T, srv *httptest.Server) string {
 	return port
 }
 
+// allowedHostsForServer returns an allowlist containing exactly srv's
+// loopback host, for tests that call fetchDeckProviderURL directly (WR-01
+// fix, code review phase 01): fetchDeckProviderURL now enforces the host
+// allowlist on the initial request, so any hermetic test dialing a real
+// loopback httptest server needs that server's own host allowlisted or
+// every such call would be refused before the behavior under test (body
+// cap, timeouts, empty-body handling) is ever exercised.
+func allowedHostsForServer(t *testing.T, srv *httptest.Server) map[string]struct{} {
+	t.Helper()
+	host, _, err := net.SplitHostPort(strings.TrimPrefix(strings.TrimPrefix(srv.URL, "https://"), "http://"))
+	if err != nil {
+		t.Fatalf("allowedHostsForServer(%q): %v", srv.URL, err)
+	}
+	return map[string]struct{}{strings.ToLower(host): {}}
+}
+
 // withDeckProviderFetchSpy substitutes deckProviderFetch with a spy that
 // increments called, restoring the real fetchDeckProviderURL via
 // t.Cleanup. Every kill-switch test uses this to prove zero dial attempts
@@ -453,7 +504,7 @@ func withDeckProviderFetchSpy(t *testing.T) *int {
 	t.Helper()
 	called := 0
 	original := deckProviderFetch
-	deckProviderFetch = func(ctx context.Context, client *http.Client, rawURL string) ([]byte, error) {
+	deckProviderFetch = func(ctx context.Context, client *http.Client, allowedHosts map[string]struct{}, rawURL string) ([]byte, error) {
 		called++
 		return nil, nil
 	}

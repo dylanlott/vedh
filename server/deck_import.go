@@ -257,7 +257,7 @@ func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) *Deck
 			"Deck links aren't available right now. Paste your decklist as text instead.")
 	}
 
-	body, err := deckProviderFetch(ctx, s.deckProviderClient(), rawURL)
+	body, err := deckProviderFetch(ctx, s.deckProviderClient(), s.deckProviderAllowedHosts, rawURL)
 	if err != nil {
 		s.loggerFor(ctx).Warn("deck provider fetch failed", "err", err)
 		return blockedPreview(deckimport.SourceUnknown,
