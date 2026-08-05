@@ -404,6 +404,10 @@ func extractTrailingAnnotations(s string) (name, setCode, collectorNumber, categ
 		}
 	}
 
+	// Rule 7: the name is everything that remains, trimmed. Commas inside
+	// it are ordinary characters — extractQuantity only ever consumed the
+	// one separator immediately after the digits, so an internal comma
+	// like "Atraxa, Praetors' Voice" survives untouched.
 	name = strings.TrimSpace(s)
 	return name, setCode, collectorNumber, category
 }
