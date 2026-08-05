@@ -45,18 +45,37 @@ func (s *graphQLServer) allowRequest(ctx context.Context, surface ratelimit.Surf
 	return allowed
 }
 
-// clientKeyFor derives the per-request rate-limit key: the caller-supplied
-// session identifier when present, falling back to the request's remote
-// address (server/graphql.go's withClientAddr) when it is not. A
-// forwarded-for header is never consulted here — see withClientAddr's own
-// comment for why trusting one by default would let an unauthenticated
-// caller mint unlimited distinct keys.
+// clientKeyFor derives the per-request rate-limit key. CR-02 fix (code
+// review, phase 01): sessionID is a caller-supplied, unauthenticated field
+// (app/src/services/productEvents.ts's newSessionID) — never trust it
+// alone as a rate-limit key, or any caller can mint an unlimited number of
+// distinct buckets simply by sending a fresh random sessionID on every
+// request, defeating the limiter entirely. The server-observed remote
+// address (server/graphql.go's withClientAddr, sourced from
+// r.RemoteAddr — the TCP peer address, never a client-supplied header) is
+// the sole bucketing key whenever it is available, precisely so that a
+// single IP rotating session IDs cannot escape into a fresh bucket per
+// request: appending sessionID onto the address (e.g. "addr|session")
+// would NOT achieve this, since a caller who varies sessionID while
+// keeping the same address would still produce a distinct key each time.
+// sessionID is consulted only as a last-resort fallback when no
+// server-observed address is present in context (e.g. a direct call in a
+// test, or a future non-HTTP transport) — it is never a substitute for the
+// address component when both are available. No per-session fairness is
+// layered on top today; if that becomes a goal, it must be implemented as
+// an additional, independent limit alongside the address-anchored one, not
+// by folding sessionID into this key. A forwarded-for header is never
+// consulted here — see withClientAddr's own comment for why trusting one
+// by default would let an unauthenticated caller mint unlimited distinct
+// keys.
 func clientKeyFor(ctx context.Context, sessionID string) string {
+	if addr, ok := remoteAddrFromContext(ctx); ok {
+		if trimmed := strings.TrimSpace(addr); trimmed != "" {
+			return "addr:" + trimmed
+		}
+	}
 	if trimmed := strings.TrimSpace(sessionID); trimmed != "" {
 		return "session:" + trimmed
-	}
-	if addr, ok := remoteAddrFromContext(ctx); ok && strings.TrimSpace(addr) != "" {
-		return "addr:" + addr
 	}
 	return "unknown"
 }

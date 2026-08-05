@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -109,22 +110,54 @@ func TestRateLimit_TrackProductEventStillReturnsTrue(t *testing.T) {
 	}
 }
 
-// TestRateLimit_ClientKeyForPrefersSessionOverAddress proves the derivation order:
-// a non-empty session ID always wins over the remote address, and an
-// absent session ID with no remote address in context falls back to a
-// fixed "unknown" key rather than an empty string (which would collapse
-// every unidentified caller onto the same key as a caller who explicitly
-// supplied an empty one).
-func TestRateLimit_ClientKeyForPrefersSessionOverAddress(t *testing.T) {
+// TestRateLimit_ClientKeyForAlwaysAnchorsOnAddress is a regression test for
+// CR-02: whenever a server-observed remote address is present in context,
+// it is the SOLE bucketing key -- sessionID is never appended to it and
+// never overrides it. sessionID is consulted only when no address is
+// available. Before the fix, a non-empty sessionID alone produced the key
+// ("session:" + sessionID) even when an address was present, discarding
+// the remote address and letting any caller mint an unlimited number of
+// distinct buckets by varying sessionID per request.
+func TestRateLimit_ClientKeyForAlwaysAnchorsOnAddress(t *testing.T) {
 	ctxWithAddr := context.WithValue(context.Background(), remoteAddrContextKey{}, "203.0.113.5")
 
-	if got := clientKeyFor(ctxWithAddr, "session-123"); got != "session:session-123" {
-		t.Errorf("clientKeyFor() = %q, want a session-prefixed key", got)
+	if got := clientKeyFor(ctxWithAddr, "session-123"); got != "addr:203.0.113.5" {
+		t.Errorf("clientKeyFor() = %q, want the address alone, ignoring sessionID", got)
+	}
+	if got := clientKeyFor(ctxWithAddr, "a-completely-different-session"); got != "addr:203.0.113.5" {
+		t.Errorf("clientKeyFor() = %q, want the same address-anchored key regardless of sessionID", got)
 	}
 	if got := clientKeyFor(ctxWithAddr, ""); got != "addr:203.0.113.5" {
 		t.Errorf("clientKeyFor() = %q, want an addr-prefixed key", got)
 	}
+	if got := clientKeyFor(context.Background(), "session-123"); got != "session:session-123" {
+		t.Errorf("clientKeyFor() = %q, want a session-prefixed key when no address is in context", got)
+	}
 	if got := clientKeyFor(context.Background(), ""); got != "unknown" {
 		t.Errorf("clientKeyFor() = %q, want \"unknown\"", got)
+	}
+}
+
+// TestRateLimit_VaryingSessionIDAloneDoesNotGrantMoreBudget proves the
+// spoofing-resistance invariant CR-02 restores: a caller from a single
+// remote address cannot escape the limiter by sending a fresh, random
+// sessionID on every request. Before the fix, each new sessionID produced
+// a brand-new token bucket, defeating the limit entirely.
+func TestRateLimit_VaryingSessionIDAloneDoesNotGrantMoreBudget(t *testing.T) {
+	s := &graphQLServer{limiter: ratelimit.NewRegistry(60, 1)}
+	ctx := context.WithValue(context.Background(), remoteAddrContextKey{}, "203.0.113.5")
+
+	key := clientKeyFor(ctx, "session-1")
+	if !s.limiter.Allow(ratelimit.SurfaceDeckImport, key) {
+		t.Fatal("expected the first request from this address to be allowed")
+	}
+
+	// A fresh, never-before-seen sessionID from the SAME remote address
+	// must not grant a new bucket / additional budget.
+	for i := 0; i < 5; i++ {
+		spoofedKey := clientKeyFor(ctx, "session-spoofed-"+strconv.Itoa(i))
+		if s.limiter.Allow(ratelimit.SurfaceDeckImport, spoofedKey) {
+			t.Fatalf("request %d: varying sessionID alone granted additional budget from the same address", i)
+		}
 	}
 }
