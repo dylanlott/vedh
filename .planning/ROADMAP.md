@@ -66,7 +66,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Ticket waves**: ACT-001 → ACT-002 → ACT-003 (strictly sequential; each depends on the prior)
 **Open decisions to resolve here**: **OPEN-1 — which public deck provider becomes the first supported URL source.** Status: open. Owned by ACT-003's one-day time-boxed feasibility comparison of public Archidekt and Moxfield access. Do not pre-answer; `/gsd-discuss-phase 1` should pick this up.
 **Branch note (INFO-1)**: a provider adapter is **not** a fixed MVP commitment. If neither candidate clears the feasibility gate, ACT-003 terminates at a documented no-go and paste-only activation ships. SSRF and reliability controls may not be weakened to force a provider through. Phase 5's release gate depends on ACT-003 either way, so a no-go must not block it — it changes what "provider fallback" means in the gate, not whether the gate can close.
-**Plans**: 7 plans in 6 waves
+**Plans**: 1/7 plans executed
 **Contract note**: Phase 1 adds one additive field to the locked `DeckPreview` type —
 `BlockingErrors: [String!]!` — because the locked api-contract's prose requires blocking errors to
 be returned while its GraphQL block declares no field for them. Recorded as a dated addendum in
@@ -83,7 +83,7 @@ criterion 4 complete on Phase 1 alone.
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Tracer: one pasted card becomes a measured preview end to end (migration, whole Phase 1 GraphQL contract, all criterion-4 collectors, `pkg/telemetry`, `pkg/deckimport` seed, three new `server/` files, documented vocabulary, dedup/concurrency/migration proofs)
+- [x] 01-01-PLAN.md — Tracer: one pasted card becomes a measured preview end to end (migration, whole Phase 1 GraphQL contract, all criterion-4 collectors, `pkg/telemetry`, `pkg/deckimport` seed, three new `server/` files, documented vocabulary, dedup/concurrency/migration proofs)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -190,7 +190,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Measured Deck Import Foundation | 0/7 | Planned | - |
+| 1. Measured Deck Import Foundation | 1/7 | In Progress|  |
 | 2. Guest Host Activation | 0/TBD | Not started | - |
 | 3. Invite, Join, and Board Readiness | 0/TBD | Not started | - |
 | 4. Post-Value Acquisition and Funnel Readout | 0/TBD | Not started | - |

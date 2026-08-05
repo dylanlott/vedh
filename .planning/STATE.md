@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-current_phase: 1
-current_phase_name: Measured Deck Import Foundation
+current_phase: 01
+current_phase_name: measured-deck-import-foundation
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-08-04T08:06:48.955Z"
-last_activity: 2026-08-03
-last_activity_desc: Doc ingest synthesized into PROJECT.md, REQUIREMENTS.md, ROADMAP.md
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-08-05T03:51:13.758Z"
+last_activity: 2026-08-04
+last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 7
-  completed_plans: 0
+  completed_plans: 1
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-03)
 
 **Core value:** A person with a decklist reaches a working, shareable Commander board without registering — and every step of that path is measured.
-**Current focus:** Phase 1 — Measured Deck Import Foundation
+**Current focus:** Phase 01 — measured-deck-import-foundation
 
 ## Current Position
 
-Phase: 1 of 5 (Measured Deck Import Foundation)
-Plan: 0 of TBD in current phase
+Phase: 01 (measured-deck-import-foundation) — EXECUTING
+Plan: 2 of 7
 Status: Ready to execute
-Last activity: 2026-08-03 — Doc ingest synthesized into PROJECT.md, REQUIREMENTS.md, ROADMAP.md
+Last activity: 2026-08-04 — Phase 01 execution started
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 14%
 
 ## Performance Metrics
 
@@ -54,6 +54,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 13min | 3 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -67,6 +72,9 @@ Precedence resolutions applied at ingest that affect execution:
 - INFO-1: a shipped deck provider is conditional on ACT-003's feasibility gate — paste-only is a legitimate outcome and must not block Phase 5
 - INFO-2: guest account claim (ACT-010) is inside the MVP gate, not v1.1 — it lands in Phase 4, before Phase 5
 - INFO-3: safe invite preview (ACT-007) sequences with guest join in Phase 3, not with the host flow
+- [Phase ?]: previewDeck placed on Mutation (never Query) per locked api-contract; DeckPreview.BlockingErrors is a recorded additive extension
+- [Phase ?]: pkg/telemetry.Vocabulary carries PRD fields with a dedicated product_events column on that column, never duplicated into metadata — a deliberate departure from 01-RESEARCH.md Pattern 5's assumed table
+- [Phase ?]: Authoritative (six server-owned events) and deduplicated (four events in the dedup predicate) are kept as deliberately distinct, documented senses of the word
 
 ### Pending Todos
 
@@ -93,6 +101,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-04T05:22:11.420Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-measured-deck-import-foundation/01-CONTEXT.md
+Last session: 2026-08-05T03:51:13.747Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
