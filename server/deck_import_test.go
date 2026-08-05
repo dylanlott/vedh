@@ -3,12 +3,14 @@ package server
 import (
 	"context"
 	"database/sql"
+	"math"
+	"strings"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
-	"github.com/openmtg/edh-go/pkg/deckimport"
 	"github.com/openmtg/edh-go/persistence"
+	"github.com/openmtg/edh-go/pkg/deckimport"
 )
 
 // TestTracer_PreviewDeckEmitsMeasuredEvent proves the whole Phase 1
@@ -201,5 +203,192 @@ func TestMigrations_CardNameSearch(t *testing.T) {
 				assertCardNameSearchObjectsPresent(t, scratchDB, true)
 			})
 		})
+	}
+}
+
+// printingTestCard names one seeded printing of "Test Printing Card" used
+// by the D-09/D-10 resolution tests below.
+type printingTestCard struct {
+	id      string
+	setcode string
+	number  string
+}
+
+// printingTestCards are two printings of the same name, deliberately
+// ordered here with the alphabetically-later set code first, so a test
+// relying on the deterministic lower(setcode) ASC ordering documented on
+// nameOnlyFallbackQuery cannot pass by accident of insertion or slice order.
+var printingTestCards = []printingTestCard{
+	{id: "testprint-0004-xyz", setcode: "XYZ", number: "99"},
+	{id: "testprint-0004-abc", setcode: "ABC", number: "1"},
+}
+
+// seedPrintingTestCards inserts printingTestCards as two printings of one
+// card name ("Test Printing Card", chosen to never collide with a real
+// MTGJSON name) and removes them (and any card_names projection row for
+// that name) in t.Cleanup.
+func seedPrintingTestCards(t *testing.T, s *graphQLServer) {
+	t.Helper()
+
+	for _, c := range printingTestCards {
+		if _, err := s.db.Exec(
+			`INSERT INTO cards (id, name, setcode, number, uuid) VALUES ($1, 'Test Printing Card', $2, $3, $1)
+			ON CONFLICT (id) DO UPDATE SET setcode = EXCLUDED.setcode, number = EXCLUDED.number`,
+			c.id, c.setcode, c.number,
+		); err != nil {
+			t.Fatalf("seed printing test card %s: %v", c.id, err)
+		}
+	}
+
+	t.Cleanup(func() {
+		for _, c := range printingTestCards {
+			if _, err := s.db.Exec(`DELETE FROM cards WHERE id = $1`, c.id); err != nil {
+				t.Logf("cleanup: delete card %s: %v", c.id, err)
+			}
+		}
+		if _, err := s.db.Exec(
+			`DELETE FROM card_names WHERE name_lower = lower('Test Printing Card')`,
+		); err != nil {
+			t.Logf("cleanup: delete card_names row: %v", err)
+		}
+	})
+}
+
+// previewCardText pastes one line naming Test Printing Card, optionally
+// with a set code / collector number suffix in the "(SET) NUMBER" form the
+// scanner recognizes.
+func previewCardTextLine(setCode, number string) string {
+	line := "1 Test Printing Card"
+	if setCode != "" {
+		line += " (" + setCode + ")"
+		if number != "" {
+			line += " " + number
+		}
+	}
+	return line
+}
+
+// TestDeckImport_PrintingDisambiguation proves D-09's stage-one exact
+// resolution: an entry naming a set code present in the snapshot selects
+// that exact printing, and the upper-case and lower-case spellings of the
+// same set code select the same row.
+func TestDeckImport_PrintingDisambiguation(t *testing.T) {
+	s := testAPI(t)
+	seedPrintingTestCards(t, s)
+
+	for _, setCode := range []string{"XYZ", "xyz"} {
+		t.Run(setCode, func(t *testing.T) {
+			text := previewCardTextLine(setCode, "99")
+			preview, err := s.PreviewDeck(context.Background(), InputDeckImport{
+				Text:      &text,
+				SessionID: "printing-disambiguation-" + t.Name(),
+			})
+			if err != nil {
+				t.Fatalf("PreviewDeck() error = %v", err)
+			}
+			if len(preview.Entries) != 1 {
+				t.Fatalf("Entries = %+v, want exactly one", preview.Entries)
+			}
+			entry := preview.Entries[0]
+			if !entry.Resolved || entry.Card == nil {
+				t.Fatalf("entry not resolved: %+v", entry)
+			}
+			if entry.Card.ID != "testprint-0004-xyz" {
+				t.Fatalf("Card.ID = %q, want %q (the XYZ printing, regardless of the set code's letter case)", entry.Card.ID, "testprint-0004-xyz")
+			}
+		})
+	}
+}
+
+// TestDeckImport_MissingPrintingWarns proves D-10: an entry naming a set
+// code absent from the snapshot still resolves (to some other printing of
+// the same name), carries a warning naming the requested set code, keeps
+// the parsed set code on the DeckPreviewEntry, and is never reported as
+// unresolved.
+func TestDeckImport_MissingPrintingWarns(t *testing.T) {
+	s := testAPI(t)
+	seedPrintingTestCards(t, s)
+
+	text := previewCardTextLine("ZZZ", "42")
+	preview, err := s.PreviewDeck(context.Background(), InputDeckImport{
+		Text:      &text,
+		SessionID: "missing-printing-" + t.Name(),
+	})
+	if err != nil {
+		t.Fatalf("PreviewDeck() error = %v", err)
+	}
+	if len(preview.Entries) != 1 {
+		t.Fatalf("Entries = %+v, want exactly one", preview.Entries)
+	}
+	entry := preview.Entries[0]
+
+	if !entry.Resolved || entry.Card == nil {
+		t.Fatalf("entry not resolved: %+v", entry)
+	}
+	if entry.SetCode == nil || *entry.SetCode != "ZZZ" {
+		t.Fatalf("entry.SetCode = %v, want the parsed set code %q preserved", entry.SetCode, "ZZZ")
+	}
+	if len(preview.Unresolved) != 0 {
+		t.Fatalf("Unresolved = %+v, want empty: a missing printing must not be reported as unresolved", preview.Unresolved)
+	}
+
+	found := false
+	for _, w := range preview.Warnings {
+		if strings.Contains(w, "ZZZ") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("Warnings = %v, want one naming the requested set code %q", preview.Warnings, "ZZZ")
+	}
+}
+
+// TestDeckImport_NameOnlyResolutionIsDeterministic proves that the
+// name-only fallback's printing choice is the same across repeated calls,
+// per nameOnlyFallbackQuery's documented lower(setcode)/number/id ordering
+// — not decided by row arrival order.
+func TestDeckImport_NameOnlyResolutionIsDeterministic(t *testing.T) {
+	s := testAPI(t)
+	seedPrintingTestCards(t, s)
+
+	text := previewCardTextLine("", "")
+	var gotIDs []string
+	for i := 0; i < 3; i++ {
+		preview, err := s.PreviewDeck(context.Background(), InputDeckImport{
+			Text:      &text,
+			SessionID: "name-only-deterministic-" + t.Name(),
+		})
+		if err != nil {
+			t.Fatalf("PreviewDeck() call %d error = %v", i, err)
+		}
+		if len(preview.Entries) != 1 || preview.Entries[0].Card == nil {
+			t.Fatalf("call %d: Entries = %+v, want one resolved entry", i, preview.Entries)
+		}
+		gotIDs = append(gotIDs, preview.Entries[0].Card.ID)
+	}
+
+	for i, id := range gotIDs {
+		if id != gotIDs[0] {
+			t.Fatalf("call %d resolved to Card.ID = %q, want %q (same as call 0): the choice must be deterministic", i, id, gotIDs[0])
+		}
+	}
+	// The documented ordering key (lower(setcode) ASC) puts "ABC" ahead of
+	// "XYZ", so the deterministic choice is the ABC printing.
+	if gotIDs[0] != "testprint-0004-abc" {
+		t.Fatalf("resolved Card.ID = %q, want %q per the documented lower(setcode) ASC ordering", gotIDs[0], "testprint-0004-abc")
+	}
+}
+
+// TestDeckImport_LowConfidenceCutoffBoundary proves isLowConfidence's
+// boundary condition: a score exactly at lowConfidenceCutoff is confident,
+// and a score one float64 step below it is low-confidence.
+func TestDeckImport_LowConfidenceCutoffBoundary(t *testing.T) {
+	if isLowConfidence(lowConfidenceCutoff) {
+		t.Fatalf("isLowConfidence(cutoff) = true, want false (a score exactly at the cutoff is confident)")
+	}
+	belowCutoff := math.Nextafter(lowConfidenceCutoff, 0)
+	if !isLowConfidence(belowCutoff) {
+		t.Fatalf("isLowConfidence(one step below cutoff) = false, want true")
 	}
 }

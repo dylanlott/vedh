@@ -159,11 +159,25 @@ func (s *graphQLServer) Cards(ctx context.Context, list []string) ([]*Card, erro
 	found := map[string]*Card{}
 	var combinedErr error
 
+	// The needles bound to the query are lower-cased separately from
+	// `trimmed` (which callers may still want case-preserved for other
+	// purposes): this is what makes the WHERE clause's lower(name)/
+	// lower(facename) comparison able to use cards_name_lower_idx and
+	// cards_facename_lower_idx (persistence/migrations/20260804120100_card_name_search.up.sql).
+	needles := make([]string, len(trimmed))
+	for i, n := range trimmed {
+		needles[i] = strings.ToLower(n)
+	}
+
 	rows, err := s.db.Query(
-		`SELECT name, id, colors, convertedmanacost, types, power, toughness, text, subtypes, supertypes, uuid, facename
+		// Lower-casing both sides is strictly wider than the previous
+		// case-sensitive comparison: this function already lower-cases for
+		// map keying below, so no existing caller loses a match, and a
+		// needle now additionally matches a stored name of any letter case.
+		`SELECT name, id, colors, convertedmanacost, types, power, toughness, text, subtypes, supertypes, uuid, facename, setcode, number, scryfallid
 		FROM cards
-		WHERE name = ANY($1) OR facename = ANY($1);`,
-		pq.Array(trimmed),
+		WHERE lower(name) = ANY($1) OR lower(facename) = ANY($1);`,
+		pq.Array(needles),
 	)
 	if err != nil {
 		if !isMissingRelation(err, "cards") {
@@ -185,6 +199,9 @@ func (s *graphQLServer) Cards(ctx context.Context, list []string) ([]*Card, erro
 				supertypes sql.NullString
 				uuid       sql.NullString
 				facename   sql.NullString
+				setcode    sql.NullString
+				number     sql.NullString
+				scryfallID sql.NullString
 			)
 			if err := rows.Scan(
 				&nameVal,
@@ -199,6 +216,9 @@ func (s *graphQLServer) Cards(ctx context.Context, list []string) ([]*Card, erro
 				&supertypes,
 				&uuid,
 				&facename,
+				&setcode,
+				&number,
+				&scryfallID,
 			); err != nil {
 				combinedErr = errs.Combine(combinedErr, err)
 				continue
@@ -215,6 +235,13 @@ func (s *graphQLServer) Cards(ctx context.Context, list []string) ([]*Card, erro
 				Subtypes:   nullStringPtr(subtypes),
 				Supertypes: nullStringPtr(supertypes),
 				UUID:       nullStringPtr(uuid),
+				// D-07: printing identity. Left nil (never an error) when
+				// the snapshot has no value for a column, because game
+				// payloads written before this phase have no such keys and
+				// unmarshal them as empty.
+				SetCode:         nullStringPtr(setcode),
+				CollectorNumber: nullStringPtr(number),
+				ScryfallID:      nullStringPtr(scryfallID),
 			}
 			if nameVal.Valid {
 				key := strings.ToLower(nameVal.String)

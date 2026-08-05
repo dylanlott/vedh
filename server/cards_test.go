@@ -204,3 +204,22 @@ func Test_graphQLServer_Cards(t *testing.T) {
 		})
 	}
 }
+
+// TestCards_LowerCasedNeedleMatchesMixedCaseName proves the WHERE clause
+// change is strictly wider than the previous case-sensitive comparison: a
+// fully lower-cased needle now matches a stored name whose letter case
+// differs, which the old `name = ANY($1)` comparison could never do.
+func TestCards_LowerCasedNeedleMatchesMixedCaseName(t *testing.T) {
+	s := testAPI(t)
+
+	got, err := s.Cards(context.Background(), []string{"kykar, wind's fury"})
+	if err != nil {
+		t.Fatalf("graphQLServer.Cards() error = %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("Cards() returned %d results, want 1", len(got))
+	}
+	if got[0].Name != "Kykar, Wind's Fury" {
+		t.Fatalf("Cards() = %+v, want a resolved card named %q", got[0], "Kykar, Wind's Fury")
+	}
+}
