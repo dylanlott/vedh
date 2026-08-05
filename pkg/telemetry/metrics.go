@@ -62,6 +62,14 @@ type Collectors struct {
 
 	productEventsWritten *prometheus.CounterVec
 	productEventsDropped *prometheus.CounterVec
+
+	// deckSuggestionDuration and deckSuggestionTruncated instrument
+	// Pattern 3's bounded eager suggestion lookup (D-02/D-03/D-04), plan
+	// 01-05's own path rather than one of the four ROADMAP criterion-4
+	// families above: they measure the *cost* of the suggestion path, not
+	// a funnel step.
+	deckSuggestionDuration  *prometheus.HistogramVec
+	deckSuggestionTruncated prometheus.Counter
 }
 
 // NewCollectors registers every collector family into reg via
@@ -146,6 +154,20 @@ func NewCollectors(reg prometheus.Registerer) *Collectors {
 			Name: "vedh_product_events_dropped_total",
 			Help: "Product events dropped before or during write, by bounded reason.",
 		}, []string{"reason"}),
+
+		// Pattern 3 (RESEARCH.md): instrumenting the two bounds turns "is
+		// 25 the right cap" and "is 750ms the right sub-budget" into
+		// questions the Grafana panels answer after beta, rather than
+		// numbers defended in review.
+		deckSuggestionDuration: factory.NewHistogramVec(prometheus.HistogramOpts{
+			Name:    "vedh_deck_suggestion_duration_seconds",
+			Help:    "Batched deck-import suggestion lookup latency by outcome (success|timeout|error).",
+			Buckets: previewDeckBuckets,
+		}, []string{"outcome"}),
+		deckSuggestionTruncated: factory.NewCounter(prometheus.CounterOpts{
+			Name: "vedh_deck_suggestion_truncated_total",
+			Help: "Times the eager suggestion lookup truncated its needle set to the first 25 distinct unresolved names in one preview.",
+		}),
 	}
 }
 
@@ -227,4 +249,25 @@ func (c *Collectors) ProductEventsWrittenCounter(outcome string) prometheus.Coun
 // counter for one bounded reason, for use with prometheus/testutil.ToFloat64.
 func (c *Collectors) ProductEventsDroppedCounter(reason Rejection) prometheus.Counter {
 	return c.productEventsDropped.WithLabelValues(reason.String())
+}
+
+// ObserveDeckSuggestion records one batched eager-suggestion lookup
+// (Pattern 3). outcome is a small, server-controlled string
+// ("success" | "timeout" | "error") — never a client-controlled value.
+func (c *Collectors) ObserveDeckSuggestion(outcome string, duration time.Duration) {
+	c.deckSuggestionDuration.WithLabelValues(outcome).Observe(duration.Seconds())
+}
+
+// IncDeckSuggestionTruncated increments vedh_deck_suggestion_truncated_total
+// once each time Pattern 3 bound #3 fires: more than maxSuggestionNeedles
+// distinct unresolved names appeared in one preview.
+func (c *Collectors) IncDeckSuggestionTruncated() {
+	c.deckSuggestionTruncated.Inc()
+}
+
+// DeckSuggestionTruncatedCounter returns the
+// vedh_deck_suggestion_truncated_total counter, for use with
+// prometheus/testutil.ToFloat64.
+func (c *Collectors) DeckSuggestionTruncatedCounter() prometheus.Counter {
+	return c.deckSuggestionTruncated
 }

@@ -49,6 +49,8 @@ func exerciseAndGather(t *testing.T) []*dto.MetricFamily {
 	c.ObserveBoardActivation(RoleHost, "success", 5*time.Millisecond)
 	c.RecordProductEventWritten("recorded")
 	c.RecordProductEventDropped(RejectionUnknownEvent)
+	c.ObserveDeckSuggestion("success", 10*time.Millisecond)
+	c.IncDeckSuggestionTruncated()
 
 	families, err := reg.Gather()
 	if err != nil {

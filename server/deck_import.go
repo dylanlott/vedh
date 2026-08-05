@@ -31,6 +31,146 @@ func isLowConfidence(score float64) bool {
 	return score < lowConfidenceCutoff
 }
 
+// maxSuggestionNeedles is Pattern 3 bound #3: beyond this many distinct
+// unresolved needles in one preview, only the first maxSuggestionNeedles
+// (in input order) receive suggestions, and one warning names both the
+// shown count and the total. This is what turns a garbage paste or a
+// failed-to-load snapshot into a constant-cost pathological case instead
+// of a lookup per unresolved row.
+const maxSuggestionNeedles = 25
+
+// suggestionBudget is Pattern 3 bound #4: the batched suggestion query
+// runs under a sub-context derived from the request context with this
+// timeout. On expiry the preview degrades to zero suggestions plus one
+// warning — D-01's "never block the player" applied to the suggestion
+// path itself — rather than making previewDeck wait on a slow index scan.
+const suggestionBudget = 750 * time.Millisecond
+
+// suggestionsPerEntry is D-02's cap: at most this many ranked candidates
+// per unresolved entry.
+const suggestionsPerEntry = 3
+
+// suggestionQuery is D-02/D-03/D-04's bounded eager suggestion lookup: one
+// batched query over every deduplicated unresolved needle, using
+// unnest(...) WITH ORDINALITY so the caller can map each result row back
+// to its needle without a second query. Each needle is laterally joined
+// against card_names ordered by the pg_trgm GiST distance operator alone
+// (Pattern 2) — measured directly against the real ~35,831-row card_names
+// table while writing this query: adding a second ORDER BY key inside the
+// LATERAL (even just as a tiebreak) defeats the planner's ability to use
+// card_names_trgm_gist for KNN ordering and forces a sequential scan plus
+// a top-N sort per needle instead, which alone turned the 25-needle
+// worst case from ~190ms into ~1.2s and blew the sub-budget below. The
+// tiebreak that makes two equal-scoring candidates deterministic instead
+// belongs only in the cheap outer sort, over the already-limited ≤75-row
+// result set, where it costs nothing: q.ord first (map results back to
+// their needle), then score descending, then the displayed name
+// ascending. The distance operator returns the nearest candidates
+// unconditionally, so D-03's "show the nearest matches even below the
+// cutoff" is structurally guaranteed; isLowConfidence applies the cutoff
+// in Go, never here. Both the needle array and the per-needle candidate
+// limit are bound as parameters — no part of this string is composed
+// with string formatting.
+const suggestionQuery = `
+	SELECT q.ord, q.needle, c.display, 1 - (c.name_lower <-> q.needle) AS score
+	FROM unnest($1::text[]) WITH ORDINALITY AS q(needle, ord)
+	CROSS JOIN LATERAL (
+		SELECT cn.display, cn.name_lower
+		FROM card_names cn
+		ORDER BY cn.name_lower <-> q.needle
+		LIMIT $2
+	) c
+	ORDER BY q.ord, score DESC, c.display ASC;`
+
+// dedupeNeedles returns names deduplicated by their lower-cased, trimmed
+// form, keeping only the first occurrence of each and preserving input
+// order — Pattern 3 bound #2, the same shape server/cards.go's Cards()
+// batch lookup already uses for its own needle de-duplication (lines
+// 141-153), applied here to the suggestion path. A repeated misspelling
+// becomes exactly one needle no matter how many entries name it.
+func dedupeNeedles(names []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		key := strings.ToLower(strings.TrimSpace(n))
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, key)
+	}
+	return out
+}
+
+// suggestFor implements D-02/D-03/D-04's bounded eager suggestion lookup
+// over an already-deduplicated needle set (Pattern 3 bounds #1 and #2 are
+// the caller's responsibility — this function applies bounds #3 and #4).
+// It never returns an error: a query failure or an expired sub-budget
+// degrades to zero suggestions plus one player-facing warning, and the
+// caller's preview still succeeds — D-01's rule applied to the suggestion
+// path itself. budget is a parameter (rather than the suggestionBudget
+// constant read directly) purely so a test can force bound #4 to fire
+// without waiting out a real 750ms query; production always calls this
+// through buildDeckPreview, which passes the real constant.
+func (s *graphQLServer) suggestFor(ctx context.Context, needles []string, budget time.Duration) (map[string][]*DeckSuggestion, []string) {
+	start := time.Now()
+	if len(needles) == 0 {
+		return nil, nil
+	}
+
+	var warnings []string
+	total := len(needles)
+	if total > maxSuggestionNeedles {
+		warnings = append(warnings, fmt.Sprintf(
+			"Showing suggestions for the first %d of %d unresolved cards.",
+			maxSuggestionNeedles, total))
+		needles = needles[:maxSuggestionNeedles]
+		collectors.IncDeckSuggestionTruncated()
+	}
+
+	qctx, cancel := context.WithTimeout(ctx, budget)
+	defer cancel()
+
+	rows, err := s.db.QueryContext(qctx, suggestionQuery, pq.Array(needles), suggestionsPerEntry)
+	if err != nil {
+		s.loggerFor(ctx).Warn("deck import suggestion lookup failed", "err", err, "needle_count", len(needles))
+		outcome := "error"
+		if qctx.Err() != nil {
+			outcome = "timeout"
+		}
+		collectors.ObserveDeckSuggestion(outcome, time.Since(start))
+		return nil, append(warnings, "Suggestions are temporarily unavailable.")
+	}
+	defer rows.Close()
+
+	out := map[string][]*DeckSuggestion{}
+	for rows.Next() {
+		var ord int64
+		var needle, display string
+		var score float64
+		if scanErr := rows.Scan(&ord, &needle, &display, &score); scanErr != nil {
+			s.loggerFor(ctx).Warn("deck import suggestion row scan failed", "err", scanErr)
+			continue
+		}
+		out[needle] = append(out[needle], &DeckSuggestion{
+			Name:          display,
+			Score:         score,
+			LowConfidence: isLowConfidence(score),
+		})
+	}
+	if rowsErr := rows.Err(); rowsErr != nil {
+		s.loggerFor(ctx).Warn("deck import suggestion rows iteration failed", "err", rowsErr)
+		collectors.ObserveDeckSuggestion("error", time.Since(start))
+		return nil, append(warnings, "Suggestions are temporarily unavailable.")
+	}
+
+	collectors.ObserveDeckSuggestion("success", time.Since(start))
+	return out, warnings
+}
+
 // PreviewDeck is the resolver for the previewDeck field. previewDeck is a
 // Mutation field per the locked api-contract, so make generate binds it on
 // the mutation resolver interface; this method still lives on
@@ -85,10 +225,20 @@ func blockedPreview(source deckimport.SourceType, message string) *DeckPreview {
 }
 
 // buildDeckPreview resolves a ParsedDeck's entries against the cards table
-// and assembles the DeckPreview the resolver returns. It never fails: a
-// lookup error is logged and treated as "nothing resolved" rather than
-// returned to the caller, matching D-01's "never block the player."
+// and assembles the DeckPreview the resolver returns, using the real
+// suggestionBudget. It is a thin wrapper over
+// buildDeckPreviewWithSuggestionBudget so a test can force the suggestion
+// sub-budget to expire without changing this method's own behavior.
 func (s *graphQLServer) buildDeckPreview(ctx context.Context, parsed deckimport.ParsedDeck) (*DeckPreview, int) {
+	return s.buildDeckPreviewWithSuggestionBudget(ctx, parsed, suggestionBudget)
+}
+
+// buildDeckPreviewWithSuggestionBudget resolves a ParsedDeck's entries
+// against the cards table and assembles the DeckPreview the resolver
+// returns. It never fails: a lookup error is logged and treated as
+// "nothing resolved" rather than returned to the caller, matching D-01's
+// "never block the player."
+func (s *graphQLServer) buildDeckPreviewWithSuggestionBudget(ctx context.Context, parsed deckimport.ParsedDeck, budget time.Duration) (*DeckPreview, int) {
 	if len(parsed.BlockingErrors) > 0 {
 		blocking := make([]string, 0, len(parsed.BlockingErrors))
 		for _, be := range parsed.BlockingErrors {
@@ -116,6 +266,7 @@ func (s *graphQLServer) buildDeckPreview(ctx context.Context, parsed deckimport.
 	warnings := make([]string, 0, len(parsed.Warnings)+len(printingWarnings))
 	cardCount := 0
 	anyResolved := false
+	var unresolvedNames []string
 
 	for i, pe := range parsed.Entries {
 		card := resolvedCards[i]
@@ -124,8 +275,10 @@ func (s *graphQLServer) buildDeckPreview(ctx context.Context, parsed deckimport.
 			cardCount += pe.Quantity
 			anyResolved = true
 		} else {
-			// D-04's eager suggestion shape: Candidates is populated in
-			// plan 01-04 and empty here.
+			// D-02/D-04: Candidates is filled in below, once, from one
+			// batched lookup over every unresolved entry's (deduplicated)
+			// name — never per entry here.
+			unresolvedNames = append(unresolvedNames, pe.Name)
 			unresolved = append(unresolved, &DeckImportIssue{
 				SourceLine: pe.SourceLine,
 				RawLine:    pe.RawLine,
@@ -150,6 +303,20 @@ func (s *graphQLServer) buildDeckPreview(ctx context.Context, parsed deckimport.
 			Card:            card,
 		})
 	}
+
+	// D-02/D-03/D-04, Pattern 3: suggestions are computed eagerly, over the
+	// failure set only (bound #1), deduplicated by lower-cased name
+	// (bound #2), and returned inside this same response. suggestFor owns
+	// bounds #3 (the 25-needle cap) and #4 (the sub-budget); it never
+	// fails the preview.
+	suggestions, suggestionWarnings := s.suggestFor(ctx, dedupeNeedles(unresolvedNames), budget)
+	for _, issue := range unresolved {
+		key := strings.ToLower(strings.TrimSpace(issue.Name))
+		if cands, ok := suggestions[key]; ok {
+			issue.Candidates = cands
+		}
+	}
+	warnings = append(warnings, suggestionWarnings...)
 
 	for _, w := range parsed.Warnings {
 		warnings = append(warnings, w.Message)
@@ -493,4 +660,35 @@ func stringPtrOrNil(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// applyPrintingMetadata returns a shallow copy of card with SetCode,
+// CollectorNumber, and Category overwritten from entry's D-07 fields
+// (what the player actually typed or pasted, not necessarily the printing
+// resolveDeckEntries actually found — D-10 lets those two differ) whenever
+// entry names one, and SourceFormat always set from source. This is the
+// same "carry the parsed value through regardless of resolution outcome"
+// choice buildDeckPreview already makes for DeckPreviewEntry, applied here
+// to the *Card values that end up persisted in a game's payload — D-07's
+// "the normalized entry and the stored Card carry setCode, collectorNumber,
+// category, and sourceFormat," and D-08's point that upsertGame's JSONB
+// payload makes this free: no migration, no schema change. Returns nil
+// unchanged if card is nil, so a caller never needs a separate nil check.
+func applyPrintingMetadata(card *Card, entry deckimport.ParsedEntry, source deckimport.SourceType) *Card {
+	if card == nil {
+		return nil
+	}
+	c := *card
+	if entry.SetCode != "" {
+		c.SetCode = stringPtrOrNil(entry.SetCode)
+	}
+	if entry.CollectorNumber != "" {
+		c.CollectorNumber = stringPtrOrNil(entry.CollectorNumber)
+	}
+	if entry.Category != "" {
+		c.Category = stringPtrOrNil(entry.Category)
+	}
+	sourceStr := string(source)
+	c.SourceFormat = &sourceStr
+	return &c
 }

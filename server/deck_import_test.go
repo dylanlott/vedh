@@ -3,9 +3,11 @@ package server
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
@@ -390,5 +392,200 @@ func TestDeckImport_LowConfidenceCutoffBoundary(t *testing.T) {
 	belowCutoff := math.Nextafter(lowConfidenceCutoff, 0)
 	if !isLowConfidence(belowCutoff) {
 		t.Fatalf("isLowConfidence(one step below cutoff) = false, want true")
+	}
+}
+
+// seedCardNamesRow inserts one row directly into card_names — the
+// projection table suggestFor's query reads from, not the cards table —
+// and removes it in t.Cleanup. display's exact case is stored; its
+// lower-cased form is the primary key the query joins on.
+func seedCardNamesRow(t *testing.T, s *graphQLServer, display string) {
+	t.Helper()
+
+	if _, err := s.db.Exec(
+		`INSERT INTO card_names (name_lower, display) VALUES (lower($1), $1)
+		ON CONFLICT (name_lower) DO UPDATE SET display = EXCLUDED.display`,
+		display,
+	); err != nil {
+		t.Fatalf("seed card_names row %q: %v", display, err)
+	}
+	t.Cleanup(func() {
+		if _, err := s.db.Exec(`DELETE FROM card_names WHERE name_lower = lower($1)`, display); err != nil {
+			t.Logf("cleanup: delete card_names row %q: %v", display, err)
+		}
+	})
+}
+
+// TestDeckImport_Suggestions proves D-02/D-03's bounded eager suggestion
+// shape directly against suggestFor: at most three candidates per needle,
+// the below-cutoff case still returns the nearest matches (marked
+// low-confidence) rather than nothing, an equal-score tie between two
+// candidates breaks on the displayed name ascending, and a repeated
+// misspelling collapses to exactly one needle before any query runs.
+func TestDeckImport_Suggestions(t *testing.T) {
+	s := testAPI(t)
+
+	t.Run("at most three candidates per unresolved entry", func(t *testing.T) {
+		// All four score identically against "zzqcandidatetest" (each
+		// differs from the shared base by one distinct trailing letter,
+		// which pg_trgm's trigram distance treats symmetrically) --
+		// verified empirically before writing this test -- so the cap is
+		// exercised regardless of any tiebreak among them.
+		for _, suffix := range []string{"A", "B", "C", "D"} {
+			seedCardNamesRow(t, s, "Zzqcandidatetest"+suffix)
+		}
+		needle := "zzqcandidatetest"
+		suggestions, warnings := s.suggestFor(context.Background(), []string{needle}, suggestionBudget)
+		if len(warnings) != 0 {
+			t.Fatalf("warnings = %v, want none", warnings)
+		}
+		cands := suggestions[needle]
+		if len(cands) != suggestionsPerEntry {
+			t.Fatalf("len(candidates) = %d, want exactly %d (the D-02 cap, with 4 equally-close candidates seeded)", len(cands), suggestionsPerEntry)
+		}
+	})
+
+	t.Run("below-cutoff needle still returns the nearest candidates, marked low-confidence", func(t *testing.T) {
+		// Verified empirically: the nearest real card_names entries to
+		// this deliberately-gibberish needle score well under
+		// lowConfidenceCutoff (0.3) -- around 0.02-0.04.
+		needle := "zzqxjklqwzyviiiuuuoooeeeaaa123456789"
+		suggestions, warnings := s.suggestFor(context.Background(), []string{needle}, suggestionBudget)
+		if len(warnings) != 0 {
+			t.Fatalf("warnings = %v, want none", warnings)
+		}
+		cands := suggestions[needle]
+		if len(cands) == 0 {
+			t.Fatal("candidates = empty, want the nearest matches returned anyway (D-03), not an empty list")
+		}
+		for _, c := range cands {
+			if c.Score >= lowConfidenceCutoff {
+				t.Errorf("candidate %+v Score = %v, want < cutoff %v for this gibberish needle", c, c.Score, lowConfidenceCutoff)
+			}
+			if !c.LowConfidence {
+				t.Errorf("candidate %+v LowConfidence = false, want true", c)
+			}
+		}
+	})
+
+	t.Run("equal-score tie breaks on displayed name ascending", func(t *testing.T) {
+		// Verified empirically: both score exactly 0.75 against
+		// "zzqneedle".
+		seedCardNamesRow(t, s, "ZZQNEEDLEA")
+		seedCardNamesRow(t, s, "ZZQNEEDLEB")
+		needle := "zzqneedle"
+		suggestions, warnings := s.suggestFor(context.Background(), []string{needle}, suggestionBudget)
+		if len(warnings) != 0 {
+			t.Fatalf("warnings = %v, want none", warnings)
+		}
+		cands := suggestions[needle]
+		if len(cands) < 2 {
+			t.Fatalf("candidates = %+v, want at least 2", cands)
+		}
+		if cands[0].Score != cands[1].Score {
+			t.Fatalf("scores = %v, %v, want an exact tie (this pair was chosen to produce one)", cands[0].Score, cands[1].Score)
+		}
+		if cands[0].Name != "ZZQNEEDLEA" || cands[1].Name != "ZZQNEEDLEB" {
+			t.Fatalf("candidate order = [%q, %q], want [%q, %q] (equal score, tiebreak by displayed name ascending)",
+				cands[0].Name, cands[1].Name, "ZZQNEEDLEA", "ZZQNEEDLEB")
+		}
+	})
+
+	t.Run("a four-times-repeated misspelling becomes one needle", func(t *testing.T) {
+		names := []string{"Sol Rng", "sol rng", " Sol Rng ", "SOL RNG"}
+		needles := dedupeNeedles(names)
+		if len(needles) != 1 {
+			t.Fatalf("dedupeNeedles(%v) = %v, want exactly one needle for four spellings of the same lower-cased name", names, needles)
+		}
+		if needles[0] != "sol rng" {
+			t.Fatalf("needles[0] = %q, want %q", needles[0], "sol rng")
+		}
+	})
+}
+
+// suggestionTruncationNeedles returns n distinct synthetic needles that
+// will never collide with a real card name, for exercising Pattern 3
+// bound #3 without depending on how many unresolved names a real deck
+// would produce.
+func suggestionTruncationNeedles(n int) []string {
+	names := make([]string, n)
+	for i := 0; i < n; i++ {
+		names[i] = fmt.Sprintf("zzqtruncneedle%03d", i)
+	}
+	return names
+}
+
+// TestDeckImport_SuggestionTruncation proves Pattern 3 bound #3: exactly
+// maxSuggestionNeedles distinct needles produces no warning and no
+// counter movement, and one more produces exactly one warning naming both
+// counts plus exactly one increment of vedh_deck_suggestion_truncated_total.
+func TestDeckImport_SuggestionTruncation(t *testing.T) {
+	s := testAPI(t)
+
+	t.Run("exactly the cap: no warning, no counter movement", func(t *testing.T) {
+		before := testutil.ToFloat64(collectors.DeckSuggestionTruncatedCounter())
+		_, warnings := s.suggestFor(context.Background(), suggestionTruncationNeedles(maxSuggestionNeedles), suggestionBudget)
+		if len(warnings) != 0 {
+			t.Fatalf("warnings = %v, want none at exactly the cap", warnings)
+		}
+		after := testutil.ToFloat64(collectors.DeckSuggestionTruncatedCounter())
+		if after != before {
+			t.Fatalf("vedh_deck_suggestion_truncated_total delta = %v, want 0", after-before)
+		}
+	})
+
+	t.Run("one more than the cap: one warning naming both counts, one counter increment", func(t *testing.T) {
+		before := testutil.ToFloat64(collectors.DeckSuggestionTruncatedCounter())
+		_, warnings := s.suggestFor(context.Background(), suggestionTruncationNeedles(maxSuggestionNeedles+1), suggestionBudget)
+		if len(warnings) != 1 {
+			t.Fatalf("warnings = %v, want exactly 1", warnings)
+		}
+		if !strings.Contains(warnings[0], "25") || !strings.Contains(warnings[0], "26") {
+			t.Fatalf("warning = %q, want it to name both the shown count (25) and the total (26)", warnings[0])
+		}
+		after := testutil.ToFloat64(collectors.DeckSuggestionTruncatedCounter())
+		if after != before+1 {
+			t.Fatalf("vedh_deck_suggestion_truncated_total delta = %v, want exactly 1", after-before)
+		}
+	})
+}
+
+// TestDeckImport_SuggestionTimeoutDegrades proves Pattern 3 bound #4: a
+// suggestion query whose sub-budget has already expired returns zero
+// suggestions plus one warning, and the surrounding preview succeeds with
+// the same CardCount and CanContinue value as the same parsed input run
+// with the real budget. budget is threaded as a parameter (see
+// buildDeckPreviewWithSuggestionBudget's doc comment) specifically so this
+// test can force expiry deterministically instead of racing a real
+// 750ms query.
+func TestDeckImport_SuggestionTimeoutDegrades(t *testing.T) {
+	s := testAPI(t)
+
+	text := "1 Sol Ring\n1 Zzqdefinitelynotarealcardxyz"
+	parsed := deckimport.Parse(text)
+
+	normal, normalCount := s.buildDeckPreviewWithSuggestionBudget(context.Background(), parsed, suggestionBudget)
+	degraded, degradedCount := s.buildDeckPreviewWithSuggestionBudget(context.Background(), parsed, 1*time.Nanosecond)
+
+	if degradedCount != normalCount {
+		t.Fatalf("CardCount degraded = %d, normal = %d, want identical", degradedCount, normalCount)
+	}
+	if degraded.CanContinue != normal.CanContinue {
+		t.Fatalf("CanContinue degraded = %v, normal = %v, want identical", degraded.CanContinue, normal.CanContinue)
+	}
+	if len(degraded.Unresolved) != 1 {
+		t.Fatalf("Unresolved = %+v, want exactly one issue", degraded.Unresolved)
+	}
+	if len(degraded.Unresolved[0].Candidates) != 0 {
+		t.Fatalf("Unresolved[0].Candidates = %+v, want zero candidates when the sub-budget has already expired", degraded.Unresolved[0].Candidates)
+	}
+	found := false
+	for _, w := range degraded.Warnings {
+		if strings.Contains(w, "temporarily unavailable") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("Warnings = %v, want one stating suggestions are temporarily unavailable", degraded.Warnings)
 	}
 }
