@@ -66,7 +66,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Ticket waves**: ACT-001 → ACT-002 → ACT-003 (strictly sequential; each depends on the prior)
 **Open decisions to resolve here**: **OPEN-1 — which public deck provider becomes the first supported URL source.** Status: open. Owned by ACT-003's one-day time-boxed feasibility comparison of public Archidekt and Moxfield access. Do not pre-answer; `/gsd-discuss-phase 1` should pick this up.
 **Branch note (INFO-1)**: a provider adapter is **not** a fixed MVP commitment. If neither candidate clears the feasibility gate, ACT-003 terminates at a documented no-go and paste-only activation ships. SSRF and reliability controls may not be weakened to force a provider through. Phase 5's release gate depends on ACT-003 either way, so a no-go must not block it — it changes what "provider fallback" means in the gate, not whether the gate can close.
-**Plans**: 5/7 plans executed
+**Plans**: 6/7 plans executed
 **Contract note**: Phase 1 adds one additive field to the locked `DeckPreview` type —
 `BlockingErrors: [String!]!` — because the locked api-contract's prose requires blocking errors to
 be returned while its GraphQL block declares no field for them. Recorded as a dated addendum in
@@ -100,7 +100,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 01-06-PLAN.md — Public-surface hardening: per-surface rate limits (`pkg/ratelimit` + instrumented wrapper), two-layer SSRF-safe fetch client, provider kill switch defaulting off
+- [x] 01-06-PLAN.md — Public-surface hardening: per-surface rate limits (`pkg/ratelimit` + instrumented wrapper), two-layer SSRF-safe fetch client, provider kill switch defaulting off
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
@@ -190,7 +190,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Measured Deck Import Foundation | 5/7 | In Progress|  |
+| 1. Measured Deck Import Foundation | 6/7 | In Progress|  |
 | 2. Guest Host Activation | 0/TBD | Not started | - |
 | 3. Invite, Join, and Board Readiness | 0/TBD | Not started | - |
 | 4. Post-Value Acquisition and Funnel Readout | 0/TBD | Not started | - |

@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: measured-deck-import-foundation
 status: executing
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-08-05T05:48:13.329Z"
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-08-05T06:45:34.388Z"
 last_activity: 2026-08-04
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 01 (measured-deck-import-foundation) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-08-04 — Phase 01 execution started
 
-Progress: [███████░░░] 71%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [███████░░░] 71%
 | Phase 01 P03 | 8min | 2 tasks | 3 files |
 | Phase 01 P04 | 31min | 2 tasks | 9 files |
 | Phase 01 P05 | 55min | 2 tasks | 8 files |
+| Phase 01 P06 | 2h | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,9 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase ?]: 01-05: The suggestion query's per-needle LATERAL orders by the GiST distance operator alone; a display-name tiebreak added inside it defeated the index and blew the 750ms sub-budget (measured: 190ms to 1.2s for 25 needles). The tiebreak lives only in the cheap outer sort.
 - [Phase ?]: 01-05: applyPrintingMetadata overwrites a persisted library Card's SetCode/CollectorNumber/Category with what the player typed, extending D-10's reconciliation intent from the preview to the created library.
 - [Phase ?]: 01-05 assigned fix: ensureFormatRules's per-load Turn.Phase re-normalization and per-player Life-zero re-defaulting were real regressions from b1ac894 (they ran on every existing-game load, not only at creation) -- removed; CreateGame's defaultLifeForAll heuristic (default life only when nobody in the call specified a nonzero life) replaces the per-player check since InputBoardState.Life is a required non-pointer Int with no wire-level 'unset' signal.
+- [Phase ?]: 01-06: golang.org/x/time pinned to v0.14.0 (not the research-cited v0.15.0) to avoid an unrelated go.mod/toolchain bump against the pinned go1.24.2 and the +heroku goVersion go1.24 directive
+- [Phase ?]: 01-06: previewDeck (SurfaceDeckImport) and trackProductEvent (SurfaceProductEvent) share one pkg/ratelimit.Registry built from a single Conf-derived budget (DECK_IMPORT_RATE_PER_MINUTE/BURST), since only one budget pair is specified anywhere in this phase's intel
+- [Phase ?]: 01-06: DECK_PROVIDER_ENABLED defaults false and providerEnabled() also requires a non-empty DECK_PROVIDER_ALLOWED_HOSTS even when the flag is set; disabled/half-configured traffic never calls the fetch seam at all (proven via a spy)
 
 ### Pending Todos
 
@@ -112,6 +116,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-05T05:48:13.323Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-08-05T06:45:34.382Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None

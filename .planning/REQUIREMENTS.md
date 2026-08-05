@@ -68,7 +68,7 @@ deck-to-board activation; P1 improves post-value acquisition and operating confi
 
 ### Foundation
 
-- [ ] **REQ-ACT-001**: Product event and activation metric foundation — `product_events` table (prod + test migrations), `trackProductEvent` with strict server-side event and field allowlists, server-authoritative `game_created` / `player_joined` / `guest_session_created` / `deck_import_succeeded` / `deck_import_failed` / `account_claimed`, low-cardinality Prometheus counters and latency histograms, frontend event service with a persisted random session ID, documented event vocabulary and example funnel query.
+- [x] **REQ-ACT-001**: Product event and activation metric foundation — `product_events` table (prod + test migrations), `trackProductEvent` with strict server-side event and field allowlists, server-authoritative `game_created` / `player_joined` / `guest_session_created` / `deck_import_succeeded` / `deck_import_failed` / `account_claimed`, low-cardinality Prometheus counters and latency histograms, frontend event service with a persisted random session ID, documented event vocabulary and example funnel query.
   `P0 · M · depends_on: none · order 1`
 
 - [x] **REQ-ACT-002**: Canonical deck parser and preview API — extract parsing out of `createLibraryFromDecklist` in `server/games.go` into a deck-import service; support quantity/name, `1x`, spaced CSV, quoted CSV, headers, blank lines, sideboard/maybeboard; preserve comma-containing names; return normalized entries, commander candidates, unresolved entries, warnings, blocking errors, `CanContinue`; add `previewDeck` and `DeckPreview`; feed the same normalized result into create/join; preserve card lookup, commander removal, and deck-size rules.
@@ -193,7 +193,7 @@ v1** (see INFO-2 and the milestone scope decision); only the items below remain 
 
 | Requirement | Priority | Size | Phase | Status |
 |-------------|----------|------|-------|--------|
-| REQ-ACT-001 | P0 | M | Phase 1 | Pending |
+| REQ-ACT-001 | P0 | M | Phase 1 | Complete |
 | REQ-ACT-002 | P0 | L | Phase 1 | Complete |
 | REQ-ACT-003 | P0 | M | Phase 1 | Pending |
 | REQ-ACT-004 | P0 | L | Phase 2 | Pending |
