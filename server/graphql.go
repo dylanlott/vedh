@@ -52,6 +52,13 @@ type Conf struct {
 	// variable here — see pkg/ratelimit's idleWindow constant.
 	DeckImportRatePerMinute int `envconfig:"DECK_IMPORT_RATE_PER_MINUTE" default:"30"`
 	DeckImportRateBurst     int `envconfig:"DECK_IMPORT_RATE_BURST" default:"10"`
+
+	// DeckProviderAllowedHosts is the comma-separated exact-match host
+	// allowlist server/deck_providers.go's redirect hook (and, once plan
+	// 01-07 wires an adapter, the initial fetch) consult. Defaults to
+	// empty, which is the correct default: with nothing allowlisted,
+	// nothing is fetchable.
+	DeckProviderAllowedHosts string `envconfig:"DECK_PROVIDER_ALLOWED_HOSTS" default:""`
 }
 
 // var userCtxKey = &contextKey{"user"}
@@ -86,6 +93,12 @@ type graphQLServer struct {
 	// allows every request, so tests that do not care about rate
 	// limiting are unaffected.
 	limiter *ratelimit.Registry
+
+	// deckProviderAllowedHosts holds the parsed, lower-cased exact-match
+	// host allowlist for the outbound deck-provider fetch client
+	// (server/deck_providers.go), mirroring allowedOrigins' shape for the
+	// CORS origin allowlist above.
+	deckProviderAllowedHosts map[string]struct{}
 }
 
 // NewGraphQLServer creates a new server to attach the database, game engine,
@@ -99,15 +112,31 @@ func NewGraphQLServer(
 		logger = slog.Default()
 	}
 	return &graphQLServer{
-		mutex:          sync.RWMutex{},
-		logger:         logger,
-		cfg:            cfg,
-		db:             db,
-		games:          map[string]*FullGame{},
-		boards:         map[string]*FullBoardstate{},
-		allowedOrigins: parseAllowedOrigins(cfg.AllowedOrigins),
-		limiter:        ratelimit.NewRegistry(cfg.DeckImportRatePerMinute, cfg.DeckImportRateBurst),
+		mutex:                    sync.RWMutex{},
+		logger:                   logger,
+		cfg:                      cfg,
+		db:                       db,
+		games:                    map[string]*FullGame{},
+		boards:                   map[string]*FullBoardstate{},
+		allowedOrigins:           parseAllowedOrigins(cfg.AllowedOrigins),
+		limiter:                  ratelimit.NewRegistry(cfg.DeckImportRatePerMinute, cfg.DeckImportRateBurst),
+		deckProviderAllowedHosts: parseAllowedHosts(cfg.DeckProviderAllowedHosts),
 	}, nil
+}
+
+// parseAllowedHosts parses a comma-separated host list into a lower-cased
+// set, mirroring parseAllowedOrigins' shape immediately below for the CORS
+// origin allowlist. An empty or all-blank input yields an empty set.
+func parseAllowedHosts(raw string) map[string]struct{} {
+	allowed := make(map[string]struct{})
+	for _, part := range strings.Split(raw, ",") {
+		host := strings.ToLower(strings.TrimSpace(part))
+		if host == "" {
+			continue
+		}
+		allowed[host] = struct{}{}
+	}
+	return allowed
 }
 
 func parseAllowedOrigins(raw string) map[string]struct{} {
