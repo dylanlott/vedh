@@ -9,11 +9,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
-// TestAllowRequest_CountsBothOutcomes proves the wrapper's counting
+// TestRateLimit_AllowRequestCountsBothOutcomes proves the wrapper's counting
 // behavior directly, with no database: vedh_rate_limit_total increments by
 // exactly one per allowRequest call, on both the allowed and the limited
 // path, with the outcome label distinguishing them.
-func TestAllowRequest_CountsBothOutcomes(t *testing.T) {
+func TestRateLimit_AllowRequestCountsBothOutcomes(t *testing.T) {
 	s := &graphQLServer{limiter: ratelimit.NewRegistry(60, 1)}
 	ctx := context.Background()
 
@@ -38,11 +38,11 @@ func TestAllowRequest_CountsBothOutcomes(t *testing.T) {
 	}
 }
 
-// TestAllowRequest_NilLimiterAllowsEverything proves a graphQLServer built
+// TestRateLimit_NilLimiterAllowsEverything proves a graphQLServer built
 // as a bare struct literal (no limiter constructed) never rate limits: this
 // is what keeps every other test in this package, none of which cares
 // about rate limiting, unaffected by this plan.
-func TestAllowRequest_NilLimiterAllowsEverything(t *testing.T) {
+func TestRateLimit_NilLimiterAllowsEverything(t *testing.T) {
 	s := &graphQLServer{}
 	ctx := context.Background()
 
@@ -53,14 +53,14 @@ func TestAllowRequest_NilLimiterAllowsEverything(t *testing.T) {
 	}
 }
 
-// TestPreviewDeck_RateLimited_NamesNoLimitValue proves that a limited
+// TestRateLimit_PreviewDeckNamesNoLimitValue proves that a limited
 // previewDeck call returns a product-language blocking error naming no
 // limit value, window, or remaining count, and CanContinue false. It
 // exhausts the registry's single-token burst directly (bypassing
 // PreviewDeck) so PreviewDeck's own call is the one that observes the
 // limit and never reaches s.db, which is nil here -- this test needs no
 // database precisely because it never reaches one.
-func TestPreviewDeck_RateLimited_NamesNoLimitValue(t *testing.T) {
+func TestRateLimit_PreviewDeckNamesNoLimitValue(t *testing.T) {
 	s := &graphQLServer{limiter: ratelimit.NewRegistry(60, 1)}
 	text := "1 Sol Ring"
 	input := InputDeckImport{Text: &text, SessionID: "rate-limit-test-session"}
@@ -89,9 +89,9 @@ func TestPreviewDeck_RateLimited_NamesNoLimitValue(t *testing.T) {
 	}
 }
 
-// TestTrackProductEvent_RateLimited_StillReturnsTrue proves a limited
+// TestRateLimit_TrackProductEventStillReturnsTrue proves a limited
 // trackProductEvent call still returns true with no error, per D-19/D-22.
-func TestTrackProductEvent_RateLimited_StillReturnsTrue(t *testing.T) {
+func TestRateLimit_TrackProductEventStillReturnsTrue(t *testing.T) {
 	s := &graphQLServer{limiter: ratelimit.NewRegistry(60, 1)}
 	input := InputProductEvent{Name: "quick_start_viewed", SessionID: "rate-limit-test-session"}
 
@@ -109,13 +109,13 @@ func TestTrackProductEvent_RateLimited_StillReturnsTrue(t *testing.T) {
 	}
 }
 
-// TestClientKeyFor_PrefersSessionOverAddress proves the derivation order:
+// TestRateLimit_ClientKeyForPrefersSessionOverAddress proves the derivation order:
 // a non-empty session ID always wins over the remote address, and an
 // absent session ID with no remote address in context falls back to a
 // fixed "unknown" key rather than an empty string (which would collapse
 // every unidentified caller onto the same key as a caller who explicitly
 // supplied an empty one).
-func TestClientKeyFor_PrefersSessionOverAddress(t *testing.T) {
+func TestRateLimit_ClientKeyForPrefersSessionOverAddress(t *testing.T) {
 	ctxWithAddr := context.WithValue(context.Background(), remoteAddrContextKey{}, "203.0.113.5")
 
 	if got := clientKeyFor(ctxWithAddr, "session-123"); got != "session:session-123" {
