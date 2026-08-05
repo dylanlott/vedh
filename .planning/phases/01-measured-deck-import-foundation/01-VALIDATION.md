@@ -87,18 +87,18 @@ cross-reference. `01-01-PLAN.md` task 2 carries the same note where the test is 
 | 01-05-T1 | 01-05 | 4 | REQ-ACT-002 | — | D-02/D-03 ≤3 ranked candidates, nearest returned below cutoff | integration **DB** | `go test ./server -run TestDeckImport_Suggestions` | ❌ W0 | ⬜ pending |
 | 01-05-T2 | 01-05 | 4 | REQ-ACT-002 | — | D-05/D-06 unresolved excluded from count and library; `100 - commanders` preserved | integration **DB** | `go test ./server -run TestDeckImport_UnresolvedAccounting` | ❌ W0 | ⬜ pending |
 | 01-05-T2 | 01-05 | 4 | REQ-ACT-002 | — | Preview and create/join consume one `ParsedDeck` | integration **DB** | `go test ./server -run TestDeckImport_SingleParse` | ❌ W0 | ⬜ pending |
-| 01-01-T1 | 01-01 | 1 | REQ-ACT-001, REQ-ACT-002 | — | Tracer: pasted card ⇒ preview + one event row + counter increment | integration **DB** | `go test ./server -run TestTracer_PreviewDeckEmitsMeasuredEvent` | ❌ W0 | ⬜ pending |
-| 01-01-T1 | 01-01 | 1 | REQ-ACT-001 | — | D-17 write failure does not fail the caller | integration **DB** | `go test ./server -run TestProductEvents_WriteFailureIsNonFatal` | ❌ W0 | ⬜ pending |
-| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-01 | Unknown names/keys/oversized/client-authoritative/blank-session dropped: no row, counter +1 exactly, no neighbouring reason moved | integration **DB** | `go test ./server -run TestProductEvents_Allowlist` | ❌ W0 | ⬜ pending |
-| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-04 | Duplicate **deduplicated-set** events (the four in the index predicate) collapse to one row incl. both-NULL keys; a **repeatable** control (`deck_import_succeeded`) persists twice; a client replay of a server-owned `game_created` leaves the server-side original as the single row | integration **DB** | `go test ./server -run TestProductEvents_AuthoritativeDedup` | ❌ W0 | ⬜ pending |
-| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-04 | Two concurrent in-flight inserts of one **deduplicated** event (`game_created`) resolve to one row | integration **DB** | `go test ./server -run TestProductEvents_ConcurrentInsert` | ❌ W0 | ⬜ pending |
-| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | — | Identical `occurred_at` orders by ascending id; funnel collapses to earliest per session | integration **DB** | `go test ./server -run TestProductEvents_OccurredAtTieOrdering` | ❌ W0 | ⬜ pending |
-| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | — | Migration up/down/up passes for prod **and** test schemas, in scratch databases | integration **DB** | `go test ./server -run TestMigrations_ProductEvents` | ❌ W0 | ⬜ pending |
-| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | T-01-01 | **No allowlisted key names a forbidden concept** (structural privacy proof) | unit (DB-free, CI) | `go test ./pkg/telemetry -run TestVocabulary_NoForbiddenKeys` | ❌ W0 | ⬜ pending |
-| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | — | D-20 vocabulary closed at 15; D-21 per-event keys; six server-owned events | unit (DB-free, CI) | `go test ./pkg/telemetry -run 'TestVocabulary_IsClosedAtFifteen|TestVocabulary_AuthoritativeSetMatchesSpec'` | ❌ W0 | ⬜ pending |
-| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | T-01-01 | Every rejection path returns its own bounded `Rejection` — byte equality, oversized value, client-authoritative, missing session | unit (DB-free, CI) | `go test ./pkg/telemetry -run TestValidateEvent_Rejections` | ❌ W0 | ⬜ pending |
-| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | T-01-02 | **No metric carries a high-cardinality label** (structural proof) | unit (DB-free, CI) | `go test ./pkg/telemetry -run TestMetrics_LabelAllowlist` | ❌ W0 | ⬜ pending |
-| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | T-01-02 | All four criterion-4 families exist with a counter and a histogram; every label value bounded | unit (DB-free, CI) | `go test ./pkg/telemetry -run 'TestMetrics_AllCriterionFourFamiliesExist|TestMetrics_SourceLabelValuesAreEnumMembers|TestMetrics_ReasonLabelValuesAreBounded'` | ❌ W0 | ⬜ pending |
+| 01-01-T1 | 01-01 | 1 | REQ-ACT-001, REQ-ACT-002 | — | Tracer: pasted card ⇒ preview + one event row + counter increment | integration **DB** | `go test ./server -run TestTracer_PreviewDeckEmitsMeasuredEvent` | ✅ | ✅ green |
+| 01-01-T1 | 01-01 | 1 | REQ-ACT-001 | — | D-17 write failure does not fail the caller | integration **DB** | `go test ./server -run TestProductEvents_WriteFailureIsNonFatal` | ✅ | ✅ green |
+| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-01 | Unknown names/keys/oversized/client-authoritative/blank-session dropped: no row, counter +1 exactly, no neighbouring reason moved | integration **DB** | `go test ./server -run TestProductEvents_Allowlist` | ✅ | ✅ green |
+| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-04 | Duplicate **deduplicated-set** events (the four in the index predicate) collapse to one row incl. both-NULL keys; a **repeatable** control (`deck_import_succeeded`) persists twice; a client replay of a server-owned `game_created` leaves the server-side original as the single row | integration **DB** | `go test ./server -run TestProductEvents_AuthoritativeDedup` | ✅ | ✅ green |
+| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | T-01-04 | Two concurrent in-flight inserts of one **deduplicated** event (`game_created`) resolve to one row | integration **DB** | `go test ./server -run TestProductEvents_ConcurrentInsert` | ✅ | ✅ green |
+| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | — | Identical `occurred_at` orders by ascending id; funnel collapses to earliest per session | integration **DB** | `go test ./server -run TestProductEvents_OccurredAtTieOrdering` | ✅ | ✅ green |
+| 01-01-T2 | 01-01 | 1 | REQ-ACT-001 | — | Migration up/down/up passes for prod **and** test schemas, in scratch databases | integration **DB** | `go test ./server -run TestMigrations_ProductEvents` | ✅ | ✅ green |
+| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | T-01-01 | **No allowlisted key names a forbidden concept** (structural privacy proof) | unit (DB-free, CI) | `go test ./pkg/telemetry -run TestVocabulary_NoForbiddenKeys` | ✅ | ✅ green |
+| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | — | D-20 vocabulary closed at 15; D-21 per-event keys; six server-owned events | unit (DB-free, CI) | `go test ./pkg/telemetry -run 'TestVocabulary_IsClosedAtFifteen|TestVocabulary_AuthoritativeSetMatchesSpec'` | ✅ | ✅ green |
+| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | T-01-01 | Every rejection path returns its own bounded `Rejection` — byte equality, oversized value, client-authoritative, missing session | unit (DB-free, CI) | `go test ./pkg/telemetry -run TestValidateEvent_Rejections` | ✅ | ✅ green |
+| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | T-01-02 | **No metric carries a high-cardinality label** (structural proof) | unit (DB-free, CI) | `go test ./pkg/telemetry -run TestMetrics_LabelAllowlist` | ✅ | ✅ green |
+| 01-01-T3 | 01-01 | 1 | REQ-ACT-001 | T-01-02 | All four criterion-4 families exist with a counter and a histogram; every label value bounded | unit (DB-free, CI) | `go test ./pkg/telemetry -run 'TestMetrics_AllCriterionFourFamiliesExist|TestMetrics_SourceLabelValuesAreEnumMembers|TestMetrics_ReasonLabelValuesAreBounded'` | ✅ | ✅ green |
 | 01-03-T1 | 01-03 | 2 | REQ-ACT-001 | — | D-18 session ID stable across reloads; attribution allowlisted | unit (vitest) | `cd app && npx vitest --run __tests__/productEvents.spec.ts` | ❌ W0 | ⬜ pending |
 | 01-06-T1 | 01-06 | 5 | REQ-ACT-001 | T-01-13, T-01-27 | Burst exhaustion, per-key and per-surface isolation, idle eviction, registry returns to zero entries | unit (DB-free, CI) | `go test ./pkg/ratelimit -race` | ❌ W0 | ⬜ pending |
 | 01-06-T1 | 01-06 | 5 | REQ-ACT-001 | T-01-13 | Both limiter outcomes counted exactly once; a limited preview names no limit value | integration **DB** | `go test ./server -run TestRateLimit` | ❌ W0 | ⬜ pending |
@@ -130,7 +130,10 @@ cross-reference. `01-01-PLAN.md` task 2 carries the same note where the test is 
 | Migration up/down coverage (unnamed Wave 0 item) | `TestMigrations_ProductEvents` (plan 01-01 task 2) and `TestMigrations_CardNameSearch` (plan 01-04 task 1) | Both named, both using a scratch database per migration directory so no test migrates the shared database down. |
 
 Further renames or relocations discovered during execution are appended here by plan 01-01 task 3,
-each with a reason, and reported in that plan's summary.
+each with a reason, and reported in that plan's summary. Reconciliation for plan 01-01 (2026-08-04):
+no further renames were introduced during execution — every test name in
+`server/product_events_test.go`, `pkg/telemetry/vocabulary_test.go`, and `pkg/telemetry/metrics_test.go`
+matches the names this table and the plan already specified.
 
 ---
 
@@ -139,10 +142,10 @@ each with a reason, and reported in that plan's summary.
 - [ ] `pkg/deckimport/` package skeleton — `scanner.go`, `sections.go`, `sourcetype.go`, `result.go`. **Highest-leverage item**: it puts REQ-A2's acceptance criteria inside the only test target CI actually runs.
 - [ ] `pkg/deckimport/scanner_test.go` — the required-syntax corpus table (ACT-002 / REQ-A2)
 - [ ] `pkg/deckimport/testdata/` — Moxfield-shaped, Archidekt-shaped, and generic golden exports plus expected `ParsedDeck` files
-- [ ] `pkg/telemetry/vocabulary_test.go` — structural forbidden-key test, closed-at-15 test, authoritative-set test, and the full `ValidateEvent` rejection table including the missing-session case
-- [ ] `pkg/telemetry/metrics_test.go` — label-allowlist registry walk, the criterion-4 family-existence check, the D-24 source enum-value check, and the bounded `reason`/`role` value checks
+- [x] `pkg/telemetry/vocabulary_test.go` — structural forbidden-key test, closed-at-15 test, authoritative-set test, and the full `ValidateEvent` rejection table including the missing-session case (plan 01-01 task 3)
+- [x] `pkg/telemetry/metrics_test.go` — label-allowlist registry walk, the criterion-4 family-existence check, the D-24 source enum-value check, and the bounded `reason`/`role` value checks (plan 01-01 task 3)
 - [ ] `pkg/ratelimit/limiter_test.go` — burst exhaustion, per-key and per-surface isolation, idle eviction via an injected clock, and bounded registry growth
-- [ ] `server/product_events_test.go` — non-fatal-write test, allowlist *behaviour* (no row plus an exact counter delta), dedup-predicate coverage incl. both-NULL keys, concurrent insert, `occurred_at` tie ordering, and `TestMigrations_ProductEvents` with its named `withScratchMigrationDB` helper (which plan 01-04 task 1 reuses)
+- [x] `server/product_events_test.go` — non-fatal-write test, allowlist *behaviour* (no row plus an exact counter delta), dedup-predicate coverage incl. both-NULL keys, concurrent insert, `occurred_at` tie ordering, and `TestMigrations_ProductEvents` with its named `withScratchMigrationDB` helper (which plan 01-04 task 1 reuses) (plan 01-01 tasks 1–2)
 - [ ] `server/deck_import_test.go` — the tracer end-to-end test, DB-backed resolution, suggestions, D-05/D-06 accounting, single-parse proof, `TestMigrations_CardNameSearch`
 - [ ] `server/ratelimit_test.go` — the wrapper's counter-on-both-paths assertion only; the registry logic is covered in `pkg/ratelimit`
 - [ ] `server/deck_providers_test.go` + `server/testdata/deck_providers/` — SSRF table tests and fixture contract. The safe-client tests are provider-agnostic and land **before** the D-14 checkpoint; only the fixture contract waits for it.
