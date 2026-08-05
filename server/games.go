@@ -366,8 +366,15 @@ func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase s
 		return nil, errors.New("forbidden: only the turn player can advance the phase")
 	}
 	prevTurn := *game.Turn
-	format := formatFromRules(game.Rules)
-	phase = normalizeTurnPhase(format, phase)
+	// Deliberately no normalizeTurnPhase call here (fix(01-05), see
+	// SUMMARY "Assigned Test Fix"): this tracker does not enforce turn
+	// structure (PROJECT.md: "Full Magic rules enforcement...not what a
+	// tracker is for"), and coercing any caller-supplied phase name that
+	// is not a literal member of the current format's PhaseSequence back
+	// to PhaseSequence[0] silently discarded whatever phase name the
+	// player actually advanced to. normalizeTurnPhase's real job --
+	// picking a sane initial phase for a brand-new game -- still runs
+	// once, in CreateGame.
 
 	nextTurnNumber := game.Turn.Number
 	if number != nil {
@@ -647,6 +654,27 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	}
 	ensureFormatRules(g, format)
 
+	// defaultLifeForAll is fix(01-05)'s answer to a genuine ambiguity
+	// (see SUMMARY "Assigned Test Fix"): InputBoardState.Life is a
+	// required, non-pointer Int in the GraphQL schema, so there is no
+	// wire-level way to distinguish "the caller didn't bother setting a
+	// life total" from "the caller explicitly wants this player to start
+	// at 0 life" -- both arrive as the Go zero value. Defaulting
+	// per-player on Life == 0 (b1ac894's original behavior) could never
+	// let ANY caller create an already-eliminated player, which is
+	// exactly what a multiplayer auto-finish test needs to set up. The
+	// heuristic here only defaults when NOBODY in this call specified a
+	// life total at all: if at least one player has a nonzero Life, the
+	// caller is deliberately setting specific life totals and 0 means 0
+	// for everyone, not "unset."
+	defaultLifeForAll := true
+	for _, player := range inputGame.Players {
+		if player != nil && player.Life != 0 {
+			defaultLifeForAll = false
+			break
+		}
+	}
+
 	// build player boardstates
 	for _, player := range inputGame.Players {
 		if player.UserID == authUser.ID {
@@ -670,7 +698,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 				Controlled:  getBareCard(player.Controlled),
 			},
 		}
-		if user.Boardstate.Life == 0 {
+		if defaultLifeForAll {
 			user.Boardstate.Life = format.StartingLife
 		}
 

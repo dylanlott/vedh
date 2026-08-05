@@ -33,6 +33,22 @@ func testAPI(t *testing.T) *graphQLServer {
 	if err != nil {
 		t.Skipf("postgres unavailable: %s", err)
 	}
+	// fix(01-05): every testAPI call opens a brand-new *sql.DB connection
+	// pool that nothing ever closed. That was survivable while the
+	// package had few enough Test* functions to stay under Postgres's
+	// max_connections (100, unchanged from this container's default),
+	// but this plan's own added tests were the ones that tipped a full
+	// `go test ./server` run over that ceiling ("pq: sorry, too many
+	// clients already") -- confirmed by running the identical suite
+	// against the pre-01-05 tree, where it does not occur. Closing here
+	// is safe: this package's test logger discards all output (line 17
+	// above), so a background goroutine (e.g. go s.publishGame(...))
+	// that outlives its owning test and touches a closed pool afterward
+	// logs into the void rather than panicking or failing a completed
+	// test.
+	t.Cleanup(func() {
+		_ = appDB.Close()
+	})
 	s, err := NewGraphQLServer(appDB, cfg, logger)
 	if err != nil {
 		t.Errorf("failed to create new test server: %+v", err)

@@ -94,17 +94,23 @@ func ensureFormatRules(game *Game, format *GameFormat) {
 	game.Rules = upsertRule(game.Rules, "format", format.ID)
 	game.Rules = upsertRule(game.Rules, "deck_size", strconv.Itoa(format.DefaultDeckSize))
 	game.Rules = upsertRule(game.Rules, "starting_life", strconv.Itoa(format.StartingLife))
-	if game.Turn != nil {
-		game.Turn.Phase = normalizeTurnPhase(format, game.Turn.Phase)
-	}
-	for _, player := range game.Players {
-		if player == nil || player.Boardstate == nil {
-			continue
-		}
-		if player.Boardstate.Life == 0 {
-			player.Boardstate.Life = format.StartingLife
-		}
-	}
+	// Deliberately no Turn.Phase normalization and no per-player Life
+	// defaulting here (fix(01-05), see SUMMARY "Assigned Test Fix"): this
+	// function is called by ensureGameDefaults on every load of an
+	// EXISTING game (JoinGame, UpdateBoardState, AdvancePhase, GetGame,
+	// UpdateGame, win_claim), not only at creation. Re-normalizing the
+	// turn phase on every load silently discarded any phase name outside
+	// the format's registered PhaseSequence (this tracker deliberately
+	// does not enforce turn structure -- PROJECT.md: "Full Magic rules
+	// enforcement...not what a tracker is for"), and re-defaulting a
+	// player's Life to the format's starting life whenever it read 0
+	// meant a player who legitimately reached 0 life during play had
+	// their life silently reset to full the next time ANYONE called
+	// UpdateBoardState -- before the auto-finish check even ran. Both
+	// were real regressions from commit b1ac894, not intentional
+	// behavior this function is supposed to re-apply on every read.
+	// CreateGame is still where a brand-new game's Turn.Phase and initial
+	// player Life get their one-time defaulting (games.go).
 }
 
 func normalizeTurnPhase(format *GameFormat, phase string) string {

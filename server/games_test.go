@@ -139,6 +139,7 @@ func TestCreateGame(t *testing.T) {
 				Rules: []*Rule{
 					{Name: "format", Value: "EDH"},
 					{Name: "deck_size", Value: "99"},
+					{Name: "starting_life", Value: "40"},
 				},
 				Status: GameStatusInProgress,
 			},
@@ -186,6 +187,7 @@ func TestCreateGame(t *testing.T) {
 				Rules: []*Rule{
 					{Name: "format", Value: "EDH"},
 					{Name: "deck_size", Value: "99"},
+					{Name: "starting_life", Value: "40"},
 				},
 				Status: GameStatusInProgress,
 			},
@@ -227,6 +229,7 @@ func TestCreateGame(t *testing.T) {
 				Rules: []*Rule{
 					{Name: "format", Value: "EDH"},
 					{Name: "deck_size", Value: "99"},
+					{Name: "starting_life", Value: "40"},
 				},
 				Status: GameStatusInProgress,
 			},
