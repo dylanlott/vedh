@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: measured-deck-import-foundation
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-08-05T05:05:58.253Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-08-05T05:48:13.329Z"
 last_activity: 2026-08-04
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 01 (measured-deck-import-foundation) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-08-04 — Phase 01 execution started
 
-Progress: [██████░░░░] 57%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [██████░░░░] 57%
 | Phase 01 P02 | 37min | 2 tasks | 13 files |
 | Phase 01 P03 | 8min | 2 tasks | 3 files |
 | Phase 01 P04 | 31min | 2 tasks | 9 files |
+| Phase 01 P05 | 55min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,9 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase ?]: D-11's dropped-section header row is accounted for via its own summary warning (attributed to the header's SourceLine), not via DroppedSectionRows -- this is the assignment that makes the no-row-disappears invariant balance exactly.
 - [Phase ?]: REQ-ACT-001 not marked complete: also claimed by plan 01-06 (not yet executed), following 01-01-SUMMARY.md precedent
 - [Phase ?]: D-09/D-10 printing resolution: card_names is a plain incrementally-refreshed table (not a materialized view); GiST gist_trgm_ops chosen over GIN for card_names' trigram index because D-03 requires below-cutoff nearest matches; DeckPreviewEntry.SetCode/CollectorNumber/Category (declared since 01-01, never wired) now populated for every entry as a Rule 2 fix, since D-10's 'keeps the parsed set code on the entry' criterion is otherwise untestable at the GraphQL boundary.
+- [Phase ?]: 01-05: The suggestion query's per-needle LATERAL orders by the GiST distance operator alone; a display-name tiebreak added inside it defeated the index and blew the 750ms sub-budget (measured: 190ms to 1.2s for 25 needles). The tiebreak lives only in the cheap outer sort.
+- [Phase ?]: 01-05: applyPrintingMetadata overwrites a persisted library Card's SetCode/CollectorNumber/Category with what the player typed, extending D-10's reconciliation intent from the preview to the created library.
+- [Phase ?]: 01-05 assigned fix: ensureFormatRules's per-load Turn.Phase re-normalization and per-player Life-zero re-defaulting were real regressions from b1ac894 (they ran on every existing-game load, not only at creation) -- removed; CreateGame's defaultLifeForAll heuristic (default life only when nobody in the call specified a nonzero life) replaces the per-player check since InputBoardState.Life is a required non-pointer Int with no wire-level 'unset' signal.
 
 ### Pending Todos
 
@@ -108,6 +112,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-05T05:05:58.247Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-08-05T05:48:13.323Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None

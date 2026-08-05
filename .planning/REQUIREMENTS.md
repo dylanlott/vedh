@@ -13,6 +13,7 @@ Two requirement layers are preserved and **deliberately not merged**:
 - **Layer 1 — product (REQ-A1..A7)**, from the PRD. What a user must be able to do.
   Each spans several implementation requirements, so each is traced *through* Layer 2
   rather than mapped to a single phase.
+
 - **Layer 2 — implementation (REQ-ACT-001..013)**, from the SPEC tickets. Ticket IDs,
   priorities, sizes, and `depends_on` edges are verbatim. **These are the phase-mapped
   requirements: each maps to exactly one phase.** The dependency graph is load-bearing
@@ -70,7 +71,7 @@ deck-to-board activation; P1 improves post-value acquisition and operating confi
 - [ ] **REQ-ACT-001**: Product event and activation metric foundation — `product_events` table (prod + test migrations), `trackProductEvent` with strict server-side event and field allowlists, server-authoritative `game_created` / `player_joined` / `guest_session_created` / `deck_import_succeeded` / `deck_import_failed` / `account_claimed`, low-cardinality Prometheus counters and latency histograms, frontend event service with a persisted random session ID, documented event vocabulary and example funnel query.
   `P0 · M · depends_on: none · order 1`
 
-- [ ] **REQ-ACT-002**: Canonical deck parser and preview API — extract parsing out of `createLibraryFromDecklist` in `server/games.go` into a deck-import service; support quantity/name, `1x`, spaced CSV, quoted CSV, headers, blank lines, sideboard/maybeboard; preserve comma-containing names; return normalized entries, commander candidates, unresolved entries, warnings, blocking errors, `CanContinue`; add `previewDeck` and `DeckPreview`; feed the same normalized result into create/join; preserve card lookup, commander removal, and deck-size rules.
+- [x] **REQ-ACT-002**: Canonical deck parser and preview API — extract parsing out of `createLibraryFromDecklist` in `server/games.go` into a deck-import service; support quantity/name, `1x`, spaced CSV, quoted CSV, headers, blank lines, sideboard/maybeboard; preserve comma-containing names; return normalized entries, commander candidates, unresolved entries, warnings, blocking errors, `CanContinue`; add `previewDeck` and `DeckPreview`; feed the same normalized result into create/join; preserve card lookup, commander removal, and deck-size rules.
   `P0 · L · depends_on: ACT-001 · order 2`
 
 - [ ] **REQ-ACT-003**: Public deck provider feasibility gate and first adapter — one-day time-boxed comparison of public Archidekt and Moxfield access; decision record; adapter interface keyed by an allowlisted hostname; HTTPS, DNS/IP validation, redirect revalidation, 3s connect / 8s total timeout, 1 MiB cap; normalize through ACT-002; server-side feature flag and kill switch.
@@ -193,7 +194,7 @@ v1** (see INFO-2 and the milestone scope decision); only the items below remain 
 | Requirement | Priority | Size | Phase | Status |
 |-------------|----------|------|-------|--------|
 | REQ-ACT-001 | P0 | M | Phase 1 | Pending |
-| REQ-ACT-002 | P0 | L | Phase 1 | Pending |
+| REQ-ACT-002 | P0 | L | Phase 1 | Complete |
 | REQ-ACT-003 | P0 | M | Phase 1 | Pending |
 | REQ-ACT-004 | P0 | L | Phase 2 | Pending |
 | REQ-ACT-005 | P0 | L | Phase 2 | Pending |
@@ -222,6 +223,7 @@ A product requirement is complete when all of its implementing tickets are compl
 | REQ-A7 | ACT-003, ACT-004, ACT-008, ACT-009 | 1, 2, 3 | Phase 3 | Pending |
 
 **Coverage:**
+
 - Layer 2 (phase-mapped): 13 requirements, 13 mapped to exactly one phase, 0 unmapped ✓
 - Layer 1 (traced): 7 requirements, 7 fully covered by mapped implementers, 0 orphaned ✓
 - Dependency graph: all 13 tickets have every `depends_on` satisfied in the same or an earlier phase ✓
