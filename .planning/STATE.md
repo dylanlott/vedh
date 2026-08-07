@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: measured-deck-import-foundation
 status: executing
-stopped_at: Completed 01-09-PLAN.md
-last_updated: "2026-08-07T23:47:21.802Z"
+stopped_at: Completed 01-10-PLAN.md
+last_updated: "2026-08-07T23:55:36.971Z"
 last_activity: 2026-08-07
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 01 (measured-deck-import-foundation) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Ready to execute
 Last activity: 2026-08-07 — Phase 01 execution started
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [█████████░] 90%
 | Phase 01 P07 | 45min | 3 tasks | 6 files |
 | Phase 01 P08 | 55min | 2 tasks | 5 files |
 | Phase 01 P09 | 40min | 2 tasks | 3 files |
+| Phase 01 P10 | 12min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,7 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase ?]: 01-08: Human precondition recorded for enabling DECK_PROVIDER_ENABLED on archidekt.com -- a human must read https://archidekt.com/terms in a real browser first, since it is JS-rendered and no agent has JavaScript execution capability; building/testing the adapter does not require this
 - [Phase ?]: 01-09: Rule 1 bug fix -- archidektCollectorNumberRoundTrips gates formatArchidektDeckLine's printing-metadata suffix; a hyphenated Archidekt collector number (e.g. 'MH1-216' from The List reprints) previously folded into the parsed card name and silently failed to resolve, dropping 7 real cards from a 100-card deck (found via this plan's own fixture test)
 - [Phase ?]: 01-09: TestDeckImport_ArchidektURLPath's non-allowlisted-host subtest deliberately uses the real, unstubbed fetchDeckProviderURL (not a spy) since its own host check runs before any dial or DNS lookup -- a genuine end-to-end zero-dial proof
+- [Phase ?]: 01-10: REQ-ACT-003's Complete status independently audited clause-by-clause against 01-09's passing tests and confirmed (comparison/decision record, hostname-keyed adapter, SSRF controls, normalize-through-ACT-002, feature flag/kill switch) -- not merely accepted from 01-09's mechanical frontmatter carry-forward; the human archidekt.com/terms ToS-read precondition gates enabling in deployment, not this requirement's own text, so it does not block completeness
 
 ### Pending Todos
 
@@ -134,6 +136,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-07T23:47:21.796Z
-Stopped at: Completed 01-09-PLAN.md
+Last session: 2026-08-07T23:55:36.963Z
+Stopped at: Completed 01-10-PLAN.md
 Resume file: None
