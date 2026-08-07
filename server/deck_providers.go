@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -338,47 +339,57 @@ func (s *graphQLServer) providerEnabled() bool {
 }
 
 // -----------------------------------------------------------------------
-// D-14 checkpoint outcome: Moxfield adapter scaffold (plan 01-07, task 3)
+// D-14 reversed (plan 01-08, gap G-01-1): Archidekt adapter against the
+// observed contract; the previous provider's scaffold removed
 // -----------------------------------------------------------------------
 //
-// The human selected Moxfield at the task 2 checkpoint
-// (docs/research/deck-provider-feasibility.md section 5), diverging from
-// task 1's neutral recommendation of Archidekt. What follows is
-// deliberately NOT a working Moxfield import: the feasibility record's
-// section 2 documents that no Moxfield response body was ever observed --
-// api.moxfield.com/robots.txt is a blanket "Disallow: /", and
-// moxfield.com's web frontend returned a Cloudflare bot-management 403 on
-// every probe attempted across three User-Agents. Fabricating a field
-// mapping for a shape that was never seen would be worse than shipping
-// nothing: a wrong mapping fails silently by producing a different deck,
-// while an explicit unverified-contract seam fails loudly every time it is
-// reached.
+// The user selected a different provider at the plan 01-07 checkpoint,
+// diverging from the feasibility spike's own Archidekt recommendation.
+// During UAT the user asked why that provider was impossible and
+// reversed the decision to Archidekt (gap G-01-1, `01-UAT.md`): the
+// previously selected provider's response contract is unobtainable
+// without authorized API access -- its data host's robots.txt is a
+// blanket disallow, and its web frontend returns a bot-management 403 on
+// every unauthenticated probe. See
+// docs/research/deck-provider-feasibility.md section 6 for the full
+// revised decision, attribution, and the exact evidence for that claim
+// (section 5, the original selection, is left intact for the record).
 //
-// What IS real below: hostname-keyed routing through this file's secure
-// fetch client, gated by the same default-off kill switch providerEnabled
-// already enforces, with an explicit seam a future author fills in once an
-// authorized sample response exists. No live request to any Moxfield host
-// is made by this repository's tests, or by any code path reachable with
-// the kill switch at its default (off).
+// Archidekt's contract, by contrast, WAS observed: a real public deck
+// response is captured at
+// server/testdata/deck_providers/archidekt_deck_2026-08-05.json (113 card
+// rows, 126 total quantity), and every field path archidektAdapter reads
+// below is present in that capture. The adapter below is written against
+// that evidence, not a guess -- plan 01-09 pins the mapping with contract
+// tests against the same fixture.
+//
+// The previous provider's adapter, sentinel error, and hostname constant
+// are removed outright rather than left dormant (user decision, G-01-1):
+// that provider remains re-addable later if authorized API access is
+// obtained, but an adapter nobody can exercise against a real response is
+// dead code, not a placeholder worth keeping. pkg/deckimport's SourceType
+// enum is closed at four values and this plan does not touch it -- the
+// previously used value there is untouched.
 
-// errMoxfieldContractUnverified is the sentinel normalizeToDeckText
-// returns on every call: a compile-time-visible placeholder for "the
-// response shape has never been observed," not a bug to be fixed by
-// guessing at field names. It must never reach a client -- previewDeckURL
-// (server/deck_import.go) maps it onto the same generic paste-fallback
-// message every other provider failure already uses (T-01-11), and this
-// error's own text carries no provider response content, so logging it
-// carries nothing sensitive either.
-var errMoxfieldContractUnverified = errors.New("deck provider: moxfield response contract is unverified -- api.moxfield.com/robots.txt disallows automated access and no authorized sample response has ever been captured; see docs/research/deck-provider-feasibility.md section 2")
+// errArchidektMalformedResponse, errArchidektNoCardRows, and
+// errArchidektMissingCardName are the static sentinels
+// archidektAdapter.normalizeToDeckText returns. previewDeckURL
+// (server/deck_import.go) logs normalizeToDeckText's error, and its own
+// comment states that no adapter's error may carry provider response
+// content -- these three are fixed string literals, so that invariant
+// holds by construction, exactly as it did for the previous provider's
+// unverified-contract sentinel before this plan.
+var (
+	errArchidektMalformedResponse = errors.New("deck provider: archidekt response is not valid JSON")
+	errArchidektNoCardRows        = errors.New("deck provider: archidekt response contained no card rows")
+	errArchidektMissingCardName   = errors.New("deck provider: archidekt card row missing a card name")
+)
 
-// moxfieldHost is the exact, lower-cased hostname a pasted Moxfield deck
-// URL is expected to name. Deliberately the user-facing web host
-// (moxfield.com) rather than the api.moxfield.com data host the
-// feasibility record found blocked by robots.txt: this is the host a
-// player would actually paste, and the value this file's own
-// TestProvider_KillSwitch/TestProvider_KillSwitchRequiresAllowlist tests
-// (plan 01-06) already used before this task existed.
-const moxfieldHost = "moxfield.com"
+// archidektHost is the exact, lower-cased hostname a pasted Archidekt deck
+// URL is expected to name -- the same host the observed contract
+// (docs/research/deck-provider-feasibility.md section 1.1) was fetched
+// from, and the only hostname this adapter is registered under below.
+const archidektHost = "archidekt.com"
 
 // deckProviderAdapter converts one provider's raw fetch response into
 // decklist text the canonical parser (pkg/deckimport.Parse) can consume.
@@ -392,22 +403,167 @@ type deckProviderAdapter interface {
 	// normalizeToDeckText converts body into decklist text. An adapter
 	// whose response contract has never been observed from a real
 	// authorized response MUST return an error naming that fact rather
-	// than a fabricated mapping -- see moxfieldAdapter below.
+	// than a fabricated mapping -- see archidektAdapter below for a
+	// contract that HAS been observed and is implemented for real.
 	normalizeToDeckText(body []byte) (string, error)
 }
 
-// moxfieldAdapter is deliberately incomplete: its only implemented
-// behaviour is refusing to guess. Enabling this provider for a real
-// import (not merely routing) requires replacing normalizeToDeckText's
-// body with a mapping derived from a real, authorized Moxfield API
-// response -- see the two open blockers recorded in
-// docs/research/deck-provider-feasibility.md section 5.
-type moxfieldAdapter struct{}
+// archidektCategory is one entry of the response's deck-level
+// categories[] array -- the authority on whether a category's cards count
+// toward the deck (docs/research/deck-provider-feasibility.md section
+// 1.1; 01-08-PLAN.md "The load-bearing rule").
+type archidektCategory struct {
+	Name           string `json:"name"`
+	IncludedInDeck bool   `json:"includedInDeck"`
+}
 
-func (moxfieldAdapter) source() deckimport.SourceType { return deckimport.SourceMoxfield }
+// archidektOracleCard carries the one field this adapter reads from the
+// embedded oracle card: its canonical name.
+type archidektOracleCard struct {
+	Name string `json:"name"`
+}
 
-func (moxfieldAdapter) normalizeToDeckText([]byte) (string, error) {
-	return "", errMoxfieldContractUnverified
+// archidektEdition carries the one field this adapter reads from the
+// embedded printing's edition: its lower-cased set code.
+type archidektEdition struct {
+	EditionCode string `json:"editioncode"`
+}
+
+// archidektCardDetail is cards[i].card: the embedded printing this
+// adapter reads D-07 metadata from.
+type archidektCardDetail struct {
+	OracleCard      archidektOracleCard `json:"oracleCard"`
+	Edition         archidektEdition    `json:"edition"`
+	CollectorNumber string              `json:"collectorNumber"`
+}
+
+// archidektCardRow is one entry of cards[]: a quantity, the deck-line
+// categories this specific row carries (a card can carry more than one
+// simultaneously), and the embedded card.
+type archidektCardRow struct {
+	Quantity   int                 `json:"quantity"`
+	Categories []string            `json:"categories"`
+	Card       archidektCardDetail `json:"card"`
+}
+
+// archidektDeckResponse is the top-level shape this adapter reads from
+// GET https://archidekt.com/api/decks/<id>/ -- only the two fields the
+// normalizer needs, deliberately not every key the full response carries
+// (docs/research/deck-provider-feasibility.md section 1.1 lists the
+// rest).
+type archidektDeckResponse struct {
+	Categories []archidektCategory `json:"categories"`
+	Cards      []archidektCardRow  `json:"cards"`
+}
+
+// archidektAdapter normalizes a real, observed Archidekt deck response
+// into canonical decklist text -- see this file's header comment above
+// for the decision this implements and 01-08-PLAN.md for the field-path
+// evidence.
+type archidektAdapter struct{}
+
+func (archidektAdapter) source() deckimport.SourceType { return deckimport.SourceArchidekt }
+
+// normalizeToDeckText buckets every cards[i] row into main, commander, or
+// maybeboard text, then emits main rows first, a Commander header and its
+// rows, then a Maybeboard header and the excluded rows -- so
+// pkg/deckimport's existing grammar drops the excluded rows with one
+// counted summary warning rather than silently discarding them (D-11's
+// accounting invariant, preserved end to end). A row is excluded if ANY
+// of its categories names a deck-level category with
+// includedInDeck == false, checked before the commander check, because a
+// card can carry a maybeboard tag and a commander category
+// simultaneously.
+func (archidektAdapter) normalizeToDeckText(body []byte) (string, error) {
+	var resp archidektDeckResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", errArchidektMalformedResponse
+	}
+	if len(resp.Cards) == 0 {
+		return "", errArchidektNoCardRows
+	}
+
+	excludedCategories := make(map[string]struct{}, len(resp.Categories))
+	commanderCategory := ""
+	for _, cat := range resp.Categories {
+		if !cat.IncludedInDeck {
+			excludedCategories[cat.Name] = struct{}{}
+		}
+		if strings.EqualFold(cat.Name, "Commander") {
+			commanderCategory = cat.Name
+		}
+	}
+
+	var mainLines, commanderLines, maybeboardLines []string
+	for _, row := range resp.Cards {
+		name := strings.TrimSpace(row.Card.OracleCard.Name)
+		if name == "" {
+			return "", errArchidektMissingCardName
+		}
+		line := formatArchidektDeckLine(row.Quantity, name, row.Card.Edition.EditionCode, row.Card.CollectorNumber)
+
+		excluded := false
+		for _, cat := range row.Categories {
+			if _, ok := excludedCategories[cat]; ok {
+				excluded = true
+				break
+			}
+		}
+		if excluded {
+			maybeboardLines = append(maybeboardLines, line)
+			continue
+		}
+
+		isCommander := false
+		if commanderCategory != "" {
+			for _, cat := range row.Categories {
+				if cat == commanderCategory {
+					isCommander = true
+					break
+				}
+			}
+		}
+		if isCommander {
+			commanderLines = append(commanderLines, line)
+		} else {
+			mainLines = append(mainLines, line)
+		}
+	}
+
+	var b strings.Builder
+	for _, line := range mainLines {
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	if len(commanderLines) > 0 {
+		b.WriteString("Commander\n")
+		for _, line := range commanderLines {
+			b.WriteString(line)
+			b.WriteByte('\n')
+		}
+	}
+	if len(maybeboardLines) > 0 {
+		b.WriteString("Maybeboard\n")
+		for _, line := range maybeboardLines {
+			b.WriteString(line)
+			b.WriteByte('\n')
+		}
+	}
+
+	return b.String(), nil
+}
+
+// formatArchidektDeckLine emits one canonical decklist line: quantity and
+// name always; D-07 printing metadata ("(setcode) collectornumber") only
+// when both setCode and collectorNumber are non-empty, matching
+// pkg/deckimport/scanner.go's own emission convention so a round trip
+// through Parse recovers the same set code and collector number.
+func formatArchidektDeckLine(quantity int, name, setCode, collectorNumber string) string {
+	line := fmt.Sprintf("%d %s", quantity, name)
+	if setCode != "" && collectorNumber != "" {
+		line = fmt.Sprintf("%s (%s) %s", line, setCode, collectorNumber)
+	}
+	return line
 }
 
 // deckProviderAdapters is the hostname-keyed adapter registry
@@ -418,9 +574,12 @@ func (moxfieldAdapter) normalizeToDeckText([]byte) (string, error) {
 // knows how to interpret once it gets there. These are two independent
 // gates, deliberately not merged into one -- the same separation of
 // concerns safeControl and newDeckProviderCheckRedirect already apply to
-// address policy and host policy respectively.
+// address policy and host policy respectively. Registering only
+// archidektHost here is deliberate: an adapter with no observed contract
+// -- the previously selected provider, until authorized access exists --
+// does not belong in this map.
 var deckProviderAdapters = map[string]deckProviderAdapter{
-	moxfieldHost: moxfieldAdapter{},
+	archidektHost: archidektAdapter{},
 }
 
 // deckProviderAdapterFor returns the adapter registered for rawURL's

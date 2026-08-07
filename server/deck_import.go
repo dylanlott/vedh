@@ -234,17 +234,21 @@ var deckProviderFetch = fetchDeckProviderURL
 //
 // Once the flag is on, rawURL's hostname is looked up in
 // deckProviderAdapters (server/deck_providers.go) — the D-14 checkpoint
-// (plan 01-07) selected Moxfield, and that registry's only entry today is
-// a deliberately incomplete moxfieldAdapter whose response contract has
-// never been observed (docs/research/deck-provider-feasibility.md section
-// 5). A host with no registered adapter is refused here, before any fetch
-// is attempted, the same as a host absent from the allowlist — the
+// (plan 01-07) selected a different provider, but that selection was
+// reversed to Archidekt during UAT (gap G-01-1, plan 01-08) once it
+// became clear the earlier choice's response contract is unobtainable
+// without authorized API access (docs/research/deck-provider-feasibility.md
+// section 6 has the full account). That registry's only entry today is
+// archidektAdapter, implemented against a
+// real, observed response contract rather than a guess (section 1.1 and
+// the committed fixture at
+// server/testdata/deck_providers/archidekt_deck_2026-08-05.json). A host
+// with no registered adapter is refused here, before any fetch is
+// attempted, the same as a host absent from the allowlist — the
 // allowlist and this registry are independent gates. A recognized host
-// does genuinely reach the secure client and, on a successful fetch,
-// genuinely reaches the adapter's normalizer; for Moxfield today that
-// normalizer always fails closed, so the end-to-end outcome is still the
-// same paste-fallback message, just reached by a real routing decision
-// rather than a hardcoded skip.
+// genuinely reaches the secure client and, on a successful fetch,
+// genuinely reaches the adapter's normalizer, which hands a real deck off
+// to the same canonical parser the pasted-text path uses.
 func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) *DeckPreview {
 	if !s.providerEnabled() {
 		return blockedPreview(deckimport.SourceUnknown,
@@ -265,9 +269,9 @@ func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) *Deck
 	}
 
 	// normalizeToDeckText's error never carries provider response
-	// content for any adapter shipped so far (moxfieldAdapter's sentinel
-	// is a static string), so logging it here is safe by construction,
-	// not merely by convention.
+	// content for any adapter shipped so far (archidektAdapter returns
+	// one of three static sentinels; see server/deck_providers.go), so
+	// logging it here is safe by construction, not merely by convention.
 	text, err := adapter.normalizeToDeckText(body)
 	if err != nil {
 		s.loggerFor(ctx).Warn("deck provider response could not be normalized", "err", err)
@@ -275,10 +279,9 @@ func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) *Deck
 			"We couldn't load that deck link right now. Paste your decklist as text instead.")
 	}
 
-	// Unreachable with today's only registered adapter (it never returns
-	// a nil error), but this is the real success path a future adapter
-	// with a verified contract will exercise: normalize, then hand off
-	// to the single canonical parser, exactly like the pasted-text path.
+	// This is the real success path archidektAdapter exercises: normalize,
+	// then hand off to the single canonical parser, exactly like the
+	// pasted-text path.
 	parsed := deckimport.ParseWithSource(text, adapter.source())
 	preview, _ := s.buildDeckPreview(ctx, parsed)
 	return preview

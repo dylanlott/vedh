@@ -519,10 +519,10 @@ func withDeckProviderFetchSpy(t *testing.T) *int {
 func TestProvider_KillSwitch(t *testing.T) {
 	s := testAPI(t)
 	s.cfg.DeckProviderEnabled = false
-	s.deckProviderAllowedHosts = map[string]struct{}{"moxfield.com": {}}
+	s.deckProviderAllowedHosts = map[string]struct{}{archidektHost: {}}
 	called := withDeckProviderFetchSpy(t)
 
-	rawURL := "https://moxfield.com/decks/abc123"
+	rawURL := "https://" + archidektHost + "/api/decks/13074677/"
 	input := InputDeckImport{SourceURL: &rawURL, SessionID: "kill-switch-test"}
 
 	preview, err := s.PreviewDeck(context.Background(), input)
@@ -556,7 +556,7 @@ func TestProvider_KillSwitchRequiresAllowlist(t *testing.T) {
 		t.Fatal("expected providerEnabled() = false when the allowlist is empty, even with the flag set")
 	}
 
-	rawURL := "https://moxfield.com/decks/abc123"
+	rawURL := "https://" + archidektHost + "/api/decks/13074677/"
 	input := InputDeckImport{SourceURL: &rawURL, SessionID: "kill-switch-allowlist-test"}
 
 	preview, err := s.PreviewDeck(context.Background(), input)
@@ -582,7 +582,7 @@ func TestProvider_PasteUnaffectedByFlag(t *testing.T) {
 		s := testAPI(t)
 		s.cfg.DeckProviderEnabled = enabled
 		if enabled {
-			s.deckProviderAllowedHosts = map[string]struct{}{"moxfield.com": {}}
+			s.deckProviderAllowedHosts = map[string]struct{}{archidektHost: {}}
 		} else {
 			s.deckProviderAllowedHosts = map[string]struct{}{}
 		}
@@ -608,57 +608,31 @@ func TestProvider_PasteUnaffectedByFlag(t *testing.T) {
 }
 
 // -----------------------------------------------------------------------
-// D-14 checkpoint outcome: Moxfield adapter scaffold (plan 01-07, task 3)
+// D-14 reversed (plan 01-08, gap G-01-1): Archidekt routing, Moxfield
+// scaffold removed
 // -----------------------------------------------------------------------
 //
 // Every test below is hermetic: deckProviderFetch is either spied (never
 // the real fetchDeckProviderURL) or the adapter's normalizer is called
 // directly with an in-memory byte slice. None makes an outbound
-// connection, and none reaches any real Moxfield host — the response
-// contract is unverified per docs/research/deck-provider-feasibility.md
-// section 2, and this file's own instructions forbid working around that.
-
-// TestProvider_MoxfieldContractUnverified proves moxfieldAdapter refuses
-// to guess a field mapping regardless of what body it is handed — nil, an
-// empty slice, and a plausible-looking JSON object all produce the same
-// sentinel error, because the refusal is unconditional, not a check
-// against some observed shape (none exists to check against).
-func TestProvider_MoxfieldContractUnverified(t *testing.T) {
-	adapter := moxfieldAdapter{}
-
-	if got := adapter.source(); got != deckimport.SourceMoxfield {
-		t.Fatalf("source() = %q, want %q", got, deckimport.SourceMoxfield)
-	}
-
-	bodies := [][]byte{
-		nil,
-		[]byte(""),
-		[]byte(`{"name":"a deck","cards":[]}`),
-	}
-	for _, body := range bodies {
-		text, err := adapter.normalizeToDeckText(body)
-		if !errors.Is(err, errMoxfieldContractUnverified) {
-			t.Fatalf("normalizeToDeckText(%q) error = %v, want errMoxfieldContractUnverified", body, err)
-		}
-		if text != "" {
-			t.Fatalf("normalizeToDeckText(%q) text = %q, want empty on error", body, text)
-		}
-	}
-}
+// connection. archidektAdapter's field-mapping contract tests (against
+// the committed fixture) are plan 01-09's job, not this one -- the tests
+// below prove the routing gate itself, which is this plan's scope.
 
 // TestProvider_DeckProviderAdapterFor proves the hostname lookup is
-// case-insensitive, matches only the registered Moxfield host, and treats
-// an unparseable URL or an empty host as "no adapter" rather than
-// panicking or matching by accident.
+// case-insensitive, matches only the registered Archidekt host, and
+// treats an unparseable URL, an empty host, or a host with no registered
+// adapter (Moxfield, since G-01-1) as "no adapter" rather than panicking
+// or matching by accident.
 func TestProvider_DeckProviderAdapterFor(t *testing.T) {
-	if _, ok := deckProviderAdapterFor("https://" + moxfieldHost + "/decks/abc123"); !ok {
-		t.Fatalf("expected an adapter registered for %q", moxfieldHost)
+	if _, ok := deckProviderAdapterFor("https://" + archidektHost + "/api/decks/13074677/"); !ok {
+		t.Fatalf("expected an adapter registered for %q", archidektHost)
 	}
-	if _, ok := deckProviderAdapterFor("https://MOXFIELD.COM/decks/abc123"); !ok {
+	if _, ok := deckProviderAdapterFor("https://ARCHIDEKT.COM/api/decks/13074677/"); !ok {
 		t.Fatal("expected the hostname lookup to be case-insensitive")
 	}
-	if _, ok := deckProviderAdapterFor("https://archidekt.com/api/decks/1/"); ok {
-		t.Fatal("expected no adapter registered for archidekt.com")
+	if _, ok := deckProviderAdapterFor("https://moxfield.com/decks/abc123"); ok {
+		t.Fatal("expected no adapter registered for moxfield.com (reversed at G-01-1)")
 	}
 	if _, ok := deckProviderAdapterFor("not a url at all"); ok {
 		t.Fatal("expected no adapter for an unparseable URL")
@@ -668,27 +642,29 @@ func TestProvider_DeckProviderAdapterFor(t *testing.T) {
 	}
 }
 
-// TestProvider_MoxfieldAdapterRoutesThenFailsClosed proves the routing
-// gate this task adds genuinely reaches the secure fetch client (the spy
-// is called exactly once) but the overall preview still fails closed,
-// because moxfieldAdapter's normalizer is deliberately unimplemented. This
-// is the proof that previewDeckURL's new routing decision is real, not
-// merely that the end result is unchanged from before this task.
-func TestProvider_MoxfieldAdapterRoutesThenFailsClosed(t *testing.T) {
+// TestProvider_ArchidektAdapterRoutesToRealNormalizer proves the routing
+// gate genuinely reaches the secure fetch client (the spy is called
+// exactly once) and genuinely reaches archidektAdapter's real normalizer:
+// handed the spy's zero-value nil body, normalizeToDeckText correctly
+// fails closed on malformed JSON (its first parseable failure mode, not a
+// forever-unimplemented seam the way moxfieldAdapter's was before G-01-1).
+// This is the proof that previewDeckURL's routing decision is real, not
+// merely that the end result happens to be a blocking error.
+func TestProvider_ArchidektAdapterRoutesToRealNormalizer(t *testing.T) {
 	s := testAPI(t)
 	s.cfg.DeckProviderEnabled = true
-	s.deckProviderAllowedHosts = map[string]struct{}{moxfieldHost: {}}
+	s.deckProviderAllowedHosts = map[string]struct{}{archidektHost: {}}
 	called := withDeckProviderFetchSpy(t)
 
-	rawURL := "https://" + moxfieldHost + "/decks/abc123"
-	input := InputDeckImport{SourceURL: &rawURL, SessionID: "moxfield-scaffold-routing-test"}
+	rawURL := "https://" + archidektHost + "/api/decks/13074677/"
+	input := InputDeckImport{SourceURL: &rawURL, SessionID: "archidekt-routing-test"}
 
 	preview, err := s.PreviewDeck(context.Background(), input)
 	if err != nil {
 		t.Fatalf("PreviewDeck() error = %v", err)
 	}
 	if preview.CanContinue {
-		t.Fatal("expected CanContinue = false: the moxfield adapter's response contract is deliberately unverified")
+		t.Fatal("expected CanContinue = false: the spy's nil body is not valid JSON")
 	}
 	if len(preview.BlockingErrors) != 1 {
 		t.Fatalf("expected exactly one blocking error, got %d: %v", len(preview.BlockingErrors), preview.BlockingErrors)
@@ -701,18 +677,52 @@ func TestProvider_MoxfieldAdapterRoutesThenFailsClosed(t *testing.T) {
 	}
 }
 
+// TestProvider_ArchidektAdapterMalformedBody proves
+// archidektAdapter.normalizeToDeckText, called directly, returns the
+// static errArchidektMalformedResponse sentinel for a nil or empty body
+// and errArchidektNoCardRows for well-formed JSON with zero card rows --
+// neither sentinel ever carries the input bytes (server/deck_import.go's
+// error-hygiene comment).
+func TestProvider_ArchidektAdapterMalformedBody(t *testing.T) {
+	adapter := archidektAdapter{}
+
+	if got := adapter.source(); got != deckimport.SourceArchidekt {
+		t.Fatalf("source() = %q, want %q", got, deckimport.SourceArchidekt)
+	}
+
+	malformed := [][]byte{nil, []byte(""), []byte("not json")}
+	for _, body := range malformed {
+		text, err := adapter.normalizeToDeckText(body)
+		if !errors.Is(err, errArchidektMalformedResponse) {
+			t.Fatalf("normalizeToDeckText(%q) error = %v, want errArchidektMalformedResponse", body, err)
+		}
+		if text != "" {
+			t.Fatalf("normalizeToDeckText(%q) text = %q, want empty on error", body, text)
+		}
+	}
+
+	text, err := adapter.normalizeToDeckText([]byte(`{"categories":[],"cards":[]}`))
+	if !errors.Is(err, errArchidektNoCardRows) {
+		t.Fatalf("normalizeToDeckText(no cards) error = %v, want errArchidektNoCardRows", err)
+	}
+	if text != "" {
+		t.Fatalf("normalizeToDeckText(no cards) text = %q, want empty on error", text)
+	}
+}
+
 // TestProvider_UnregisteredHostNeverFetched proves a host that is
 // allowlisted (so DECK_PROVIDER_ALLOWED_HOSTS alone would not refuse it)
 // but has no registered adapter is still refused before any fetch is
 // attempted: the allowlist and the adapter registry are independent
-// gates, and both must agree before a dial is ever made.
+// gates, and both must agree before a dial is ever made. moxfield.com is
+// the deliberately unregistered host here, post-G-01-1.
 func TestProvider_UnregisteredHostNeverFetched(t *testing.T) {
 	s := testAPI(t)
 	s.cfg.DeckProviderEnabled = true
-	s.deckProviderAllowedHosts = map[string]struct{}{"archidekt.com": {}, moxfieldHost: {}}
+	s.deckProviderAllowedHosts = map[string]struct{}{archidektHost: {}, "moxfield.com": {}}
 	called := withDeckProviderFetchSpy(t)
 
-	rawURL := "https://archidekt.com/api/decks/13074677/"
+	rawURL := "https://moxfield.com/decks/abc123"
 	input := InputDeckImport{SourceURL: &rawURL, SessionID: "unregistered-host-test"}
 
 	preview, err := s.PreviewDeck(context.Background(), input)
@@ -723,26 +733,25 @@ func TestProvider_UnregisteredHostNeverFetched(t *testing.T) {
 		t.Fatal("expected CanContinue = false for a host with no registered adapter")
 	}
 	if *called != 0 {
-		t.Fatalf("deckProviderFetch was called %d times, want 0: no adapter is registered for archidekt.com even though it is allowlisted", *called)
+		t.Fatalf("deckProviderFetch was called %d times, want 0: no adapter is registered for moxfield.com even though it is allowlisted", *called)
 	}
 }
 
-// TestProvider_MoxfieldScaffoldPathIsStable is this task's analog of plan
-// 01-06's TestProvider_KillSwitch/TestProvider_PasteUnaffectedByFlag,
-// applied to a provider branch whose adapter is scaffolding rather than a
-// working import: with the kill switch off, a moxfield.com deck URL still
-// returns the ordinary paste-fallback error and never reaches
-// deckProviderFetch, and the pasted-text path is entirely unaffected by
-// this task's changes to previewDeckURL.
-func TestProvider_MoxfieldScaffoldPathIsStable(t *testing.T) {
+// TestProvider_KillSwitchStableAcrossAdapterChange re-proves plan 01-06's
+// TestProvider_KillSwitch/TestProvider_PasteUnaffectedByFlag properties
+// against the now-registered Archidekt host: with the kill switch off, an
+// archidekt.com deck URL still returns the ordinary paste-fallback error
+// and never reaches deckProviderFetch, and the pasted-text path is
+// entirely unaffected by which provider is registered.
+func TestProvider_KillSwitchStableAcrossAdapterChange(t *testing.T) {
 	t.Run("KillSwitchOffNeverFetches", func(t *testing.T) {
 		s := testAPI(t)
 		s.cfg.DeckProviderEnabled = false
-		s.deckProviderAllowedHosts = map[string]struct{}{moxfieldHost: {}}
+		s.deckProviderAllowedHosts = map[string]struct{}{archidektHost: {}}
 		called := withDeckProviderFetchSpy(t)
 
-		rawURL := "https://" + moxfieldHost + "/decks/abc123"
-		input := InputDeckImport{SourceURL: &rawURL, SessionID: "moxfield-stability-off-test"}
+		rawURL := "https://" + archidektHost + "/api/decks/13074677/"
+		input := InputDeckImport{SourceURL: &rawURL, SessionID: "archidekt-stability-off-test"}
 
 		preview, err := s.PreviewDeck(context.Background(), input)
 		if err != nil {
@@ -760,15 +769,15 @@ func TestProvider_MoxfieldScaffoldPathIsStable(t *testing.T) {
 		text := "1 Sol Ring"
 		s := testAPI(t)
 		s.cfg.DeckProviderEnabled = true
-		s.deckProviderAllowedHosts = map[string]struct{}{moxfieldHost: {}}
+		s.deckProviderAllowedHosts = map[string]struct{}{archidektHost: {}}
 
-		input := InputDeckImport{Text: &text, SessionID: "moxfield-stability-paste-test"}
+		input := InputDeckImport{Text: &text, SessionID: "archidekt-stability-paste-test"}
 		preview, err := s.PreviewDeck(context.Background(), input)
 		if err != nil {
 			t.Fatalf("PreviewDeck() error = %v", err)
 		}
 		if !preview.CanContinue {
-			t.Fatal("expected a pasted decklist to resolve normally regardless of the moxfield scaffold")
+			t.Fatal("expected a pasted decklist to resolve normally regardless of which provider is registered")
 		}
 	})
 }
