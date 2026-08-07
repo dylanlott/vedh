@@ -178,3 +178,7 @@ No blockers for 01-09: `archidektAdapter`, the fixture, and the field paths it r
 ---
 *Phase: 01-measured-deck-import-foundation*
 *Completed: 2026-08-07*
+
+## Self-Check: PASSED
+
+All files listed under "Files Created/Modified" verified present on disk; all commit hashes (`17cd1b8`, `f119782`) verified present in `git log --oneline --all`.

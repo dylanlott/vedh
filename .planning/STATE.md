@@ -4,16 +4,16 @@ milestone: v1.1
 milestone_name: milestone
 current_phase: 01
 current_phase_name: measured-deck-import-foundation
-status: verifying
-stopped_at: Completed 01-07-PLAN.md (Phase 1 complete)
-last_updated: "2026-08-05T21:16:35.367Z"
-last_activity: 2026-08-04
+status: executing
+stopped_at: Completed 01-08-PLAN.md
+last_updated: "2026-08-07T22:25:53.797Z"
+last_activity: 2026-08-07
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
-  completed_phases: 1
-  total_plans: 7
-  completed_plans: 7
+  completed_phases: 0
+  total_plans: 10
+  completed_plans: 8
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 01 (measured-deck-import-foundation) — EXECUTING
-Plan: 7 of 7
-Status: Phase complete — ready for verification
-Last activity: 2026-08-04 — Phase 01 execution started
+Plan: 2 of 10
+Status: Ready to execute
+Last activity: 2026-08-07 — Phase 01 execution started
 
-Progress: [██████████] 100%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [██████████] 100%
 | Phase 01 P05 | 55min | 2 tasks | 8 files |
 | Phase 01 P06 | 2h | 3 tasks | 14 files |
 | Phase 01 P07 | 45min | 3 tasks | 6 files |
+| Phase 01 P08 | 55min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,8 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase ?]: 01-07: Neutral comparison recommended Archidekt (D-15 hard gate observed and consistent); the user selected Moxfield anyway at the D-14 checkpoint, diverging from that recommendation -- recorded factually, not corrected
 - [Phase ?]: 01-07: Task 3 executed as a Rule-2 deviation directed by the user -- hostname-keyed Moxfield adapter routing and kill-switch reuse shipped as scaffolding; normalizeToDeckText deliberately unimplemented (errMoxfieldContractUnverified) since api.moxfield.com/robots.txt disallows automated access and no authorized sample response has ever been captured
 - [Phase ?]: 01-07: REQ-ACT-003 deliberately left NOT complete -- the requirement's substance (a working first-provider import) does not exist; marking it complete would overstate what shipped
+- [Phase ?]: 01-08: D-14 reversed to Archidekt at UAT (gap G-01-1); Moxfield's response contract is unobtainable without authorized API access, so archidektAdapter was implemented against the observed contract and moxfieldAdapter/errMoxfieldContractUnverified/moxfieldHost were removed outright (re-addable later if authorized Moxfield access is obtained)
+- [Phase ?]: 01-08: Human precondition recorded for enabling DECK_PROVIDER_ENABLED on archidekt.com -- a human must read https://archidekt.com/terms in a real browser first, since it is JS-rendered and no agent has JavaScript execution capability; building/testing the adapter does not require this
 
 ### Pending Todos
 
@@ -128,6 +131,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-05T21:16:35.358Z
-Stopped at: Completed 01-07-PLAN.md (Phase 1 complete)
+Last session: 2026-08-07T22:25:53.791Z
+Stopped at: Completed 01-08-PLAN.md
 Resume file: None
