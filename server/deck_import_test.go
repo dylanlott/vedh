@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -721,4 +723,134 @@ func TestDeckImport_SingleParse(t *testing.T) {
 	if cardCount != len(library) {
 		t.Fatalf("preview CardCount = %d, len(library) = %d, want equal for the same parsed value", cardCount, len(library))
 	}
+}
+
+// -----------------------------------------------------------------------
+// Plan 01-09 (gap G-01-1): prove the Archidekt URL path reuses the single
+// canonical parse (ACT-002), not a second one
+// -----------------------------------------------------------------------
+
+// withDeckProviderFetchStub substitutes deckProviderFetch (server/deck_import.go)
+// with a stub that increments called and always returns body, restoring
+// the real fetchDeckProviderURL via t.Cleanup. It is
+// withDeckProviderFetchSpy's (server/deck_providers_test.go) sibling: that
+// helper proves zero calls were made for the kill-switch cases; this one
+// additionally serves a canned response so the real archidektAdapter and
+// the real canonical parser run against it end to end, with zero real
+// network dials either way.
+func withDeckProviderFetchStub(t *testing.T, body []byte) *int {
+	t.Helper()
+	called := 0
+	original := deckProviderFetch
+	deckProviderFetch = func(ctx context.Context, client *http.Client, allowedHosts map[string]struct{}, rawURL string) ([]byte, error) {
+		called++
+		return body, nil
+	}
+	t.Cleanup(func() { deckProviderFetch = original })
+	return &called
+}
+
+// TestDeckImport_ArchidektURLPath proves the end-to-end provider URL path
+// through the kill switch, with the fetch seam stubbed to return the
+// committed fixture and zero real dials: enabled and allowlisted, it
+// reuses the single canonical parse TestDeckImport_SingleParse proves for
+// the pasted-text path; disabled, it never dials; and a host absent from
+// the allowlist is refused before any dial even with the flag on.
+func TestDeckImport_ArchidektURLPath(t *testing.T) {
+	fixture, err := os.ReadFile(archidektFixturePath)
+	if err != nil {
+		t.Fatalf("reading %s: %v", archidektFixturePath, err)
+	}
+	rawURL := "https://" + archidektHost + "/api/decks/13074677/"
+
+	// EnabledProducesSameSingleParseAsPaste covers plan points 1-2: the
+	// provider path, given the real fixture through the stubbed fetch
+	// seam, produces the same-100 total with CanContinue true, and its
+	// CardCount equals the length of the library createLibraryFromDecklist
+	// builds from the identical parsed value -- the provider path must
+	// reuse pkg/deckimport's single canonical parse, never fork a second
+	// one (ACT-002).
+	t.Run("EnabledProducesSameSingleParseAsPaste", func(t *testing.T) {
+		s := testAPI(t)
+		s.cfg.DeckProviderEnabled = true
+		s.deckProviderAllowedHosts = map[string]struct{}{archidektHost: {}}
+		withDeckProviderFetchStub(t, fixture)
+
+		input := InputDeckImport{SourceURL: &rawURL, SessionID: "archidekt-url-path-enabled-test"}
+		preview, err := s.PreviewDeck(context.Background(), input)
+		if err != nil {
+			t.Fatalf("PreviewDeck() error = %v", err)
+		}
+		if !preview.CanContinue {
+			t.Fatalf("CanContinue = false, want true; BlockingErrors = %v", preview.BlockingErrors)
+		}
+		if preview.CardCount != 100 {
+			t.Fatalf("CardCount = %d, want 100", preview.CardCount)
+		}
+
+		adapter := archidektAdapter{}
+		text, err := adapter.normalizeToDeckText(fixture)
+		if err != nil {
+			t.Fatalf("normalizeToDeckText() error = %v", err)
+		}
+		parsed := deckimport.ParseWithSource(text, adapter.source())
+
+		library, err := s.createLibraryFromDecklist(context.Background(), &parsed, nil)
+		if err != nil {
+			t.Fatalf("createLibraryFromDecklist() error = %v", err)
+		}
+		if preview.CardCount != len(library) {
+			t.Fatalf("preview CardCount = %d, len(library) = %d, want equal for the same parsed value -- the provider path must reuse the single canonical parse, not fork a second one", preview.CardCount, len(library))
+		}
+	})
+
+	// DisabledNeverDials covers plan point 3: with the kill switch off
+	// (the default), the same URL yields the ordinary paste-fallback
+	// blocking error and the fetch spy records zero calls.
+	t.Run("DisabledNeverDials", func(t *testing.T) {
+		s := testAPI(t)
+		s.cfg.DeckProviderEnabled = false
+		s.deckProviderAllowedHosts = map[string]struct{}{archidektHost: {}}
+		called := withDeckProviderFetchStub(t, fixture)
+
+		input := InputDeckImport{SourceURL: &rawURL, SessionID: "archidekt-url-path-disabled-test"}
+		preview, err := s.PreviewDeck(context.Background(), input)
+		if err != nil {
+			t.Fatalf("PreviewDeck() error = %v", err)
+		}
+		if preview.CanContinue {
+			t.Fatal("expected CanContinue = false with the provider flag unset")
+		}
+		if len(preview.BlockingErrors) != 1 || !strings.Contains(strings.ToLower(preview.BlockingErrors[0]), "paste") {
+			t.Fatalf("BlockingErrors = %v, want exactly one error mentioning pasting text as a fallback", preview.BlockingErrors)
+		}
+		if *called != 0 {
+			t.Fatalf("deckProviderFetch was called %d times, want 0 with the provider flag unset", *called)
+		}
+	})
+
+	// NonAllowlistedHostNeverDialsEvenWithFlagOn covers plan point 4.
+	// archidektHost is deliberately absent from the allowlist here;
+	// providerEnabled() only requires a NON-EMPTY allowlist, not that this
+	// specific host is in it, so this exercises the real, unstubbed
+	// fetchDeckProviderURL (server/deck_providers.go), which refuses a host
+	// absent from allowedHosts before ever building a request -- no dial
+	// or DNS lookup is attempted for this call.
+	t.Run("NonAllowlistedHostNeverDialsEvenWithFlagOn", func(t *testing.T) {
+		s := testAPI(t)
+		s.cfg.DeckProviderEnabled = true
+		s.deckProviderAllowedHosts = map[string]struct{}{"totally-unrelated.example": {}}
+
+		input := InputDeckImport{SourceURL: &rawURL, SessionID: "archidekt-url-path-not-allowlisted-test"}
+		preview, err := s.PreviewDeck(context.Background(), input)
+		if err != nil {
+			t.Fatalf("PreviewDeck() error = %v", err)
+		}
+		if preview.CanContinue {
+			t.Fatal("expected CanContinue = false for a host absent from the allowlist even with the flag on")
+		}
+		if len(preview.BlockingErrors) != 1 || !strings.Contains(strings.ToLower(preview.BlockingErrors[0]), "paste") {
+			t.Fatalf("BlockingErrors = %v, want exactly one error mentioning pasting text as a fallback", preview.BlockingErrors)
+		}
+	})
 }

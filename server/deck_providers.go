@@ -553,14 +553,43 @@ func (archidektAdapter) normalizeToDeckText(body []byte) (string, error) {
 	return b.String(), nil
 }
 
+// archidektCollectorNumberRoundTrips reports whether collectorNumber
+// matches pkg/deckimport's own bare-collector-number grammar
+// (isAlnumToken in pkg/deckimport/scanner.go: ASCII letters and digits
+// only) -- the exact shape formatArchidektDeckLine's printing-metadata
+// suffix depends on to round-trip through Parse. Found via this plan's own
+// fixture test (deviation Rule 1): the real captured response contains
+// "The List" reprints (e.g. collectorNumber "MH1-216") whose hyphen the
+// shared grammar's bare-token rule was never written to recognize.
+// Emitting the suffix anyway folds "(plst) MH1-216" into the parsed card
+// NAME itself -- no card by that name exists, so the entry silently fails
+// to resolve and vanishes from the deck. That is exactly the silent
+// mis-parse this plan exists to catch, not a cosmetic metadata loss.
+func archidektCollectorNumberRoundTrips(collectorNumber string) bool {
+	if collectorNumber == "" {
+		return false
+	}
+	for _, c := range collectorNumber {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+			return false
+		}
+	}
+	return true
+}
+
 // formatArchidektDeckLine emits one canonical decklist line: quantity and
 // name always; D-07 printing metadata ("(setcode) collectornumber") only
-// when both setCode and collectorNumber are non-empty, matching
-// pkg/deckimport/scanner.go's own emission convention so a round trip
-// through Parse recovers the same set code and collector number.
+// when setCode is non-empty AND collectorNumber round-trips through
+// pkg/deckimport's own grammar (archidektCollectorNumberRoundTrips) --
+// matching pkg/deckimport/scanner.go's own emission convention so a round
+// trip through Parse recovers the same set code and collector number. A
+// collectorNumber that would not round-trip is omitted entirely rather
+// than emitted and mis-parsed: the card still imports (by name, via D-09's
+// name-only fallback), it simply carries no D-07 printing metadata for
+// this one entry -- a smaller loss than silently dropping the card.
 func formatArchidektDeckLine(quantity int, name, setCode, collectorNumber string) string {
 	line := fmt.Sprintf("%d %s", quantity, name)
-	if setCode != "" && collectorNumber != "" {
+	if setCode != "" && archidektCollectorNumberRoundTrips(collectorNumber) {
 		line = fmt.Sprintf("%s (%s) %s", line, setCode, collectorNumber)
 	}
 	return line
