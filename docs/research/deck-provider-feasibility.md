@@ -480,3 +480,10 @@ license to build a product feature on top of that endpoint. A human must open
 `https://archidekt.com/terms` in a real browser and read it before `DECK_PROVIDER_ENABLED`
 is turned on for `archidekt.com` in any real deployment. This precondition is recorded
 here, not resolved here.
+
+Put next to the rest of the enabling checklist: setting `DECK_PROVIDER_ALLOWED_HOSTS` to
+include `archidekt.com` and setting `DECK_PROVIDER_ENABLED=true` are necessary but not
+sufficient — the ToS read above is a third, human-only precondition alongside them, not a
+step either environment variable can satisfy. See
+`.planning/phases/01-measured-deck-import-foundation/COVERAGE.md`, "Operator setup," for
+the full three-step checklist in one place.

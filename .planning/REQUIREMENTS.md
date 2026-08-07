@@ -78,6 +78,19 @@ deck-to-board activation; P1 improves post-value acquisition and operating confi
   `P0 · M · depends_on: ACT-002 · order 3`
   *Produces: `docs/research/deck-provider-feasibility.md` (forward deliverable).*
   *Exit note: if neither provider clears the gate, the ticket stops at a documented no-go and paste-based activation ships. Weakening SSRF or reliability controls to force a provider through is explicitly disallowed.*
+  *Audited complete (01-10): every clause checked individually against a passing test —
+  comparison + decision record (`docs/research/deck-provider-feasibility.md` sections
+  1–2, 4–6, from 01-07, revised by 01-08); hostname-keyed adapter interface
+  (`deckProviderAdapters`/`deckProviderAdapterFor`, `TestProvider_DeckProviderAdapterFor`);
+  SSRF controls (`TestSafeControl_DeniedAddresses`, `TestSafeClient_HostAndRedirect`,
+  `TestSafeClient_Timeouts`, `TestSafeClient_BodyCap`, unchanged since 01-06); normalize
+  through ACT-002's single canonical parse
+  (`TestDeckImport_ArchidektURLPath/EnabledProducesSameSingleParseAsPaste`,
+  `CardCount == 100`); feature flag and kill switch (`TestProvider_KillSwitch`,
+  `TestProvider_KillSwitchRequiresAllowlist`). The one open item —  a human reading
+  `https://archidekt.com/terms` — gates *enabling* the kill switch in a real deployment,
+  not this requirement's text, which names none of that; see
+  `.planning/phases/01-measured-deck-import-foundation/COVERAGE.md` "Operator setup."*
 
 ### Guest host path
 
