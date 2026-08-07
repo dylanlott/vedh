@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -780,4 +781,210 @@ func TestProvider_KillSwitchStableAcrossAdapterChange(t *testing.T) {
 			t.Fatal("expected a pasted decklist to resolve normally regardless of which provider is registered")
 		}
 	})
+}
+
+// -----------------------------------------------------------------------
+// Plan 01-09 (gap G-01-1): pin archidektAdapter's field mapping to the
+// committed live capture, so an upstream shape change fails loudly here
+// instead of silently mis-parsing a real deck.
+// -----------------------------------------------------------------------
+//
+// Every test below loads the real, committed fixture from disk and feeds
+// it through the real archidektAdapter and the real canonical parser
+// (deckimport.ParseWithSource) -- never an inline literal, and never a
+// second hand-built parser -- so a future upstream shape change breaks a
+// test here instead of silently mis-parsing a player's deck. None of these
+// tests makes an outbound connection.
+
+// archidektFixturePath is the real, unmodified live-capture response this
+// plan pins archidektAdapter's field mapping against: deck 13074677,
+// captured 2026-08-05, 113 card rows, 126 total quantity, 15 deck-level
+// categories (01-09-PLAN.md "The capture"). Loaded from disk on every test
+// run below, never inlined as a literal, so these tests exercise the
+// actual capture rather than a copy that could silently drift from it.
+const archidektFixturePath = "testdata/deck_providers/archidekt_deck_2026-08-05.json"
+
+// loadArchidektFixture reads archidektFixturePath, failing the test loudly
+// if it is missing -- a missing fixture must fail the test, not silently
+// skip every test that depends on it.
+func loadArchidektFixture(t *testing.T) []byte {
+	t.Helper()
+	data, err := os.ReadFile(archidektFixturePath)
+	if err != nil {
+		t.Fatalf("reading %s: %v", archidektFixturePath, err)
+	}
+	return data
+}
+
+// parseArchidektFixture runs the real archidektAdapter over the fixture and
+// then through the single canonical parser via deckimport.ParseWithSource
+// -- the same call sequence previewDeckURL (server/deck_import.go) makes
+// for a real request -- so these tests exercise the exact production path,
+// not a hand-assembled shortcut.
+func parseArchidektFixture(t *testing.T) deckimport.ParsedDeck {
+	t.Helper()
+	adapter := archidektAdapter{}
+	text, err := adapter.normalizeToDeckText(loadArchidektFixture(t))
+	if err != nil {
+		t.Fatalf("normalizeToDeckText() error = %v", err)
+	}
+	return deckimport.ParseWithSource(text, adapter.source())
+}
+
+// TestArchidekt_QuantityAccounting is the contract-drift canary: the
+// captured response totals 126 across 113 card rows, and the Maybeboard
+// deck-level category (includedInDeck: false) covers exactly 26 of that
+// quantity. 100 + 26 = 126 is what makes the exclusion rule falsifiable --
+// a regression that starts counting maybeboard rows produces 126 here
+// instead of 100, and the grammar drops those 26 rows with one counted
+// summary warning naming the count, never silently (D-11).
+func TestArchidekt_QuantityAccounting(t *testing.T) {
+	parsed := parseArchidektFixture(t)
+
+	inDeckTotal := 0
+	for _, e := range parsed.Entries {
+		inDeckTotal += e.Quantity
+	}
+	if inDeckTotal != 100 {
+		t.Fatalf("in-deck total quantity = %d, want 100 (126 captured, 26 excluded via Maybeboard)", inDeckTotal)
+	}
+
+	if parsed.DroppedSectionRows != 26 {
+		t.Fatalf("DroppedSectionRows = %d, want 26 -- the excluded Maybeboard rows must be counted as dropped, never silently discarded", parsed.DroppedSectionRows)
+	}
+
+	found := false
+	for _, w := range parsed.Warnings {
+		if strings.Contains(w.Message, "26") && strings.Contains(strings.ToLower(w.Message), "maybeboard") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("Warnings = %+v, want one warning naming 26 maybeboard card(s) ignored", parsed.Warnings)
+	}
+}
+
+// TestArchidekt_AssertAccountingHolds proves no nonblank row emitted by
+// normalizeToDeckText disappears without becoming an entry, a warning, a
+// blocking error, or a counted drop -- deckimport.AssertAccounting's own
+// invariant (Parse/ParseWithSource already runs it internally; this test
+// re-derives the same equality directly against the real fixture so a
+// silent regression there is not merely trusted).
+func TestArchidekt_AssertAccountingHolds(t *testing.T) {
+	parsed := parseArchidektFixture(t)
+
+	if len(parsed.BlockingErrors) != 0 {
+		t.Fatalf("BlockingErrors = %+v, want none -- a nonzero blocking error here means the accounting invariant failed against the real fixture", parsed.BlockingErrors)
+	}
+
+	accounted := len(parsed.Entries) + len(parsed.Warnings) + len(parsed.BlockingErrors) + parsed.DroppedSectionRows
+	if accounted != parsed.NonBlankLines {
+		t.Fatalf("accounted rows = %d (entries=%d warnings=%d errors=%d dropped=%d), NonBlankLines = %d -- these must be equal",
+			accounted, len(parsed.Entries), len(parsed.Warnings), len(parsed.BlockingErrors), parsed.DroppedSectionRows, parsed.NonBlankLines)
+	}
+}
+
+// TestArchidekt_CommanderPreselection proves exactly one candidate is
+// preselected into SectionCommander, named with its comma intact -- plan
+// 01-02 fixed a comma-truncation bug where "1,Atraxa, Praetors' Voice"
+// truncated to "Atraxa"; the provider path must not reintroduce it. The
+// fixture's own main deck also carries a second row also named
+// "Cid, Timeless Artificer" (a real quirk of the captured response, tagged
+// only "Oomph"/"Creature", never "Commander") -- proving this assertion
+// filters on Section rather than merely counting name occurrences.
+func TestArchidekt_CommanderPreselection(t *testing.T) {
+	parsed := parseArchidektFixture(t)
+
+	var commanders []deckimport.ParsedEntry
+	for _, e := range parsed.Entries {
+		if e.Section == deckimport.SectionCommander {
+			commanders = append(commanders, e)
+		}
+	}
+	if len(commanders) != 1 {
+		t.Fatalf("commander entries = %d, want exactly 1: %+v", len(commanders), commanders)
+	}
+	if commanders[0].Name != "Cid, Timeless Artificer" {
+		t.Fatalf("commander name = %q, want %q (comma intact)", commanders[0].Name, "Cid, Timeless Artificer")
+	}
+}
+
+// TestArchidekt_PrintingMetadata proves at least one row carries D-07
+// printing metadata straight from the response's edition.editioncode and
+// collectorNumber fields, with the set code's letter case preserved
+// exactly as the response wrote it -- both fields are already lower-case
+// in this capture, so preservation here means "left unchanged", not
+// "lower-cased by this adapter."
+func TestArchidekt_PrintingMetadata(t *testing.T) {
+	parsed := parseArchidektFixture(t)
+
+	for _, e := range parsed.Entries {
+		if e.Name == "Thirst for Knowledge" {
+			if e.SetCode != "cmr" {
+				t.Fatalf("SetCode = %q, want %q", e.SetCode, "cmr")
+			}
+			if e.CollectorNumber != "103" {
+				t.Fatalf("CollectorNumber = %q, want %q", e.CollectorNumber, "103")
+			}
+			return
+		}
+	}
+	t.Fatal(`expected an entry named "Thirst for Knowledge" carrying printing metadata; none found`)
+}
+
+// TestArchidekt_Source proves both the adapter and the parsed deck
+// attribute this import to deckimport.SourceArchidekt.
+func TestArchidekt_Source(t *testing.T) {
+	adapter := archidektAdapter{}
+	if got := adapter.source(); got != deckimport.SourceArchidekt {
+		t.Fatalf("adapter.source() = %q, want %q", got, deckimport.SourceArchidekt)
+	}
+
+	parsed := parseArchidektFixture(t)
+	if parsed.Source != deckimport.SourceArchidekt {
+		t.Fatalf("parsed.Source = %q, want %q", parsed.Source, deckimport.SourceArchidekt)
+	}
+}
+
+// TestArchidekt_MalformedInputFailsClosed proves normalizeToDeckText
+// returns an error -- never a partial deck -- for an empty body, non-JSON
+// bytes, valid JSON with no cards[], and a card row missing
+// card.oracleCard.name, and that none of the four returned errors carries
+// any byte of the input (server/deck_import.go's error-hygiene comment).
+// TestProvider_ArchidektAdapterMalformedBody (plan 01-08) already covers
+// the first three of these; this test adds the fourth and gives this
+// plan's own "-run TestArchidekt_" gate a home for all four.
+func TestArchidekt_MalformedInputFailsClosed(t *testing.T) {
+	adapter := archidektAdapter{}
+
+	const inputMarker = "zzq-input-marker-must-never-appear-in-any-returned-error"
+
+	cases := []struct {
+		name string
+		body []byte
+	}{
+		{"empty body", []byte("")},
+		{"non-JSON bytes", []byte(inputMarker + " this is not json at all")},
+		{"valid JSON, no cards", []byte(`{"categories":[],"cards":[]}`)},
+		{
+			"card row missing oracleCard.name",
+			[]byte(`{"categories":[],"cards":[{"quantity":1,"categories":[],"card":{"oracleCard":{"name":""},"edition":{"editioncode":"` + inputMarker + `"},"collectorNumber":"1"}}]}`),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			text, err := adapter.normalizeToDeckText(tc.body)
+			if err == nil {
+				t.Fatalf("normalizeToDeckText(%q) error = nil, want an error", tc.body)
+			}
+			if text != "" {
+				t.Fatalf("normalizeToDeckText(%q) text = %q, want empty on error", tc.body, text)
+			}
+			if strings.Contains(err.Error(), inputMarker) {
+				t.Fatalf("error %q leaked input content; want a static sentinel carrying no input bytes", err.Error())
+			}
+		})
+	}
 }
