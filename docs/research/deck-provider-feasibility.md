@@ -401,3 +401,82 @@ provider.
 See `.planning/phases/01-measured-deck-import-foundation/01-07-SUMMARY.md` for the full
 account, including the deviation from this plan's originally anticipated Task 3 shape
 (a fixture-tested working adapter, or a no-go) that this decision produced.
+
+---
+
+## 6. Revised decision (2026-08-07)
+
+**Selected: Archidekt.** This section supersedes Section 5's Moxfield selection above —
+it does not rewrite it. Both decisions and the evidence behind each remain readable in
+full: Section 5 is left exactly as it was written, as the historical record of what was
+actually decided and why, at the time it was decided.
+
+**Decided by:** the user (dylan), during UAT of plan 01-07, recorded as gap `G-01-1` in
+`.planning/phases/01-measured-deck-import-foundation/01-UAT.md`.
+**Date:** 2026-08-07.
+
+### Why this reverses Section 5
+
+The user asked, in substance, "why can't we do Moxfield? Do Archidekt instead then if we
+can't do Moxfield" (`01-UAT.md`, `G-01-1.reason`). The honest answer, already established
+by this document's own Section 2 and not re-derived here: **Moxfield's response contract
+is unobtainable without authorized API access.**
+
+- `api.moxfield.com/robots.txt` is a blanket `User-agent: * / Disallow: /` (Section 2.1;
+  re-verified 2026-08-05, unchanged). This spike declined to ignore that disallow, so no
+  response body from that host was ever obtained, and Section 5's own "Open blockers
+  gating enablement" already named this as blocker (a).
+- `moxfield.com`'s web frontend independently returns a Cloudflare bot-management `403`
+  "Attention Required" challenge to every unauthenticated probe attempted — three
+  different `User-Agent` values, all blocked identically (Section 2.1). This is
+  infrastructure-level anti-automation, not a policy choice this codebase's client could
+  configure around without defeating a WAF challenge, which this spike also declined to
+  do.
+
+Section 5's own hard-gate finding (D-15, response-shape stability) could never be
+evaluated for Moxfield for exactly this reason — no response body was ever observed to
+evaluate. That was recorded honestly as "unknown," not rounded up to a pass. The user's
+reversal is consistent with, not contrary to, that record.
+
+### Moxfield is "not without a key," not "never"
+
+Moxfield operates an official developer API with an application process (this spike did
+not discover its exact terms — see Section 2.8 — but its existence as a *credentialed*
+path, distinct from the unauthenticated `api.moxfield.com` this spike probed, is
+independently known). Nothing here forecloses revisiting Moxfield if authorized access is
+obtained: the barrier is the current unauthenticated posture, not something structural
+about Moxfield as a provider. `deckimport.SourceMoxfield` remains a declared `SourceType`
+value in `pkg/deckimport` for exactly this reason — the enum is closed at four values and
+this decision does not touch it.
+
+### The Archidekt risk carried forward unchanged
+
+Selecting Archidekt does not retire the risk Section 1.4 already disclosed: `GET
+https://archidekt.com/api/decks/<id>/` is Archidekt's own internal, unversioned SPA data
+API — the same endpoint their React frontend calls — not a contract published or
+versioned for third-party consumers. It was directly observed to be structurally
+consistent across six independently fetched real public decks on 2026-08-05 (Section 1.4),
+which is current-state evidence of consistency, not a guarantee of future stability. An
+unversioned internal API can change without notice, and nothing in this document rules
+that out. This is exactly why plan 01-09's fixture-contract tests against the committed
+capture (`server/testdata/deck_providers/archidekt_deck_2026-08-05.json`) matter: they
+make a future silent shape change fail loudly instead of mis-parsing quietly.
+
+### Human precondition for enabling — not for building
+
+Building `archidektAdapter` (plan 01-08, Task 2) requires none of this: it is exercised
+entirely by hermetic tests against the committed fixture, and the provider kill switch
+(`DECK_PROVIDER_ENABLED` / `providerEnabled()`) defaults off regardless of which adapter is
+registered.
+
+**Enabling the kill switch for real Archidekt traffic is a different matter, and has a
+precondition that has not yet been satisfied by anyone:** `https://archidekt.com/terms` is
+a client-rendered single-page app. The HTML a plain `GET` returns contains font
+declarations and application shell markup, not the rendered terms text (Section 1.5) — no
+agent working on this project has JavaScript execution capability, so **no agent has ever
+read what Archidekt's terms actually say about automated or programmatic reads.**
+`robots.txt` permitting the `/api/decks/` path (Section 1.5) is crawler etiquette, not a
+license to build a product feature on top of that endpoint. A human must open
+`https://archidekt.com/terms` in a real browser and read it before `DECK_PROVIDER_ENABLED`
+is turned on for `archidekt.com` in any real deployment. This precondition is recorded
+here, not resolved here.

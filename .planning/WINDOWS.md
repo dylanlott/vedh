@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 1
+open_count: 0
 waived_count: 0
-fixed_count: 0
+fixed_count: 1
 total_count: 1
-last_updated: 2026-08-05T21:16:43.165Z
+last_updated: 2026-08-07T22:22:33.764Z
 ---
 
 # Broken Windows Ledger
@@ -15,7 +15,7 @@ last_updated: 2026-08-05T21:16:43.165Z
 
 | id | phase | kind | file | line | description | status | reason | recorded_at | resolved_at |
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
-| 1 | 01 | stub | server/deck_providers.go | 395 | moxfieldAdapter.normalizeToDeckText always returns errMoxfieldContractUnverified -- no Moxfield field mapping is implemented because the response contract has never been observed (api.moxfield.com/robots.txt disallows automated access; no authorized sample response exists) | open |  | 2026-08-05T21:16:43.165Z |  |
+| 1 | 01 | stub | server/deck_providers.go | 395 | moxfieldAdapter.normalizeToDeckText always returns errMoxfieldContractUnverified -- no Moxfield field mapping is implemented because the response contract has never been observed (api.moxfield.com/robots.txt disallows automated access; no authorized sample response exists) | fixed |  | 2026-08-05T21:16:43.165Z | 2026-08-07T22:22:33.764Z |
 
 ````json
 [
@@ -26,10 +26,10 @@ last_updated: 2026-08-05T21:16:43.165Z
     "file": "server/deck_providers.go",
     "line": 395,
     "description": "moxfieldAdapter.normalizeToDeckText always returns errMoxfieldContractUnverified -- no Moxfield field mapping is implemented because the response contract has never been observed (api.moxfield.com/robots.txt disallows automated access; no authorized sample response exists)",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-08-05T21:16:43.165Z",
-    "resolved_at": null
+    "resolved_at": "2026-08-07T22:22:33.764Z"
   }
 ]
 ````
