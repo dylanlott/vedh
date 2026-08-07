@@ -74,7 +74,7 @@ deck-to-board activation; P1 improves post-value acquisition and operating confi
 - [x] **REQ-ACT-002**: Canonical deck parser and preview API — extract parsing out of `createLibraryFromDecklist` in `server/games.go` into a deck-import service; support quantity/name, `1x`, spaced CSV, quoted CSV, headers, blank lines, sideboard/maybeboard; preserve comma-containing names; return normalized entries, commander candidates, unresolved entries, warnings, blocking errors, `CanContinue`; add `previewDeck` and `DeckPreview`; feed the same normalized result into create/join; preserve card lookup, commander removal, and deck-size rules.
   `P0 · L · depends_on: ACT-001 · order 2`
 
-- [ ] **REQ-ACT-003**: Public deck provider feasibility gate and first adapter — one-day time-boxed comparison of public Archidekt and Moxfield access; decision record; adapter interface keyed by an allowlisted hostname; HTTPS, DNS/IP validation, redirect revalidation, 3s connect / 8s total timeout, 1 MiB cap; normalize through ACT-002; server-side feature flag and kill switch.
+- [x] **REQ-ACT-003**: Public deck provider feasibility gate and first adapter — one-day time-boxed comparison of public Archidekt and Moxfield access; decision record; adapter interface keyed by an allowlisted hostname; HTTPS, DNS/IP validation, redirect revalidation, 3s connect / 8s total timeout, 1 MiB cap; normalize through ACT-002; server-side feature flag and kill switch.
   `P0 · M · depends_on: ACT-002 · order 3`
   *Produces: `docs/research/deck-provider-feasibility.md` (forward deliverable).*
   *Exit note: if neither provider clears the gate, the ticket stops at a documented no-go and paste-based activation ships. Weakening SSRF or reliability controls to force a provider through is explicitly disallowed.*
@@ -195,7 +195,7 @@ v1** (see INFO-2 and the milestone scope decision); only the items below remain 
 |-------------|----------|------|-------|--------|
 | REQ-ACT-001 | P0 | M | Phase 1 | Complete |
 | REQ-ACT-002 | P0 | L | Phase 1 | Complete |
-| REQ-ACT-003 | P0 | M | Phase 1 | Pending |
+| REQ-ACT-003 | P0 | M | Phase 1 | Complete |
 | REQ-ACT-004 | P0 | L | Phase 2 | Pending |
 | REQ-ACT-005 | P0 | L | Phase 2 | Pending |
 | REQ-ACT-006 | P0 | L | Phase 2 | Pending |

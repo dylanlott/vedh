@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: measured-deck-import-foundation
 status: executing
-stopped_at: Completed 01-08-PLAN.md
-last_updated: "2026-08-07T22:25:53.797Z"
+stopped_at: Completed 01-09-PLAN.md
+last_updated: "2026-08-07T23:47:21.802Z"
 last_activity: 2026-08-07
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 01 (measured-deck-import-foundation) — EXECUTING
-Plan: 2 of 10
+Plan: 3 of 10
 Status: Ready to execute
 Last activity: 2026-08-07 — Phase 01 execution started
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [████████░░] 80%
 | Phase 01 P06 | 2h | 3 tasks | 14 files |
 | Phase 01 P07 | 45min | 3 tasks | 6 files |
 | Phase 01 P08 | 55min | 2 tasks | 5 files |
+| Phase 01 P09 | 40min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase ?]: 01-07: REQ-ACT-003 deliberately left NOT complete -- the requirement's substance (a working first-provider import) does not exist; marking it complete would overstate what shipped
 - [Phase ?]: 01-08: D-14 reversed to Archidekt at UAT (gap G-01-1); Moxfield's response contract is unobtainable without authorized API access, so archidektAdapter was implemented against the observed contract and moxfieldAdapter/errMoxfieldContractUnverified/moxfieldHost were removed outright (re-addable later if authorized Moxfield access is obtained)
 - [Phase ?]: 01-08: Human precondition recorded for enabling DECK_PROVIDER_ENABLED on archidekt.com -- a human must read https://archidekt.com/terms in a real browser first, since it is JS-rendered and no agent has JavaScript execution capability; building/testing the adapter does not require this
+- [Phase ?]: 01-09: Rule 1 bug fix -- archidektCollectorNumberRoundTrips gates formatArchidektDeckLine's printing-metadata suffix; a hyphenated Archidekt collector number (e.g. 'MH1-216' from The List reprints) previously folded into the parsed card name and silently failed to resolve, dropping 7 real cards from a 100-card deck (found via this plan's own fixture test)
+- [Phase ?]: 01-09: TestDeckImport_ArchidektURLPath's non-allowlisted-host subtest deliberately uses the real, unstubbed fetchDeckProviderURL (not a spy) since its own host check runs before any dial or DNS lookup -- a genuine end-to-end zero-dial proof
 
 ### Pending Todos
 
@@ -131,6 +134,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-07T22:25:53.791Z
-Stopped at: Completed 01-08-PLAN.md
+Last session: 2026-08-07T23:47:21.796Z
+Stopped at: Completed 01-09-PLAN.md
 Resume file: None
