@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 01-measured-deck-import-foundation
 source: [01-VERIFICATION.md, 01-01-SUMMARY.md, 01-02-SUMMARY.md, 01-03-SUMMARY.md, 01-04-SUMMARY.md, 01-05-SUMMARY.md, 01-06-SUMMARY.md, 01-07-SUMMARY.md]
 started: 2026-08-05T22:33:38Z
-updated: 2026-08-07T19:58:26Z
+updated: 2026-08-08T07:50:00Z
 ---
 
 ## Current Test
@@ -20,6 +20,7 @@ severity: major
 source: human_judgment
 origin: 01-VERIFICATION.md human_verification[0]
 note: Not a defect report — a reversal of the D-14 provider decision. The user declined to sign off on shipping REQ-ACT-003 as Pending and redirected the first provider from Moxfield to Archidekt, which the 01-07 feasibility spike originally recommended and for which a real observed response contract already exists in-repo.
+resolution: The redirect was actioned, not merely accepted. `result` stays `issue` because the sign-off this test asked for genuinely never happened — the proposition was withdrawn rather than agreed. What closed the loop is gap G-01-1 below, resolved 2026-08-08 by plans 01-08/01-09/01-10; REQ-ACT-003 now ships as Complete on a working Archidekt import rather than as Pending on a fail-closed Moxfield scaffold.
 
 ### 2. No SQL composed by string formatting; vet and card/import/migration tests green (01-04 D8)
 expected: No SQL string in server/deck_import.go or server/cards.go is composed with string formatting, and `go vet ./server` plus `go test ./server -run 'TestCards|TestDeckImport_|TestMigrations_' -race` pass in one invocation without a snapshot reimport.
@@ -342,7 +343,23 @@ blocked: 0
 
 - gap_id: G-01-1
   truth: "REQ-ACT-003 delivers a first public deck provider adapter, keyed by an allowlisted hostname, normalizing through ACT-002 behind a server-side kill switch"
-  status: failed
+  status: resolved
+  resolved: 2026-08-08
+  resolved_by: [01-08-PLAN.md, 01-09-PLAN.md, 01-10-PLAN.md]
+  resolution: >-
+    All six `missing:` items below are delivered and independently verified (01-VERIFICATION.md,
+    status passed, 5/5). archidektAdapter normalizes the committed 568 KB live capture through
+    pkg/deckimport (TestDeckImport_ArchidektURLPath/EnabledProducesSameSingleParseAsPaste proves
+    the single-canonical-parse contract, CardCount 100 from a 113-row response); fixture-contract
+    tests pin the field mapping; the Moxfield scaffold and its WINDOWS.md stub window are gone;
+    the suite makes zero live dials. The human precondition (read https://archidekt.com/terms) is
+    NOT satisfied and remains an operator gate on *enabling* the provider — recorded in
+    docs/research/deck-provider-feasibility.md section 6, COVERAGE.md "Operator Setup", and
+    01-10-SUMMARY.md. DECK_PROVIDER_ENABLED still defaults false.
+    Two silent-corruption defects introduced by this gap-closure work (embedded newline in a card
+    name hijacking section assignment; unvalidated setCode corrupting a card name) were caught by
+    code review, reproduced by the verifier, fixed in d2d8df6/53d9f60/3e5786e/e628f39, and
+    re-verified — see 01-REVIEW.md iteration 2 and 01-REVIEW-FIX.md.
   reason: "User reported: Why can't we do Moxfield? Do Archidekt instead then if we can't do Moxfield."
   severity: major
   test: 1
