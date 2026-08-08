@@ -371,18 +371,19 @@ func (s *graphQLServer) providerEnabled() bool {
 // enum is closed at four values and this plan does not touch it -- the
 // previously used value there is untouched.
 
-// errArchidektMalformedResponse, errArchidektNoCardRows, and
-// errArchidektMissingCardName are the static sentinels
-// archidektAdapter.normalizeToDeckText returns. previewDeckURL
-// (server/deck_import.go) logs normalizeToDeckText's error, and its own
-// comment states that no adapter's error may carry provider response
-// content -- these three are fixed string literals, so that invariant
-// holds by construction, exactly as it did for the previous provider's
-// unverified-contract sentinel before this plan.
+// errArchidektMalformedResponse, errArchidektNoCardRows,
+// errArchidektMissingCardName, and errArchidektUnsafeCardName are the
+// static sentinels archidektAdapter.normalizeToDeckText returns.
+// previewDeckURL (server/deck_import.go) logs normalizeToDeckText's error,
+// and its own comment states that no adapter's error may carry provider
+// response content -- these four are fixed string literals, so that
+// invariant holds by construction, exactly as it did for the previous
+// provider's unverified-contract sentinel before this plan.
 var (
 	errArchidektMalformedResponse = errors.New("deck provider: archidekt response is not valid JSON")
 	errArchidektNoCardRows        = errors.New("deck provider: archidekt response contained no card rows")
 	errArchidektMissingCardName   = errors.New("deck provider: archidekt card row missing a card name")
+	errArchidektUnsafeCardName    = errors.New("deck provider: archidekt card row name contains an embedded newline or carriage return")
 )
 
 // archidektHost is the exact, lower-cased hostname a pasted Archidekt deck
@@ -500,6 +501,9 @@ func (archidektAdapter) normalizeToDeckText(body []byte) (string, error) {
 		if name == "" {
 			return "", errArchidektMissingCardName
 		}
+		if !archidektNameIsSafe(name) {
+			return "", errArchidektUnsafeCardName
+		}
 		line := formatArchidektDeckLine(row.Quantity, name, row.Card.Edition.EditionCode, row.Card.CollectorNumber)
 
 		excluded := false
@@ -553,23 +557,52 @@ func (archidektAdapter) normalizeToDeckText(body []byte) (string, error) {
 	return b.String(), nil
 }
 
-// archidektCollectorNumberRoundTrips reports whether collectorNumber
-// matches pkg/deckimport's own bare-collector-number grammar
-// (isAlnumToken in pkg/deckimport/scanner.go: ASCII letters and digits
-// only) -- the exact shape formatArchidektDeckLine's printing-metadata
-// suffix depends on to round-trip through Parse. Found via this plan's own
-// fixture test (deviation Rule 1): the real captured response contains
-// "The List" reprints (e.g. collectorNumber "MH1-216") whose hyphen the
-// shared grammar's bare-token rule was never written to recognize.
-// Emitting the suffix anyway folds "(plst) MH1-216" into the parsed card
-// NAME itself -- no card by that name exists, so the entry silently fails
-// to resolve and vanishes from the deck. That is exactly the silent
-// mis-parse this plan exists to catch, not a cosmetic metadata loss.
-func archidektCollectorNumberRoundTrips(collectorNumber string) bool {
-	if collectorNumber == "" {
+// archidektNameIsSafe reports whether name contains no embedded newline or
+// carriage return. pkg/deckimport's splitLines (scanner.go) treats both as
+// line terminators, so an untrusted card name containing either would
+// silently inject an extra line into the generated decklist text, which
+// the second, independent grammar then re-parses from scratch (CR-01,
+// 01-REVIEW.md): the injected line can exactly match matchSectionHeader
+// (e.g. an embedded "Commander"), reassigning Section for every entry that
+// follows it -- with no accounting-invariant trip, because both operands
+// of AssertAccounting are computed from the already-corrupted text, so a
+// corruption introduced before that text is generated is structurally
+// invisible to it. Rejecting the whole row here, the same way an empty
+// name already is via errArchidektMissingCardName, is a fail-loud choice
+// consistent with this adapter's existing all-or-nothing design (see
+// TestArchidekt_MalformedInputFailsClosed).
+func archidektNameIsSafe(name string) bool {
+	for _, c := range name {
+		if c == '\n' || c == '\r' {
+			return false
+		}
+	}
+	return true
+}
+
+// archidektTokenRoundTrips reports whether token matches pkg/deckimport's
+// own bare-token grammar (isAlnumToken in pkg/deckimport/scanner.go: ASCII
+// letters and digits only) -- the exact shape both fields
+// formatArchidektDeckLine's printing-metadata suffix carries
+// (collectorNumber and setCode) depend on to round-trip through Parse.
+// Originally written for collectorNumber alone (deviation Rule 1,
+// 01-09-PLAN.md: the real captured response contains "The List" reprints,
+// e.g. collectorNumber "MH1-216", whose hyphen the shared grammar's
+// bare-token rule was never written to recognize -- emitting the suffix
+// anyway folds "(plst) MH1-216" into the parsed card NAME itself, so the
+// entry silently fails to resolve and vanishes from the deck). Generalized
+// to setCode too (CR-02, 01-REVIEW.md): extractTrailingAnnotations
+// (scanner.go) requires the parenthesised group to contain no whitespace
+// to be recognized as a set code, so a setCode containing a space (e.g.
+// "SET CODE") is not stripped -- it stays glued onto the parsed card name
+// instead, corrupting it so the entry silently fails to resolve. Both are
+// the identical silent mis-parse this plan exists to catch, not a cosmetic
+// metadata loss, just on adjacent fields sharing the same suffix.
+func archidektTokenRoundTrips(token string) bool {
+	if token == "" {
 		return false
 	}
-	for _, c := range collectorNumber {
+	for _, c := range token {
 		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
 			return false
 		}
@@ -579,17 +612,18 @@ func archidektCollectorNumberRoundTrips(collectorNumber string) bool {
 
 // formatArchidektDeckLine emits one canonical decklist line: quantity and
 // name always; D-07 printing metadata ("(setcode) collectornumber") only
-// when setCode is non-empty AND collectorNumber round-trips through
-// pkg/deckimport's own grammar (archidektCollectorNumberRoundTrips) --
-// matching pkg/deckimport/scanner.go's own emission convention so a round
-// trip through Parse recovers the same set code and collector number. A
-// collectorNumber that would not round-trip is omitted entirely rather
-// than emitted and mis-parsed: the card still imports (by name, via D-09's
-// name-only fallback), it simply carries no D-07 printing metadata for
-// this one entry -- a smaller loss than silently dropping the card.
+// when BOTH setCode and collectorNumber round-trip through pkg/deckimport's
+// own grammar (archidektTokenRoundTrips) -- matching
+// pkg/deckimport/scanner.go's own emission convention so a round trip
+// through Parse recovers the same set code and collector number. The whole
+// suffix is omitted entirely -- never emitted with only one side correct
+// -- when EITHER field would not round-trip: the card still imports (by
+// name, via D-09's name-only fallback), it simply carries no D-07 printing
+// metadata for this one entry -- a smaller loss than silently corrupting
+// the parsed name (CR-02, 01-REVIEW.md) or dropping the card.
 func formatArchidektDeckLine(quantity int, name, setCode, collectorNumber string) string {
 	line := fmt.Sprintf("%d %s", quantity, name)
-	if setCode != "" && archidektCollectorNumberRoundTrips(collectorNumber) {
+	if archidektTokenRoundTrips(setCode) && archidektTokenRoundTrips(collectorNumber) {
 		line = fmt.Sprintf("%s (%s) %s", line, setCode, collectorNumber)
 	}
 	return line
