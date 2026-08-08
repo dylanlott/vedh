@@ -1,240 +1,134 @@
 ---
 phase: 01-measured-deck-import-foundation
-fixed_at: 2026-08-05T22:14:39Z
+fixed_at: 2026-08-08T05:08:38Z
 review_path: .planning/phases/01-measured-deck-import-foundation/01-REVIEW.md
 iteration: 1
-findings_in_scope: 6
-fixed: 6
+findings_in_scope: 5
+fixed: 5
 skipped: 0
 status: all_fixed
 ---
 
-# Phase 01: Code Review Fix Report
+# Phase 1: Code Review Fix Report
 
-**Fixed at:** 2026-08-05T22:14:39Z
+**Fixed at:** 2026-08-08T05:08:38Z
 **Source review:** .planning/phases/01-measured-deck-import-foundation/01-REVIEW.md
 **Iteration:** 1
 
 **Summary:**
-- Findings in scope: 6 (CR-01, CR-02, WR-01, WR-02, WR-03, WR-04 — fix_scope: critical+warning)
-- Fixed: 6
+- Findings in scope: 5 (fix_scope: critical_warning — CR-01, CR-02, WR-01, WR-02, WR-03; IN-01 excluded as info-only)
+- Fixed: 5
 - Skipped: 0
-- Out of scope by instruction: IN-01 (expected gqlgen scaffold noise, not fixed per orchestrator instruction)
 
-**Isolation:** All edits and commits were made in an isolated git worktree at
-`/tmp/sv-01-reviewfix-HvlSLB` on temp branch `gsd-reviewfix/01-55831`, created from
-`main` at `a92d8cc`. The cleanup tail (fast-forward `main`, remove worktree, delete
-temp branch, remove recovery sentinel) runs immediately after this report is written.
-
-**Verification environment:** Go tests (`go test ./server -count=1`, `go test
-./pkg/... -race`, `go mod verify`) ran inside the isolated worktree, pointing at the
-same local Postgres (`postgres://edhgo:edhgo@localhost:5432/edhgo`) and the same
-MTGJSON snapshot (`/Users/oberon/code/vedh/All Printings.json`, via
-`ALL_PRINTINGS_JSON_PATH`) the main checkout uses — these results are reproducible
-from either tree. `cd app && npm test` ran in the **main checkout**
-(`/Users/oberon/code/vedh/app`) instead, because the worktree has no `node_modules`
-(worktrees are not `npm install`-ed) and no file under `app/` was touched by any of
-these six fixes — the frontend suite result is identical regardless of which tree it
-runs in, so this is not a `main`-only-not-worktree discrepancy, just a practical
-constraint that avoided a slow reinstall.
+All work was done in an isolated git worktree (`gsd-reviewfix/01-<pid>` branched from `main`),
+fast-forwarded back onto `main` on completion — no rebasing or history rewriting of the user's
+branch. Verification (build/vet/tests) ran inside that same worktree, with a symlink to the
+repo-root `All Printings.json` (gitignored, not checked out into new worktrees) so the package's
+`TestMain` DB-seeding step could run identically to the main checkout.
 
 ## Fixed Issues
 
-### CR-01: `JoinGame` has no life-total default, so an omitted life silently starts a player "already eliminated"
+### CR-01: Unsanitized embedded newline/CR in card name injects lines into the decklist grammar
 
-**Files modified:** `server/games.go`, `server/games_test.go`
-**Commit:** `ad7f344`
-**Applied fix:** Added a defaulting step in `JoinGame`, mirroring `CreateGame`'s
-`defaultLifeForAll` reasoning but adapted to `JoinGame`'s single-player-per-call
-shape: `life := input.BoardState.Life; if life <= 0 { life = formatFromRules(game.Rules).StartingLife }`.
-`formatFromRules` never returns nil (falls back to `DefaultFormat()`), and
-`game.Rules` is already normalized by the preceding `ensureGameDefaults(game)`
-call, so the format lookup is always well-formed. Treated `Life <= 0` (not just
-`== 0`) as "unspecified" on the reasoning that a negative life on a joining player
-is equally nonsensical and should not be preserved verbatim. Added
-`TestJoinGame_DefaultsLifeWhenOmitted`, a new regression test that joins a game
-with `BoardState.Life` omitted and asserts the resulting player's
-`Boardstate.Life` equals `formatFromRules(game.Rules).StartingLife` (40 for the
-seeded EDH format), not 0. Verified the new test passes against a real Postgres
-instance and the full `go test ./server` suite (77.8s) stayed green afterward.
+**Files modified:** `server/deck_providers.go`, `server/deck_providers_test.go`
+**Commit:** `d2d8df6` (source fix), `53d9f60` (regression test)
+**Applied fix:** Added `archidektNameIsSafe`, called in the `cards[]` loop right after the existing
+empty-name check, returning a new static sentinel `errArchidektUnsafeCardName` when a name contains
+an embedded `\n` or `\r`. This mirrors the existing fail-closed pattern for
+`errArchidektMissingCardName` rather than inventing a parallel mechanism. Regression coverage added
+in `TestArchidekt_UnsafeCardNameRejected` (synthetic rows with `\n` and `\r`), independently
+confirmed to fail against the pre-fix code (reverted the source file to the pre-fix commit, ran the
+new test, observed both subtests fail with the exact corrupted text the review/verification
+reports describe, then restored the fix).
 
-### CR-02: The rate-limit client key is entirely client-controlled, letting any caller bypass `previewDeck`/`trackProductEvent` limits at will
+### CR-02: `setCode` has no round-trip validation, unlike `collectorNumber`
 
-**Files modified:** `server/ratelimit.go`, `server/ratelimit_test.go`
-**Commit:** `115c24e`
-**Applied fix:** Rewrote `clientKeyFor` so the server-observed remote address
-(`remoteAddrFromContext`, sourced from `server/graphql.go`'s `withClientAddr` →
-`r.RemoteAddr`, the TCP peer address — confirmed never derived from a
-client-supplied header) is the **sole** bucketing key whenever present;
-`sessionID` is consulted only as a fallback when no address is in context.
-**Deviation from the review's literal suggested code:** the review's own example
-fix (`"addr:" + addr + "|session:" + session`) was tried first and found to
-*not* close the hole — concatenating a varying `sessionID` onto a fixed address
-still produces a distinct map key per session, so an attacker rotating
-`sessionID` from one IP still gets a fresh bucket every time. I verified this
-empirically: a test asserting "5 requests with 5 different sessionIDs from the
-same address must not grant extra budget" failed under the concatenation
-approach and passes under the address-only approach. Implemented the review's
-own stated alternative instead ("drop the session-based key entirely in favor
-of address-based limiting for these two public surfaces"), since per-session
-fairness was never a stated goal for these surfaces. Rewrote
-`TestRateLimit_ClientKeyForPrefersSessionOverAddress` (which asserted the
-old, vulnerable precedence) as
-`TestRateLimit_ClientKeyForAlwaysAnchorsOnAddress`, and added
-`TestRateLimit_VaryingSessionIDAloneDoesNotGrantMoreBudget`, which exhausts a
-burst-1 registry from one address, then proves five different
-never-before-seen `sessionID`s from that same address are all still refused.
-Verified against `go test ./server -run TestRateLimit` and the two production
-call sites (`deck_import.go`, `product_events.go`) needed no changes since
-`clientKeyFor`'s signature is unchanged. Full `go test ./server` suite stayed
-green.
+**Files modified:** `server/deck_providers.go`, `server/deck_providers_test.go`
+**Commit:** `d2d8df6` (source fix, same commit as CR-01 — same helper functions, same fix location,
+fixed together per the orchestrator's guidance), `53d9f60` (regression test)
+**Applied fix:** Generalized `archidektCollectorNumberRoundTrips` into `archidektTokenRoundTrips`
+(same alnum-only grammar check, now documented for both fields) and updated
+`formatArchidektDeckLine` to require **both** `setCode` and `collectorNumber` to round-trip before
+emitting the D-07 printing-metadata suffix — omitting the whole suffix, never emitting it with only
+one side correct, exactly as the existing comment already promised for `collectorNumber` alone.
+Regression coverage added in `TestArchidekt_UnsafeSetCodeOmitsSuffix` (setCode `"SET CODE"` with a
+round-tripping collector number), independently confirmed to fail against the pre-fix code (parsed
+entry name carried the corrupted `"Sol Ring (SET CODE)"` suffix, exactly as reported).
 
-### WR-01: The outbound deck-provider host allowlist is enforced only on redirects, never on the initial request
+### WR-01: No sanitization against the grammar's other special characters in `name`
 
-**Files modified:** `server/deck_import.go`, `server/deck_providers.go`, `server/deck_providers_test.go`
-**Commit:** `cd5ae3f`
-**Applied fix:** Added an `allowedHosts map[string]struct{}` parameter to
-`fetchDeckProviderURL`, checked immediately after the scheme/empty-host checks
-and before the request is built (so before any dial or name resolution).
-Updated the one call site (`previewDeckURL`) to pass
-`s.deckProviderAllowedHosts`. Updated `withDeckProviderFetchSpy`'s closure
-signature and every direct `fetchDeckProviderURL(...)` test call site
-(`TestSafeClient_RejectsBeforeResolution`, `TestSafeClient_BodyCap`'s three
-subtests, `TestSafeClient_ZeroByteBodyIsProviderError`) to supply the new
-argument — added an `allowedHostsForServer(t, srv)` test helper that derives an
-allowlist from an `httptest.Server`'s own loopback host so those hermetic tests
-keep exercising body-cap/timeout/empty-body behavior rather than being blocked
-by the new host check. Added
-`TestSafeClient_InitialRequestHostEnforced`, a new regression test following
-the existing `RedirectToUnallowlistedHostNeverInvoked` pattern: a target
-server's handler sets an `atomic.Bool` if invoked; `fetchDeckProviderURL` is
-called directly with an allowlist that deliberately excludes the target's
-host; the test asserts an error containing "blocked host" and that the
-handler was never invoked — proving zero dial attempts on the *initial*
-request, not merely that an error was returned. Full `go test ./server`
-suite (all `TestSafeClient*`/`TestSafeControl*`/`TestProvider*` and the full
-package) verified green afterward.
+**Files modified:** `server/deck_providers.go`, `server/deck_providers_test.go`
+**Commit:** `e628f39`
+**Applied fix:** Widened `archidektNameIsSafe` (rather than enumerating characters one bug report at
+a time, per the review's own framing) to reject a name that: starts with `"` (triggers the CSV-style
+quoted-name rule); or ends with `` ` ``, `]`, or a token-boundary-preceded `#tag`-shaped suffix
+(triggers `extractTrailingAnnotations`'s trailing-category rules). Deliberately **position-specific**
+rather than a blanket "reject any occurrence" rule: an internal, non-leading quote is a legal
+component of a real Magic card name (e.g. `Kongming, "Sleeping Dragon"`), and a naive
+contains-check would have incorrectly excluded it. Added
+`TestArchidekt_UnsafeNameGrammarConflictRejected` (four synthetic adversarial cases: leading quote,
+trailing backtick category, trailing bracket category, trailing hash tag) and
+`TestArchidekt_InternalQuoteInNameSurvives` (proving the real `Kongming, "Sleeping Dragon"` name is
+NOT rejected and round-trips intact). All four rejection cases independently confirmed to fail
+against the pre-fix code; the internal-quote survival case passes both before and after, confirming
+it is not a false positive introduced by an overly broad check.
 
-### WR-02: `server/test.go`'s `testAPI` masks a broken or misconfigured database as a pass, not a failure
+### WR-02: Deck-level category membership tests use exact string equality, inconsistent with `EqualFold`
 
-**Files modified:** `server/test.go`
-**Commit:** `c22e8c5`
-**Applied fix:** `testAPI` now reads `DATABASE_URL` with a fallback to the
-previous hardcoded DSN (extracted to a named `testAPIDefaultDSN` constant).
-Split the three failure branches per the orchestrator's explicit split: a
-plain TCP-reachability failure (`ensurePostgresReachable`) remains `t.Skipf`
-— this codebase documents `go test ./server/...` (the `make test-api` target)
-as NOT part of the CI-gated workflow (`.github/workflows/test.yml`'s "Test"
-job runs only `make test-unit`, i.e. `go test ./pkg/... -race`; confirmed by
-reading the workflow file directly), and README.md's "Backend integration
-tests" section documents this target as requiring a local Postgres — so "no
-Postgres running at all" is a documented, supported developer-machine state.
-Once that check has passed, Postgres is confirmed present and listening, so a
-subsequent `ForceCleanMigrations` or `NewPostgres` failure now uses
-`t.Fatalf` instead of `t.Skipf` — those indicate a real regression (bad
-credentials, corrupted migrations, permissions), not an absent dependency.
-**Verification limitation, noted honestly:** `server/main_test.go`'s
-pre-existing `TestMain` already performs its own DB-reachability/migration
-setup and calls `os.Exit(1)` on any failure, gating the entire test binary
-before any individual test's `testAPI()` call runs. This means I could not
-empirically reproduce the "Postgres reachable but migrations/connection
-broken" branch live in this environment — doing so would require either a
-Postgres instance reachable but misconfigured in a way `TestMain` itself
-tolerates (none exists) or refactoring `TestMain`, which is out of scope for
-this finding (`server/test.go:16-69` only). I verified this change by code
-reading (the three branches are correctly ordered and match the reviewer's
-stated "reachable vs. not reachable" distinction) and by confirming the full
-`go test ./server` suite stays green with `DATABASE_URL` both unset and
-explicitly set to the same DSN.
+**Files modified:** `server/deck_providers.go`, `server/deck_providers_test.go`
+**Commit:** `3e5786e`
+**Applied fix:** Folded both `excludedCategories` (map keys and lookups) and the commander-category
+comparison to lower-case, consistent with the `strings.EqualFold` already used to *find* the
+Commander category. A case mismatch between a row's category tag and the deck-level
+`categories[].name` entry now can no longer silently include an excluded (maybeboard) card, nor
+silently miss the commander. Added `TestArchidekt_CategoryMembershipIsCaseFolded` (a synthetic
+response with `"maybeboard"`/`"Maybeboard"` and `"COMMANDER"`/`"Commander"` case mismatches),
+independently confirmed to fail against the pre-fix code (the case-mismatched maybeboard row landed
+in `Entries` instead of `DroppedSectionRows`).
 
-### WR-03: `pkg/telemetry.Collectors.ObserveDeckProviderFetch` accepts unbounded strings, unlike every other typed observation method in the same file
+### WR-03: Contract tests do not cover adversarial/malformed field content
 
-**Files modified:** `pkg/telemetry/metrics.go`, `pkg/telemetry/metrics_test.go`
-**Commit:** `0e8eff0`
-**Applied fix:** Added a new `DeckProvider` named string type in
-`pkg/telemetry`, with one constant (`DeckProviderMoxfield`) mirroring the "one
-constant per adapter actually registered" discipline `ratelimit.Surface`
-documents for itself (only `moxfieldHost` is registered in
-`server/deck_providers.go`'s `deckProviderAdapters` today), plus an
-`AllDeckProviders()` helper mirroring `deckimport.AllSourceTypes()`. Changed
-`ObserveDeckProviderFetch`'s and `DeckProviderFetchCounter`'s `provider`
-parameter from `string` to `DeckProvider`. Updated the one test call site
-(`exerciseAndGather`, which previously passed the literal `"archidekt"` — a
-provider with no registered adapter at all) to pass `DeckProviderMoxfield`
-instead. Added `TestMetrics_ProviderLabelValuesAreEnumMembers`, matching the
-existing `TestMetrics_SourceLabelValuesAreEnumMembers` pattern, asserting every
-`provider`-labeled sample on any `vedh_`-prefixed family is a member of
-`AllDeckProviders()`. Confirmed via `grep` that no production code calls
-`ObserveDeckProviderFetch` (matching the review's own finding), so this is a
-purely additive type-safety change with zero production call-site impact.
-Verified with `go test ./pkg/... -race` (full package) and `go build ./...`.
-
-### WR-04: documentation vs. implementation mismatch — `docs/analytics/product-event-vocabulary.md` describes `vedh_deck_provider_fetch_total` as first observed by "plan 01-07," but plan 01-07's shipped code never observes it
-
-**Files modified:** `docs/analytics/product-event-vocabulary.md`, `pkg/telemetry/metrics.go`
-**Commit:** `adc8830`
-**Applied fix:** **Adapted from the review's literal suggestion.** The review
-cited `docs/analytics/product-event-vocabulary.md:145` as containing the
-drifted "First observed by plan 01-07" text for the deck-provider-fetch
-family — but on inspection, the "Metric families and where they are observed"
-table (lines 143–151 as reviewed) has **no row at all** for
-`vedh_deck_provider_fetch_total`/`vedh_deck_provider_fetch_duration_seconds`;
-line 145 is the unrelated "Deck import" row. I confirmed this against both the
-worktree and the main checkout at the same commit the review was run against,
-so this is not a case of the file having changed since review — the cited
-row simply does not exist in this file. The `pkg/telemetry/metrics.go`
-comment half of this finding, however, IS real and verified: lines 202-213
-(pre-fix) say "First observed by plan 01-07" for both collectors, and
-`git log` confirms `deckProviderFetchTotal`/`deckProviderFetchDuration` were
-actually declared by plan **01-06** (`f1ea608`), not 01-07, and `grep -rn
-ObserveDeckProviderFetch` outside test files still returns nothing, so
-"first observed" is inaccurate on both counts (wrong plan number, and not
-actually observed at all). I fixed both real problems: (1) reworded the
-`metrics.go` comments and `Help` strings to say "Declared by plan 01-06; not
-yet observed by any emit site" instead of claiming a false "first observed"
-milestone; (2) added a new table row to the vocabulary doc for the
-deck-provider-fetch family (which the doc's own `AllowedLabelNames` cross-
-reference at the bottom already implies should exist, since it lists
-`provider` as an allowed label with no corresponding table row) marked "Not
-yet observed," plus a paragraph explaining why — unlike the four
-Phase-2/3-scheduled families already documented as unobserved, this one has
-no scheduled landing milestone at all, pending an authorized Moxfield
-response sample. This satisfies the finding's actual intent (doc accurately
-reflects implementation reality) via addition rather than correction of a
-nonexistent row. Verified with `go build ./pkg/...`, `go test ./pkg/... -race`,
-and a re-read of both files.
+**Files modified:** `server/deck_providers_test.go`
+**Commit:** `53d9f60` (initial CR-01/CR-02 regression tests), extended by `3e5786e` and `e628f39`
+(WR-02/WR-01 regression tests)
+**Applied fix:** Added five new fixture-independent tests exercising synthetic, adversarial
+`cards[]` rows (as opposed to every other test in this file, which loads the real committed
+fixture): `TestArchidekt_UnsafeCardNameRejected`, `TestArchidekt_UnsafeSetCodeOmitsSuffix`,
+`TestArchidekt_CategoryMembershipIsCaseFolded`, `TestArchidekt_UnsafeNameGrammarConflictRejected`,
+`TestArchidekt_InternalQuoteInNameSurvives`. Every test that asserts a defect was rejected was
+verified to genuinely FAIL against the pre-fix code (not merely pass either way) by temporarily
+reverting the corresponding source commit, re-running the new test, observing the failure with the
+exact corrupted output the review/verification reports describe, then restoring the fix.
 
 ## Skipped Issues
 
-None — all 6 in-scope findings (CR-01, CR-02, WR-01, WR-02, WR-03, WR-04) were fixed.
+None — all 5 in-scope findings were fixed.
 
-IN-01 (`server/schema.resolvers.go`'s generated `previewDeck`/`trackProductEvent`
-stubs are unreachable dead code) was explicitly excluded from `fix_scope` by the
-orchestrator's instructions (expected gqlgen scaffold noise, not a defect) and was
-not attempted.
+(IN-01 — the deliberate all-or-nothing fail-closed design for a malformed row — was excluded from
+scope per `fix_scope: critical_warning`; it is Info-severity and the review explicitly frames it as
+a documented, deliberate tradeoff, not a defect requiring a change.)
 
-## Full Verification Run (after all 6 fixes)
+## Verification
 
-- `go build ./...` — clean
-- `go test ./server -count=1` — `ok` (77.8s), zero failures
-- `go test ./pkg/... -race` — `ok` across `deckimport`, `games`, `ratelimit`, `telemetry`
-- `go mod verify` — all modules verified
-- `cd app && npm test` (run in the main checkout, not the worktree — see
-  "Verification environment" above) — 28 passed, 3 skipped (pre-existing,
-  unrelated to these fixes), 0 failed
-- `go vet ./...` — clean on every touched package
+All commands run inside the isolated worktree (fast-forwarded onto `main` afterward), with a
+symlinked `All Printings.json` at the worktree root to satisfy `server`'s `TestMain` DB-seed step
+(the real file is 623 MB and gitignored, so it is not present in a fresh worktree checkout by
+default — this is a test-harness environment detail, not a change to tracked source).
 
-No test was weakened, disabled, or skipped to make the suite pass. Two new
-production-behavior regression tests were added (`TestJoinGame_DefaultsLifeWhenOmitted`,
-`TestRateLimit_VaryingSessionIDAloneDoesNotGrantMoreBudget`), one existing test was
-rewritten because it asserted the vulnerable behavior CR-02 removed
-(`TestRateLimit_ClientKeyForPrefersSessionOverAddress` →
-`TestRateLimit_ClientKeyForAlwaysAnchorsOnAddress`), and one new regression test each
-was added for WR-01 (`TestSafeClient_InitialRequestHostEnforced`) and WR-03
-(`TestMetrics_ProviderLabelValuesAreEnumMembers`).
+| Command | Result |
+|---|---|
+| `go build ./...` | Clean, no errors |
+| `go vet ./server` | Clean, no errors |
+| `go test ./server -count=1` | `ok  github.com/openmtg/edh-go/server  32.335s` — all tests pass, including the 5 new adversarial regression tests and the full pre-existing `TestArchidekt_*`/`TestProvider_*`/`TestDeckImport_ArchidektURLPath` suite |
+
+Each of the 4 commits was independently verified before being made permanent: `go build ./...` and
+`go vet ./server` after every edit, the targeted `TestArchidekt_*` subset re-run after every edit,
+and — for every new adversarial test — a temporary revert-and-rerun cycle proving the test fails
+against the pre-fix code before restoring the fix and moving on. No existing assertion was weakened
+to make a test pass.
 
 ---
 
-_Fixed: 2026-08-05T22:14:39Z_
+_Fixed: 2026-08-08T05:08:38Z_
 _Fixer: Claude (gsd-code-fixer)_
 _Iteration: 1_
