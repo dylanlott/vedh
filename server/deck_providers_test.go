@@ -1095,3 +1095,79 @@ func TestArchidekt_UnsafeSetCodeOmitsSuffix(t *testing.T) {
 		t.Fatalf("Entries[0].SetCode = %q, want empty -- the whole printing-metadata suffix must be omitted when setCode would not round-trip, never emitted with only collectorNumber", parsed.Entries[0].SetCode)
 	}
 }
+
+// TestArchidekt_CategoryMembershipIsCaseFolded proves a row's category tag
+// matches its deck-level categories[].name entry even when Archidekt
+// echoes the two with different letter casing, for both the exclusion
+// check and the commander check (WR-02, 01-REVIEW.md), using a synthetic,
+// fixture-independent response. Before WR-02's fix, both checks were
+// exact-case string comparisons: a case mismatch on the exclusion category
+// would silently *include* a card that should have been dropped (the
+// opposite of D-11's "never silently discarding" intent, in the other
+// direction), and a case mismatch on the commander category would leave
+// the intended commander unpreselected. This test fails against the
+// unfixed adapter on both counts: the maybeboard-tagged row would land in
+// Entries instead of DroppedSectionRows, and no entry would carry
+// SectionCommander.
+func TestArchidekt_CategoryMembershipIsCaseFolded(t *testing.T) {
+	adapter := archidektAdapter{}
+	resp := archidektDeckResponse{
+		Categories: []archidektCategory{
+			{Name: "Maybeboard", IncludedInDeck: false},
+			{Name: "Commander", IncludedInDeck: true},
+		},
+		Cards: []archidektCardRow{
+			{
+				Quantity:   1,
+				Categories: []string{"maybeboard"}, // lower-case tag vs. "Maybeboard" deck-level name
+				Card:       archidektCardDetail{OracleCard: archidektOracleCard{Name: "Excluded Card"}},
+			},
+			{
+				Quantity:   1,
+				Categories: []string{"COMMANDER"}, // upper-case tag vs. "Commander" deck-level name
+				Card:       archidektCardDetail{OracleCard: archidektOracleCard{Name: "Commander Card"}},
+			},
+			{
+				Quantity:   1,
+				Categories: nil,
+				Card:       archidektCardDetail{OracleCard: archidektOracleCard{Name: "Main Card"}},
+			},
+		},
+	}
+	body, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+
+	text, err := adapter.normalizeToDeckText(body)
+	if err != nil {
+		t.Fatalf("normalizeToDeckText() error = %v, want nil", err)
+	}
+
+	parsed := deckimport.ParseWithSource(text, adapter.source())
+	if len(parsed.BlockingErrors) != 0 {
+		t.Fatalf("BlockingErrors = %+v, want none", parsed.BlockingErrors)
+	}
+
+	for _, e := range parsed.Entries {
+		if e.Name == "Excluded Card" {
+			t.Fatalf("Entries contains %q, want it dropped as maybeboard despite the case mismatch between the row's tag %q and the deck-level category name %q", e.Name, "maybeboard", "Maybeboard")
+		}
+	}
+	if parsed.DroppedSectionRows != 1 {
+		t.Fatalf("DroppedSectionRows = %d, want 1 (the case-mismatched maybeboard row)", parsed.DroppedSectionRows)
+	}
+
+	foundCommander := false
+	for _, e := range parsed.Entries {
+		if e.Name == "Commander Card" {
+			if e.Section != deckimport.SectionCommander {
+				t.Fatalf("Commander Card Section = %v, want SectionCommander despite the case mismatch between the row's tag %q and the deck-level category name %q", e.Section, "COMMANDER", "Commander")
+			}
+			foundCommander = true
+		}
+	}
+	if !foundCommander {
+		t.Fatalf("Entries = %+v, want an entry named %q", parsed.Entries, "Commander Card")
+	}
+}

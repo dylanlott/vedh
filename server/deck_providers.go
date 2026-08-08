@@ -484,14 +484,22 @@ func (archidektAdapter) normalizeToDeckText(body []byte) (string, error) {
 		return "", errArchidektNoCardRows
 	}
 
+	// excludedCategories and commanderCategory are keyed/compared in
+	// lower-case, and every membership check against a row's Categories
+	// below folds the same way, so a row's category tag matches its
+	// deck-level categories[].name entry even if Archidekt ever echoes the
+	// two with different casing (WR-02, 01-REVIEW.md) -- consistent with
+	// the EqualFold already used just below to find the Commander category
+	// itself, rather than relying on an unstated same-casing assumption in
+	// one direction only.
 	excludedCategories := make(map[string]struct{}, len(resp.Categories))
 	commanderCategory := ""
 	for _, cat := range resp.Categories {
 		if !cat.IncludedInDeck {
-			excludedCategories[cat.Name] = struct{}{}
+			excludedCategories[strings.ToLower(cat.Name)] = struct{}{}
 		}
 		if strings.EqualFold(cat.Name, "Commander") {
-			commanderCategory = cat.Name
+			commanderCategory = strings.ToLower(cat.Name)
 		}
 	}
 
@@ -508,7 +516,7 @@ func (archidektAdapter) normalizeToDeckText(body []byte) (string, error) {
 
 		excluded := false
 		for _, cat := range row.Categories {
-			if _, ok := excludedCategories[cat]; ok {
+			if _, ok := excludedCategories[strings.ToLower(cat)]; ok {
 				excluded = true
 				break
 			}
@@ -521,7 +529,7 @@ func (archidektAdapter) normalizeToDeckText(body []byte) (string, error) {
 		isCommander := false
 		if commanderCategory != "" {
 			for _, cat := range row.Categories {
-				if cat == commanderCategory {
+				if strings.ToLower(cat) == commanderCategory {
 					isCommander = true
 					break
 				}
