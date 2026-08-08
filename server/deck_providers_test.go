@@ -988,3 +988,110 @@ func TestArchidekt_MalformedInputFailsClosed(t *testing.T) {
 		})
 	}
 }
+
+// archidektSyntheticRow builds one archidektCardRow with the given name,
+// set code, and collector number, wrapped in a minimal
+// archidektDeckResponse with no categories -- used below to construct
+// synthetic, fixture-independent adversarial input (WR-03, 01-REVIEW.md),
+// distinct from every other test in this file, which loads the real
+// committed fixture from disk. A synthetic row is required here because
+// the real fixture's content is clean; these tests exist to prove the
+// adapter's behavior on content the fixture does not and should not
+// contain.
+func archidektSyntheticResponse(rows ...archidektCardRow) []byte {
+	resp := archidektDeckResponse{Cards: rows}
+	body, err := json.Marshal(resp)
+	if err != nil {
+		panic(err) // test-only construction of a static, valid struct; cannot fail
+	}
+	return body
+}
+
+// TestArchidekt_UnsafeCardNameRejected proves normalizeToDeckText rejects
+// -- rather than silently emits -- a card row whose name contains an
+// embedded newline or carriage return, using a synthetic, fixture-
+// independent row (WR-03, 01-REVIEW.md). Before CR-01's fix, this exact
+// input passed through unchanged: pkg/deckimport's splitLines treats
+// '\n'/'\r' as line terminators, so the generated text silently split into
+// two lines, and the injected second line ("Commander") reassigned Section
+// for the following "Sol Ring" row to SectionCommander with zero warning
+// or blocking error (reproduced directly in 01-VERIFICATION.md). This test
+// fails against the unfixed adapter: it would return the corrupted text
+// with a nil error instead of rejecting the row.
+func TestArchidekt_UnsafeCardNameRejected(t *testing.T) {
+	adapter := archidektAdapter{}
+
+	cases := []struct {
+		name     string
+		cardName string
+	}{
+		{"embedded newline injects a fake section header", "Fake Card\nCommander"},
+		{"embedded carriage return", "Fake Card\rCommander"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := archidektSyntheticResponse(
+				archidektCardRow{
+					Quantity: 1,
+					Card:     archidektCardDetail{OracleCard: archidektOracleCard{Name: tc.cardName}},
+				},
+				archidektCardRow{
+					Quantity: 1,
+					Card:     archidektCardDetail{OracleCard: archidektOracleCard{Name: "Sol Ring"}},
+				},
+			)
+
+			text, err := adapter.normalizeToDeckText(body)
+			if err == nil {
+				t.Fatalf("normalizeToDeckText() error = nil, want an error rejecting the unsafe name; got text %q -- an unrejected embedded newline/CR can inject a fake section header and silently hijack a later row's Section", text)
+			}
+			if text != "" {
+				t.Fatalf("normalizeToDeckText() text = %q, want empty on error", text)
+			}
+		})
+	}
+}
+
+// TestArchidekt_UnsafeSetCodeOmitsSuffix proves a setCode that would not
+// round-trip through pkg/deckimport's grammar (a space, per CR-02,
+// 01-REVIEW.md) causes the whole D-07 printing-metadata suffix to be
+// omitted, rather than emitted and corrupting the card name -- using a
+// synthetic, fixture-independent row (WR-03). Before CR-02's fix, this
+// exact input ("SET CODE" paired with a round-tripping collectorNumber
+// "123") generated "1 Sol Ring (SET CODE) 123", which parsed to an entry
+// named "Sol Ring (SET CODE)" instead of "Sol Ring" -- the real card
+// silently failing to resolve under a corrupted name, with no warning or
+// blocking error naming the cause (reproduced directly in
+// 01-VERIFICATION.md). This test fails against the unfixed adapter: the
+// parsed entry's Name would carry the corrupted "(SET CODE)" suffix.
+func TestArchidekt_UnsafeSetCodeOmitsSuffix(t *testing.T) {
+	adapter := archidektAdapter{}
+	body := archidektSyntheticResponse(archidektCardRow{
+		Quantity: 1,
+		Card: archidektCardDetail{
+			OracleCard:      archidektOracleCard{Name: "Sol Ring"},
+			Edition:         archidektEdition{EditionCode: "SET CODE"},
+			CollectorNumber: "123",
+		},
+	})
+
+	text, err := adapter.normalizeToDeckText(body)
+	if err != nil {
+		t.Fatalf("normalizeToDeckText() error = %v, want nil -- an unsafe setCode must omit the printing-metadata suffix, not fail the whole row", err)
+	}
+
+	parsed := deckimport.ParseWithSource(text, adapter.source())
+	if len(parsed.BlockingErrors) != 0 {
+		t.Fatalf("BlockingErrors = %+v, want none", parsed.BlockingErrors)
+	}
+	if len(parsed.Entries) != 1 {
+		t.Fatalf("Entries = %+v, want exactly 1", parsed.Entries)
+	}
+	if parsed.Entries[0].Name != "Sol Ring" {
+		t.Fatalf("Entries[0].Name = %q, want %q -- an unsafe setCode must not corrupt the parsed card name into a form that fails to resolve", parsed.Entries[0].Name, "Sol Ring")
+	}
+	if parsed.Entries[0].SetCode != "" {
+		t.Fatalf("Entries[0].SetCode = %q, want empty -- the whole printing-metadata suffix must be omitted when setCode would not round-trip, never emitted with only collectorNumber", parsed.Entries[0].SetCode)
+	}
+}
