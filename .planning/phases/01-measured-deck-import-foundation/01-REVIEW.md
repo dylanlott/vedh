@@ -1,6 +1,7 @@
 ---
 phase: 01-measured-deck-import-foundation
-reviewed: 2026-08-08T00:05:55Z
+reviewed: 2026-08-08T07:36:26Z
+iteration: 2
 depth: standard
 files_reviewed: 4
 files_reviewed_list:
@@ -9,266 +10,193 @@ files_reviewed_list:
   - server/deck_import.go
   - server/deck_import_test.go
 findings:
-  critical: 2
-  warning: 3
-  info: 1
-  total: 6
+  critical: 0
+  warning: 1
+  info: 3
+  total: 4
 status: issues_found
 ---
 
-# Phase 1: Code Review Report (Delta — plans 01-08/01-09/01-10)
+# Phase 1: Code Review Report (Delta re-review, iteration 2 — plans 01-08/01-09/01-10 + review-fix commits)
 
-**Reviewed:** 2026-08-08T00:05:55Z
+**Reviewed:** 2026-08-08T07:36:26Z
 **Depth:** standard
 **Files Reviewed:** 4
 **Status:** issues_found
 
-> **Scope note.** This is a delta review, not a fresh full-phase review. The
-> phase was already reviewed at 48-file scope on 2026-08-05; that report is
-> preserved at git commit `a92d8cc`, and its 2 critical / 4 warning / 1 info
-> findings were resolved (see `01-REVIEW-FIX.md`). This report **supersedes**
-> that one and covers only what plans 01-08 (Archidekt provider reversal),
-> 01-09 (contract-pinning tests), and 01-10 touched since commit `d3a70e8`:
-> `server/deck_providers.go`'s `archidektAdapter`, its two helper functions
-> (`formatArchidektDeckLine`, `archidektCollectorNumberRoundTrips`), and the
-> new test files pinning them to the committed live capture.
+> **Scope note.** This is iteration 2 of the delta review of the same four
+> files. It **supersedes** both the 2026-08-05 full-phase review (preserved
+> at git commit `a92d8cc`) and iteration 1 of this delta review (2026-08-08,
+> `01-REVIEW.md` prior revision), which found CR-01, CR-02, WR-01, WR-02,
+> WR-03, IN-01 and were then fixed across four commits (`d2d8df6`, `53d9f60`,
+> `3e5786e`, `e628f39`). This pass's job was to adversarially re-examine
+> those fixes themselves, not merely confirm they exist.
 
 ## Summary
 
-The Moxfield→Archidekt reversal itself is clean: the host allowlist, SSRF
-address/port controls (`safeControl`), the redirect re-validation
-(`newDeckProviderCheckRedirect`), the body cap, the timeouts, and the
-fail-closed kill switch (`providerEnabled`) are all byte-for-byte unchanged
-by this delta (confirmed against `git diff d3a70e8..HEAD`) — the swap did
-not weaken anything the 2026-08-05 review verified there.
+All five in-scope findings from iteration 1 (CR-01, CR-02, WR-01, WR-02,
+WR-03) were re-verified directly against `pkg/deckimport/scanner.go` and
+`pkg/deckimport/sections.go` (read fresh for this pass, not inferred from
+the adapter's own comments), and against the actual committed code, not the
+patch descriptions:
 
-The new code is `archidektAdapter.normalizeToDeckText` and
-`formatArchidektDeckLine`: the seam that turns untrusted third-party JSON
-into text a second, independent grammar (`pkg/deckimport`) re-segments into
-lines, quantities, names, and section headers. The adapter's own comments
-show real awareness of this risk class — `archidektCollectorNumberRoundTrips`
-exists specifically because an unvalidated collector number ("MH1-216")
-silently folded into a card's parsed *name* and made the card vanish. That
-same defense was applied to exactly one of the three fields flowing through
-`formatArchidektDeckLine` (`collectorNumber`) and not to the other two
-(`name`, `setCode`), and the gap is exploitable: a single corrupted or
-adversarial-owner-controlled Archidekt card name can inject an extra
-decklist line — including a fake `Commander` header that reassigns section
-membership for every entry that follows — with **no** accounting-invariant
-trip (verified by direct reproduction below), and a `setCode` containing a
-space silently corrupts the card name so the entry fails to resolve. Both
-are the same "silent mis-parse, not a cosmetic metadata loss" failure mode
-the codebase's own commentary explicitly calls out as unacceptable, just on
-fields the fix wasn't extended to.
+- `archidektNameIsSafe`'s four checks (embedded `\n`/`\r` anywhere; a
+  leading `"`; a trailing `` ` `` or `]`; a boundary-preceded trailing
+  `#tag`) were traced rune-by-rune against `splitLines`,
+  `resolveNameAndMetadata`, and `extractTrailingAnnotations`'s real,
+  iterative hash-stripping loop. Every case constructed to find a gap
+  (multi-tag trailing sequences, a `#` at index 0, a tag containing a
+  backtick, IPv6-style Unicode line separators U+0085/U+2028/U+2029, a
+  leading digit in the name, a name ending in a multi-word parenthetical
+  like `Erase (Not the Urza's Legacy One)`) turned out to be either already
+  covered by an existing check or structurally unreachable (e.g. `splitLines`
+  is byte-oriented and never treats U+0085/U+2028/U+2029 as terminators, and
+  the quantity prefix `fmt.Sprintf("%d %s", ...)` means a name's own leading
+  digit is never re-consumed by `extractQuantity`, which only scans once at
+  true line-start). No gap was found.
+- A dedicated probe (`TestProbe_RealCardNamesWithParens`, run against this
+  checkout and removed afterward — not committed) fed six real, tricky
+  Magic card names through `archidektNameIsSafe` and a full
+  normalize-then-parse round trip: `B.O.B. (Bevy of Beebles)`,
+  `Erase (Not the Urza's Legacy One)`, `Look at Me, I'm the DCI`,
+  `Ach! Hans, Run!`, `Kongming, "Sleeping Dragon"`, and
+  `Yargle and Multani`. All six pass the guard and round-trip byte-identical
+  through `Parse` — no false positive was found (see also this repo's own
+  `TestArchidekt_InternalQuoteInNameSurvives`, which already covers the
+  `Kongming` case).
+- `archidektTokenRoundTrips` is applied to **both** `setCode` and
+  `collectorNumber` with `&&`, and `formatArchidektDeckLine` has exactly one
+  branch — there is no second code path where the suffix could be emitted
+  with only one side validated.
+- `go test ./server/...` (all `TestArchidekt_*`, `TestSafeControl_*`,
+  `TestSafeClient_*`, `TestProvider_*`) passes clean on this checkout.
 
-## Critical Issues
-
-### CR-01: Unsanitized embedded newline/CR in card name injects lines into the decklist grammar, silently reassigning sections
-
-**File:** `server/deck_providers.go:499-503`, `server/deck_providers.go:590-596`
-
-**Issue:** `normalizeToDeckText` builds each line as
-`fmt.Sprintf("%d %s", quantity, name)` (`formatArchidektDeckLine`,
-line 591) from `name := strings.TrimSpace(row.Card.OracleCard.Name)`
-(line 499), an untrusted string read straight out of the fetched
-third-party JSON. Neither the trim nor anything else checks `name` for an
-embedded `\n` or `\r`. `pkg/deckimport`'s `splitLines` (the *second*,
-independent grammar this text is fed into via `deckimport.ParseWithSource`)
-treats `\n`/`\r` as line terminators — so a single `cards[]` row whose name
-contains one of these characters is silently split into two or more lines
-by the downstream parser, and the injected second "line" is then
-re-interpreted from scratch: it can match `matchSectionHeader` exactly
-(e.g. an embedded `"Commander"`), reassigning `Section` for every entry
-that follows it, or match `isCommentLine` and vanish outright.
-
-Reproduced directly against the real adapter and the real parser
-(no mocks): a card named `"Fake Card\nCommander"` followed by a
-legitimate `"Sol Ring"` row produces the generated text
-`"1 Fake Card\nCommander\n1 Sol Ring\n"`, which parses to
-`Sol Ring` being placed in `SectionCommander` — a commander-candidate
-hijack triggered by one corrupted/malicious upstream field, with **no**
-`AssertAccounting` violation and no warning of any kind. This is exactly
-the "silently fails... vanishes/misassigns" class of bug this same file's
-own comment on `archidektCollectorNumberRoundTrips` describes as
-unacceptable ("That is exactly the silent mis-parse this plan exists to
-catch, not a cosmetic metadata loss") — except unlike the collector-number
-case, here it reaches production with no guard at all, and it defeats the
-accounting invariant the rest of the architecture relies on to make
-mis-parses loud rather than silent.
-
-Whether Archidekt's *own* servers ever emit a control character in
-`oracleCard.name` is beside the point: this adapter's stated job (see this
-file's header comment, lines 341-372) is to normalize "untrusted
-third-party JSON" defensively, and Archidekt is known to allow
-user-created custom/proxy cards with attacker-chosen names in a public
-deck — exactly the vector by which one Archidekt account holder could
-corrupt another player's import of a deck link they share.
-
-**Fix:** Reject or normalize control characters in `name` before handing it
-to `formatArchidektDeckLine`, the same way a missing name is already
-rejected via `errArchidektMissingCardName`:
-
-```go
-func archidektNameIsSafe(name string) bool {
-	for _, c := range name {
-		if c == '\n' || c == '\r' {
-			return false
-		}
-	}
-	return true
-}
-
-// in the cards[] loop:
-name := strings.TrimSpace(row.Card.OracleCard.Name)
-if name == "" {
-	return "", errArchidektMissingCardName
-}
-if !archidektNameIsSafe(name) {
-	return "", errArchidektMissingCardName // or a new, equally static sentinel
-}
-```
-
-### CR-02: `setCode` has no round-trip validation, unlike `collectorNumber` — a space or other unsafe character silently corrupts the card name
-
-**File:** `server/deck_providers.go:590-596`
-
-**Issue:** `formatArchidektDeckLine` guards `collectorNumber` with
-`archidektCollectorNumberRoundTrips` before emitting the `"(setcode)
-collectornumber"` suffix, but applies **no equivalent check to `setCode`**
-(`row.Card.Edition.EditionCode`) — it is interpolated directly:
-`fmt.Sprintf("%s (%s) %s", line, setCode, collectorNumber)`. If `setCode`
-contains a space or tab, `pkg/deckimport`'s
-`extractTrailingAnnotations` (scanner.go) requires the parenthesised group
-to contain no whitespace to be recognized as a set code
-(`!strings.ContainsAny(inner, " \t")`); when that check fails, the
-`"(SET CODE)"` group is **not** stripped and instead stays glued onto the
-card name, corrupting it.
-
-Reproduced directly: a card named `"Sol Ring"` with `editioncode: "SET
-CODE"` and `collectorNumber: "123"` (a value that *does* round-trip)
-produces generated text `"1 Sol Ring (SET CODE) 123\n"`, which parses to
-an entry named `"Sol Ring (SET CODE)"` — not `"Sol Ring"` — so the entry
-fails to resolve against the cards table and silently becomes an
-"unresolved" row instead of the real Sol Ring the player asked for. This
-is the identical failure mode `archidektCollectorNumberRoundTrips` exists
-to prevent, on the field that check does not cover. A `setCode` containing
-`\n`/`\r` compounds with CR-01 above.
-
-**Fix:** Extend the round-trip check to `setCode`, or reuse the existing
-alnum check (Archidekt edition codes are ordinarily short alnum strings
-like `cmr`, `mh1`, `plst`):
-
-```go
-func formatArchidektDeckLine(quantity int, name, setCode, collectorNumber string) string {
-	line := fmt.Sprintf("%d %s", quantity, name)
-	if setCode != "" && archidektCollectorNumberRoundTrips(setCode) &&
-		archidektCollectorNumberRoundTrips(collectorNumber) {
-		line = fmt.Sprintf("%s (%s) %s", line, setCode, collectorNumber)
-	}
-	return line
-}
-```
-(Rename the shared helper to something like `archidektTokenRoundTrips` once
-it covers both fields, and omit the whole suffix — never emit a corrupt
-one — when either fails, exactly as the current comment already promises
-for `collectorNumber` alone.)
+No new Critical or Blocker was found this pass. One Warning below revisits
+the "reject the whole deck on one bad row" failure mode (iteration 1's
+`IN-01`, at Info level, on a narrower trigger) now that WR-01 has
+substantially widened the set of inputs that can trip it — this iteration's
+own explicit ask (point 4) — and three Info items note smaller
+comment-accuracy and test-rigor gaps in the new code.
 
 ## Warnings
 
-### WR-01: No sanitization against the grammar's other special characters in `name` (quotes, backticks, brackets, hash-tags)
+### WR-01: `errArchidektUnsafeCardName` fails the *entire* deck on one row, and the guard surface that can trigger it just grew substantially
 
-**File:** `server/deck_providers.go:499-503`
+**File:** `server/deck_providers.go:509-514`, `server/deck_providers.go:600-620`
 
-**Issue:** Beyond the newline case (CR-01), `name` is passed through
-`formatArchidektDeckLine` with no defense against any of
-`pkg/deckimport`'s other line-initial/trailing special syntax: a name
-starting with `"` triggers the quoted-name rule and silently discards
-everything after the first closing quote (`resolveNameAndMetadata`,
-scanner.go rule 5); a name ending in `` ` ``, `]`, or a `#tag`-shaped
-suffix is parsed as a trailing category annotation and stripped from the
-name (`extractTrailingAnnotations`). Unlike CR-01, these do not defeat the
-accounting invariant (the row still becomes exactly one `Entry`), but they
-do silently corrupt the parsed name, which can misresolve the entry to a
-different card than the one Archidekt actually named, or make a
-resolvable card spuriously "unresolved." Since no official Magic card name
-contains these characters, the realistic trigger is the same
-custom/proxy-card vector as CR-01.
+**Issue:** `normalizeToDeckText` returns immediately —
+`return "", errArchidektUnsafeCardName` — the moment any single `cards[]`
+row's name fails `archidektNameIsSafe`. This is not "reject the row" (the
+function's own comment's wording, line 598: "Rejecting the whole row when
+any of these trip"); it is reject the *entire deck normalization*: every
+other row, including ones already appended to `mainLines`/`commanderLines`
+in a prior loop iteration, is discarded, and `previewDeckURL`
+(`server/deck_import.go:275-280`) turns that into the same generic
+"We couldn't load that deck link right now. Paste your decklist as text
+instead." message used for a network failure or malformed JSON —
+`CanContinue = false`, no partial preview, and no indication of which row
+or which character was the problem.
 
-**Fix:** Once CR-01/CR-02 are fixed, consider whether the same guard
-should be widened to reject (or escape) any of `"`, `` ` ``, `[`, `]`, `#`
-at the position where the grammar treats them specially, rather than
-enumerating characters one bug report at a time.
+Iteration 1 flagged this same fail-whole-deck shape at Info level
+(`IN-01`), but only for the single, narrow trigger that existed then (an
+empty `oracleCard.name` — an unambiguous provider malformation signal).
+WR-01's fix widened `archidektNameIsSafe` to four independent trigger
+conditions (embedded `\n`/`\r`, leading `"`, trailing `` ` ``/`]`, trailing
+`#tag`) across every row of a deck that can have hundreds of rows. None of
+the six real card names probed above trips it, so today's practical risk
+stays low — but the failure mode itself is now reachable by a much larger
+input surface than the case iteration 1 accepted, and the asymmetry with
+this same file's own Maybeboard-exclusion design (D-11: drop the *one* bad
+row, count it, keep going) is more visible now that there is a real
+per-row-exclusion precedent sitting right next to a per-row-rejection path
+that instead aborts everything.
 
-### WR-02: Deck-level category membership tests use exact string equality with no defensive case-folding, inconsistent with the `EqualFold` used for the "Commander" keyword
-
-**File:** `server/deck_providers.go:488-525`
-
-**Issue:** `commanderCategory` is discovered with
-`strings.EqualFold(cat.Name, "Commander")` (line 492), but the exclusion
-map (`excludedCategories[cat.Name]`, line 490) and both membership checks
-against a row's `Categories` (`excludedCategories[cat]`, line 507;
-`cat == commanderCategory`, line 520) are exact, case-sensitive string
-comparisons. This relies on an unstated assumption that Archidekt always
-echoes a row's category tag with byte-identical casing to the matching
-deck-level `categories[].name` entry. If that assumption is ever wrong for
-even one deck (a data inconsistency on Archidekt's side, or a future API
-revision), a maybeboard-tagged card would silently land in the main deck
-instead of being dropped — the opposite of D-11's "never silently
-discarding" intent, in the other direction (silently *including* what
-should have been excluded).
-
-**Fix:** Either document explicitly why exact-match is safe here (e.g.
-cite the Archidekt API guarantee), or fold both sides consistently:
-
-```go
-excludedCategories[strings.ToLower(cat.Name)] = struct{}{}
-...
-if _, ok := excludedCategories[strings.ToLower(cat)]; ok { ... }
-```
-
-### WR-03: Contract tests do not cover adversarial/malformed field content — only the happy-path fixture
-
-**File:** `server/deck_providers_test.go` (all `TestArchidekt_*` tests)
-
-**Issue:** Every `TestArchidekt_*` test in this file loads the real,
-clean fixture and asserts against its known-good shape. None of them
-exercises a card name or edition code containing a newline, quote,
-bracket, backtick, or embedded whitespace — precisely the class of input
-CR-01/CR-02 above show is silently mishandled. `TestArchidekt_
-MalformedInputFailsClosed` covers *structural* malformance (missing
-`cards[]`, missing `oracleCard.name`) but not *content* malformance within
-an otherwise well-formed row. As written, none of these tests would have
-caught CR-01 or CR-02, and none would fail if a future edit reintroduced
-either.
-
-**Fix:** Add a small, fixture-independent unit test analogous to the one
-`archidektCollectorNumberRoundTrips` already implies was needed for
-collector numbers — feed `normalizeToDeckText` a synthetic row whose
-`oracleCard.name` contains `\n` and assert either an error is returned or
-the resulting parsed entry count/section membership is unaffected; do the
-same for a `setCode` containing a space.
+**Fix:** Not a required change (the fail-loud tradeoff is a defensible,
+previously-accepted design decision, and this finding does not block
+shipping), but worth a deliberate re-decision now that the trigger surface
+has grown: consider treating an unsafe name the same way an unresolved
+card name is already treated — emit the row as a `DeckImportIssue` /
+`Warning` naming the reason ("this card's name could not be safely
+imported") and continue with the rest of the deck — rather than aborting
+the whole response. If the all-or-nothing choice is kept, at minimum fix
+the misleading "the whole row" wording in the comment at
+`server/deck_providers.go:598` to say what actually happens (the whole
+response/deck), so a future reader isn't misled about the blast radius.
 
 ## Info
 
-### IN-01: `errArchidektMissingCardName`-style hard failure on one bad row blocks the entire deck, by design
+### IN-01: Adversarial rejection tests assert only `err != nil`, not the specific sentinel
 
-**File:** `server/deck_providers.go:497-502`
+**File:** `server/deck_providers_test.go:1021-1054`, `server/deck_providers_test.go:1186-1215`
 
-**Issue:** A single `cards[]` row with an empty name causes
-`normalizeToDeckText` to fail the whole deck (no partial import), per the
-explicit design intent documented on `TestArchidekt_
-MalformedInputFailsClosed` ("never a partial deck"). This is a reasonable,
-deliberate choice for a genuinely malformed API response, but it means a
-single Archidekt-side data-quality issue on an otherwise-valid hundred-row
-deck (e.g. one placeholder/incomplete custom card with no name set) blocks
-the player from importing anything from that deck at all, with a generic
-"paste your decklist as text instead" message that gives no hint which
-row was the problem. Noting for awareness only — not asking for a change,
-since the tradeoff (fail loud vs. guess silently) is explicitly a decision
-this phase already made and documented.
+**Issue:** `TestArchidekt_UnsafeCardNameRejected` and
+`TestArchidekt_UnsafeNameGrammarConflictRejected` both check
+`if err == nil { t.Fatalf(...) }` but never assert
+`errors.Is(err, errArchidektUnsafeCardName)`. For the inputs these two
+tests use this is not currently exploitable (no other code path in
+`normalizeToDeckText` returns a non-nil error for a non-empty name and
+otherwise-valid JSON), so the tests are not tautological today — but they
+would silently keep "passing" if a future edit accidentally routed these
+same inputs through a *different* error path (e.g. if `archidektNameIsSafe`
+were folded into the empty-name check and started returning
+`errArchidektMissingCardName` instead), which would mask exactly the kind
+of regression these tests exist to catch.
+
+**Fix:** Add `if !errors.Is(err, errArchidektUnsafeCardName) { t.Fatalf(...) }`
+alongside the existing `err == nil` check in both tests, matching the
+precision `TestArchidekt_MalformedInputFailsClosed` and
+`TestProvider_ArchidektAdapterMalformedBody` already use elsewhere in this
+file.
+
+### IN-02: `archidektTokenRoundTrips` is stricter than the grammar it's modeling for `setCode`, silently dropping recoverable D-07 metadata
+
+**File:** `server/deck_providers.go:640-650`
+
+**Issue:** `archidektTokenRoundTrips` requires ASCII alnum-only content for
+both `setCode` and `collectorNumber`. That is the exact requirement
+`extractTrailingAnnotations`'s bare-token rule (`isAlnumToken`) imposes on
+a trailing collector number, so applying it there is precise. But the
+*set-code* rule in the real grammar (`extractTrailingAnnotations`'s
+parenthesised-group check) only forbids internal whitespace —
+`!strings.ContainsAny(inner, " \t")` — and otherwise accepts any
+character, including a hyphen. A hypothetical `setCode` like `"foo-bar"`
+would round-trip fine through the real parser but is rejected by
+`archidektTokenRoundTrips`, needlessly omitting the whole D-07
+printing-metadata suffix (this direction is always safe — it degrades
+rather than corrupts — so this is not a correctness bug). Real Archidekt
+`editioncode` values are ordinarily short pure-alnum strings (`cmr`,
+`mh1`), so the practical impact today is minimal.
+
+**Fix:** No action required; noting for awareness. If a future Archidekt
+response is observed with a punctuated edition code that this drops
+unnecessarily, `archidektTokenRoundTrips` could be split into two
+predicates (one alnum-only for `collectorNumber`, one alnum-plus-select-
+punctuation for `setCode`) to match the two different underlying grammar
+rules exactly instead of reusing one predicate for both.
+
+### IN-03: A zero or negative `quantity` from the provider degrades to a silent per-row warning with no adapter-level test
+
+**File:** `server/deck_providers.go:515`, `server/deck_providers.go:663-669`
+
+**Issue:** `formatArchidektDeckLine` interpolates `row.Quantity` directly
+with no validation. If Archidekt ever returns `quantity: 0` or a negative
+value for a row, the generated line (e.g. `"0 Sol Ring"`) is handled
+correctly downstream — `extractQuantity` (scanner.go) rejects a
+non-positive value and turns the row into a `Warning`, which
+`AssertAccounting` still balances — so this is not a correctness bug. It
+is, however, untested at the adapter level: none of the
+`TestArchidekt_*`/`archidektSyntheticResponse`-based tests construct a row
+with `Quantity: 0` or negative to confirm the adapter's output degrades
+exactly this way rather than, say, silently coercing to `1`.
+
+**Fix:** Optional; a small synthetic-response test
+(`archidektSyntheticResponse` with `Quantity: 0`) asserting the resulting
+`ParsedDeck` carries one `Warning` and zero `Entries` for that row would
+close this gap cheaply, consistent with `TestArchidekt_UnsafeSetCodeOmitsSuffix`'s
+existing pattern of testing one synthetic anomaly at a time.
 
 ---
 
-_Reviewed: 2026-08-08T00:05:55Z_
+_Reviewed: 2026-08-08T07:36:26Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
