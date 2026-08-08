@@ -383,7 +383,7 @@ var (
 	errArchidektMalformedResponse = errors.New("deck provider: archidekt response is not valid JSON")
 	errArchidektNoCardRows        = errors.New("deck provider: archidekt response contained no card rows")
 	errArchidektMissingCardName   = errors.New("deck provider: archidekt card row missing a card name")
-	errArchidektUnsafeCardName    = errors.New("deck provider: archidekt card row name contains an embedded newline or carriage return")
+	errArchidektUnsafeCardName    = errors.New("deck provider: archidekt card row name contains a character unsafe for the decklist grammar")
 )
 
 // archidektHost is the exact, lower-cased hostname a pasted Archidekt deck
@@ -565,23 +565,54 @@ func (archidektAdapter) normalizeToDeckText(body []byte) (string, error) {
 	return b.String(), nil
 }
 
-// archidektNameIsSafe reports whether name contains no embedded newline or
-// carriage return. pkg/deckimport's splitLines (scanner.go) treats both as
-// line terminators, so an untrusted card name containing either would
-// silently inject an extra line into the generated decklist text, which
-// the second, independent grammar then re-parses from scratch (CR-01,
-// 01-REVIEW.md): the injected line can exactly match matchSectionHeader
-// (e.g. an embedded "Commander"), reassigning Section for every entry that
-// follows it -- with no accounting-invariant trip, because both operands
-// of AssertAccounting are computed from the already-corrupted text, so a
-// corruption introduced before that text is generated is structurally
-// invisible to it. Rejecting the whole row here, the same way an empty
-// name already is via errArchidektMissingCardName, is a fail-loud choice
-// consistent with this adapter's existing all-or-nothing design (see
-// TestArchidekt_MalformedInputFailsClosed).
+// archidektNameIsSafe reports whether name can be embedded unmodified into
+// a generated decklist line without triggering one of pkg/deckimport's
+// special-syntax parsing rules (scanner.go):
+//
+//   - An embedded '\n' or '\r' (CR-01, 01-REVIEW.md): splitLines treats
+//     both as line terminators, so the name would silently inject an
+//     extra line into the generated text, which the second, independent
+//     grammar then re-parses from scratch -- the injected line can
+//     exactly match matchSectionHeader (e.g. an embedded "Commander"),
+//     reassigning Section for every entry that follows it, with no
+//     accounting-invariant trip, because both operands of
+//     AssertAccounting are computed from the already-corrupted text, so a
+//     corruption introduced before that text is generated is structurally
+//     invisible to it.
+//   - A name that *starts* with '"' (WR-01, 01-REVIEW.md):
+//     resolveNameAndMetadata's rule 5 (the quoted-name check) treats a
+//     leading quote as CSV-style quoting and silently discards everything
+//     after the first closing quote.
+//   - A name that *ends* with '`' or ']', or with a token-boundary-preceded
+//     "#tag"-shaped suffix (WR-01): extractTrailingAnnotations' rules 6-7
+//     treat each as a trailing category annotation and silently strip it
+//     (and, for a bracket/backtick, everything back to its matching
+//     opener) out of the parsed name.
+//
+// Each check is deliberately position-specific, not a blanket
+// character-occurrence reject: an *internal* quote is a legal, real
+// component of an official Magic card name (e.g. `Kongming, "Sleeping
+// Dragon"`), and only ever becomes special to the grammar at the position
+// checked here. Rejecting the whole row when any of these trip, the same
+// way an empty name already is via errArchidektMissingCardName, is a
+// fail-loud choice consistent with this adapter's existing all-or-nothing
+// design (see TestArchidekt_MalformedInputFailsClosed).
 func archidektNameIsSafe(name string) bool {
 	for _, c := range name {
 		if c == '\n' || c == '\r' {
+			return false
+		}
+	}
+	if strings.HasPrefix(name, `"`) {
+		return false
+	}
+	if strings.HasSuffix(name, "`") || strings.HasSuffix(name, "]") {
+		return false
+	}
+	if idx := strings.LastIndexByte(name, '#'); idx != -1 {
+		precededByBoundary := idx == 0 || name[idx-1] == ' ' || name[idx-1] == '\t'
+		tag := name[idx+1:]
+		if precededByBoundary && tag != "" && !strings.ContainsAny(tag, " \t") {
 			return false
 		}
 	}

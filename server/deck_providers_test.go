@@ -1171,3 +1171,74 @@ func TestArchidekt_CategoryMembershipIsCaseFolded(t *testing.T) {
 		t.Fatalf("Entries = %+v, want an entry named %q", parsed.Entries, "Commander Card")
 	}
 }
+
+// TestArchidekt_UnsafeNameGrammarConflictRejected proves normalizeToDeckText
+// rejects a card name that would trigger one of pkg/deckimport's other
+// position-specific special-syntax rules (WR-01, 01-REVIEW.md): a leading
+// quote (the CSV-style quoted-name rule, resolveNameAndMetadata rule 5), or
+// a trailing backtick-delimited category, bracketed category, or "#tag"
+// suffix (extractTrailingAnnotations rules 6-7). Using synthetic,
+// fixture-independent rows. Before this fix, none of these were rejected:
+// the name would silently lose the trailing/quoted text once parsed back
+// out, misresolving or corrupting the card. This test fails against the
+// unfixed adapter for every case: normalizeToDeckText returns a nil error
+// and the corrupted text instead of rejecting the row.
+func TestArchidekt_UnsafeNameGrammarConflictRejected(t *testing.T) {
+	adapter := archidektAdapter{}
+
+	cases := []struct {
+		name     string
+		cardName string
+	}{
+		{"leading quote triggers CSV quoted-name rule", `"Fake" Card`},
+		{"trailing backtick-delimited category", "Real Card`Maybeboard`"},
+		{"trailing bracketed category", "Real Card[Ramp]"},
+		{"trailing hash tag", "Real Card #tag"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := archidektSyntheticResponse(archidektCardRow{
+				Quantity: 1,
+				Card:     archidektCardDetail{OracleCard: archidektOracleCard{Name: tc.cardName}},
+			})
+
+			text, err := adapter.normalizeToDeckText(body)
+			if err == nil {
+				t.Fatalf("normalizeToDeckText() error = nil, want an error rejecting the unsafe name %q; got text %q", tc.cardName, text)
+			}
+			if text != "" {
+				t.Fatalf("normalizeToDeckText() text = %q, want empty on error", text)
+			}
+		})
+	}
+}
+
+// TestArchidekt_InternalQuoteInNameSurvives proves a real Magic card name
+// containing an *internal*, non-leading quote (e.g. `Kongming, "Sleeping
+// Dragon"`) is NOT rejected by the WR-01 guard above and round-trips
+// through the parser intact -- distinguishing the position-specific check
+// from a blanket "reject any occurrence of an unsafe character" rule, which
+// would incorrectly exclude this and any other real card whose official
+// name contains a quotation mark not at the leading position.
+func TestArchidekt_InternalQuoteInNameSurvives(t *testing.T) {
+	adapter := archidektAdapter{}
+	const cardName = `Kongming, "Sleeping Dragon"`
+	body := archidektSyntheticResponse(archidektCardRow{
+		Quantity: 1,
+		Card:     archidektCardDetail{OracleCard: archidektOracleCard{Name: cardName}},
+	})
+
+	text, err := adapter.normalizeToDeckText(body)
+	if err != nil {
+		t.Fatalf("normalizeToDeckText() error = %v, want nil -- an internal, non-leading quote must not be rejected", err)
+	}
+
+	parsed := deckimport.ParseWithSource(text, adapter.source())
+	if len(parsed.BlockingErrors) != 0 {
+		t.Fatalf("BlockingErrors = %+v, want none", parsed.BlockingErrors)
+	}
+	if len(parsed.Entries) != 1 || parsed.Entries[0].Name != cardName {
+		t.Fatalf("Entries = %+v, want exactly one entry named %q", parsed.Entries, cardName)
+	}
+}
