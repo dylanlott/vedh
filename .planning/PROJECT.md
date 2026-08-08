@@ -44,6 +44,16 @@ Already shipped and relied upon at baseline `main@ef2732a`:
 - ✓ Rust smoke client and Playwright browser E2E for the authenticated journey
 - ✓ Local Prometheus/Grafana observability stack
 
+Delivered since baseline:
+
+- ✓ **Phase 1: Measured Deck Import Foundation** — complete 2026-08-08, verified 5/5.
+  REQ-ACT-001/002/003 all Complete. A canonical server-side deck parser (six syntaxes,
+  comma-safe names, sections, printing metadata) feeds both `previewDeck` and library
+  creation from one parse; product events land in PostgreSQL behind strict server-side
+  allowlists with label-free Prometheus counters; and an Archidekt URL adapter normalizes
+  through that same parser behind an SSRF-controlled fetch client and a kill switch that
+  defaults off. Advances REQ-A2, REQ-A6, and REQ-A7 — none fully, so all three stay Active.
+
 ### Active
 
 - [ ] **REQ-A1** — Host loads a deck and starts a table without creating an account
@@ -189,10 +199,10 @@ deliberately not answered here; each is surfaced in the phase that owns it so
 
 | ID | Question | Owning phase | Resolution path |
 |----|----------|--------------|-----------------|
-| OPEN-1 | Which public deck provider becomes the first supported URL source | Phase 1 (ACT-003) | ACT-003's one-day time-boxed feasibility comparison of public Archidekt and Moxfield access |
+| ~~OPEN-1~~ **RESOLVED 2026-08-08** | Which public deck provider becomes the first supported URL source | Phase 1 (ACT-003) | **Archidekt.** The feasibility spike selected Moxfield (D-14), but its contract proved unobtainable — `api.moxfield.com/robots.txt` is a blanket `Disallow: /` and Cloudflare 403s every unauthenticated probe — so no field mapping could be written without guessing. D-14 was reversed to Archidekt, whose contract was observed and captured in-repo. Moxfield scaffold removed rather than left registered-but-failing. Operator gate before enabling: a human must read `https://archidekt.com/terms`; `DECK_PROVIDER_ENABLED` defaults false. |
 | OPEN-2 | Guest expiry duration: 24 hours or seven days (token stays 24h either way) | Phase 2 (ACT-005) | Unresolved in both documents |
 | OPEN-3 | Quiet beta targets desktop only, or a minimum supported tablet breakpoint | Phase 2 (ACT-004), revisited Phase 4 (ACT-011) | Unresolved; ACT-004 verification presumes an answer exists |
 | OPEN-4 | Operational surface for product-funnel queries before a dedicated dashboard | Phase 4 (ACT-012) | Partially narrowed (PostgreSQL for funnel, Prometheus for technical), surface unnamed |
 
 ---
-*Last updated: 2026-08-03 after doc ingest of the 2026-07-23 deck-to-game activation PRD and SPEC*
+*Last updated: 2026-08-08 after Phase 1 (Measured Deck Import Foundation) completed and verified; OPEN-1 resolved to Archidekt*
