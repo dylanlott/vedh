@@ -41,7 +41,7 @@ claim within 7 days.
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Measured Deck Import Foundation** - Any familiar decklist reaches a trustworthy server-side preview, and every activation step is recorded privacy-safely
+- [x] **Phase 1: Measured Deck Import Foundation** - Any familiar decklist reaches a trustworthy server-side preview, and every activation step is recorded privacy-safely (completed 2026-08-08)
 - [ ] **Phase 2: Guest Host Activation** - A logged-out host pastes a deck and lands on a live board without seeing login or signup
 - [ ] **Phase 3: Invite, Join, and Board Readiness** - A shared link takes an invited stranger to that same board, and "on the board" means the board actually works
 - [ ] **Phase 4: Post-Value Acquisition and Funnel Readout** - Activated guests can keep their identity, new arrivals land on a Commander front door, and the funnel can be read against the PRD targets
@@ -195,7 +195,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Measured Deck Import Foundation | 10/10 | In Progress|  |
+| 1. Measured Deck Import Foundation | 10/10 | Complete    | 2026-08-08 |
 | 2. Guest Host Activation | 0/TBD | Not started | - |
 | 3. Invite, Join, and Board Readiness | 0/TBD | Not started | - |
 | 4. Post-Value Acquisition and Funnel Readout | 0/TBD | Not started | - |
