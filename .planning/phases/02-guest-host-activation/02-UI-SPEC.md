@@ -134,6 +134,11 @@ Declared values (must be multiples of 4):
 Exceptions:
 - **44px minimum** hit target for any icon-only interactive control (chip remove `×`, modal
   close `×`, notice dismiss if one is ever added) — applies at every width, not only <768px.
+  **Every icon-only control must also carry an accessible name** — an `aria-label` or
+  visually-hidden text node naming the specific action and its target (e.g.
+  `aria-label="Remove Lightning Bolt from decklist"`, not `aria-label="Remove"`). A bare `×`
+  glyph is not an accessible name; since the app uses no icon library, these glyph buttons are
+  the only icon-only controls in the phase and are easy to ship unlabelled.
 - Existing embedding chrome in `FormCreateGame.vue`/`JoinGameView.vue` (game name, deck size,
   format fields, modal frame padding) is **not** retrofitted to this scale this phase — only
   the newly-built `DeckImportPanel`/`CommanderReview`/`QuickStartView` content follows it
@@ -204,6 +209,16 @@ progresses):
 | Preview resolved, ready to move on | Continue to commanders |
 | Commander(s) selected, ready to finish | Start my table |
 
+**Focal point.** At every step of the funnel, the focal point is **the active step's own input
+surface**, and the secondary focus is that step's single accent-colored primary CTA. On first
+load that means the paste textarea — it is the largest element above the fold and the only
+accent-colored control on screen is its submit button. Nothing else on `/play` may compete for
+first attention: the page heading is Display-weight but low-contrast relative to the input, and
+the mobile heads-up notice is deliberately styled on the secondary surface (never accent, never
+destructive) precisely so it informs without pulling focus from the paste box. Because exactly
+one primary CTA is visible at a time, "where do I look next" is answered by the accent color
+alone — which is why the accent reserved-for list in `## Color` is closed at four uses.
+
 | Element | Copy |
 |---------|------|
 | Primary CTA (final conversion) | **Start my table** — appears once a legal commander is selected and no blocking errors remain; this is the button that calls `createGame`. |
@@ -229,37 +244,81 @@ Never render raw GraphQL, SQL, or provider output in any of these four states.
 
 ## UI Considerations
 
-> Populated by the ui-phase UI-consideration probe (Step 9.5). Shape-rooted UI *state*
-> coverage (empty / loading / error / populated / partial / overflow / zero-one-many /
-> long-text). Copy for empty/error states lives in `## Copywriting Contract` above and is
-> referenced here, not restated.
+> Populated by the ui-phase UI-consideration probe (Step 9.5), run AFTER checker approval against
+> `ui-consideration-probe.cjs`. Shape-rooted UI *state* coverage (empty / loading / error /
+> populated / partial / overflow / zero-one-many / long-text). Copy for empty and error states
+> lives in `## Copywriting Contract` above and is referenced here, not restated.
 
-Applicable state considerations resolved: 21 covered, 3 backstop, 0 unresolved.
+**Probe run:** 7 elements classified, 46 applicable considerations raised, 0 left unresolved.
 
-| Category | Element(s) | Status | Resolution / Reason |
-|----------|------------|--------|---------------------|
-| empty | DeckImportPanel (form) | ✅ covered | Renders the "Paste your decklist" empty-state copy (see Copywriting Contract) before any paste/URL text is entered. |
-| empty | CommanderReview (list-collection) | ✅ covered | Renders the "No legal commander detected yet" empty-state copy when `CommanderCandidates` is empty after a successful preview. |
-| loading | DeckImportPanel (form) | ✅ covered | Inline spinner + "Checking your deck…" body text while `previewDeck` is in flight; submit button disabled for the duration. |
-| loading | CommanderReview / unresolved-card list | 🧪 backstop | Candidates and suggestions arrive synchronously in the same `previewDeck` response (Phase 1: computed eagerly) — no separate loading UI is expected to exist for these two lists. Verify by asserting no loading-spinner markup is reachable for `CommanderReview`/unresolved-list independent of the panel-level loading state. |
-| error | DeckImportPanel (form) — provider down | ✅ covered | `provider_unavailable` copy + "Paste instead" affordance (Copywriting Contract). |
-| error | DeckImportPanel (form) — preview error | ✅ covered | `preview_error` copy + "Fix these cards" affordance (Copywriting Contract). |
-| error | QuickStartView (nav/flow) — guest-session error | ✅ covered | `guest_session_error` copy + "Try again" affordance (Copywriting Contract). |
-| error | QuickStartView (nav/flow) — create error | ✅ covered | `create_error` copy + "Try again" affordance (Copywriting Contract). |
-| error | unresolved-card list, commander list (own error state) | ✅ covered | Dismissed by design — errors bubble to the panel-level error state above; no separate per-list error UI exists. |
-| populated | DeckImportPanel preview totals | ✅ covered | Totals line pattern, e.g. "97 of 100 cards ready · 3 need a quick look," shown once `previewDeck` resolves. |
-| populated | unresolved-card list | ✅ covered | Each unresolved row shows the original typed text, up to 3 suggestion chips (nearest match always shown per Phase 1 D-03, even below the resolution cutoff), plus a manual "type card name" fallback and a "remove this line" option. |
-| populated | CommanderReview list | ✅ covered | Up to 3 detected commander candidates surfaced (Phase 1 product decision); manual search available beyond the top 3 via the existing typeahead pattern reused from `FormCreateGame.vue`. |
-| partial | DeckImportPanel (warnings but `CanContinue: true`) | ✅ covered | Non-blocking banner ("X cards need a look") with Continue enabled; blocking errors instead disable Continue until resolved. |
-| partial | CommanderReview (partner/background pairing incomplete or invalid) | ✅ covered | Reuses `partnerConstraintMessage` from `commanderPartner.ts` for inline validation text; Continue disabled until a single legal commander or a valid partner/background pair is selected. |
-| partial | Display name field | ✅ covered | Dismissed — single optional text field has no partial-fill state distinct from empty; omission is itself a valid, expected terminal state (generates a guest name). |
-| overflow | unresolved-card list (many unresolved rows) | 🧪 backstop | Capped-height scrollable list, reusing the existing `.typeahead` pattern (`max-height: 200px; overflow: auto`) rather than growing the page indefinitely. Verify by asserting a max-height/overflow rule exists on the unresolved-list container at both breakpoints. |
-| overflow | CommanderReview (many legendary-creature candidates, e.g. a "commander matters" pile) | 🧪 backstop | Same capped-scroll treatment as the unresolved-card list, plus a "search all cards" manual fallback. Verify the same way. |
-| zero-one-many | unresolved-card list | ✅ covered | 0 → section hidden entirely; 1–3 suggestions per row always render as a non-empty chip set (Phase 1 guarantees at least the nearest match); wrapping chip layout reads correctly at 1 and at 3. |
-| zero-one-many | CommanderReview | ✅ covered | 0 → empty state above; 1 → single-commander happy path, no partner UI shown; many → up to 2 selected (partner/background) plus up to 3 suggestions each, wrapping chip grid. |
-| long-text | unresolved-card / commander chip text (long card names) | ✅ covered | Truncate with ellipsis + `title` tooltip on hover, matching the existing `.stack-name` overflow-ellipsis pattern in `BoardView.vue`; chips wrap via `flex-wrap: wrap` per the existing `.chips` class. |
-| long-text | Display name field | ✅ covered | Client `maxlength="64"` (mirrors the existing game-name field's bound); render sites apply the same truncate-with-tooltip treatment as above once rendered via `display_name ?? username`. |
-| long-text | Mobile heads-up notice | ✅ covered | Copy is fixed and short (one sentence, ~140 characters) — no truncation logic needed; do not let this banner grow to more than two lines at 320px width. |
+Applicable state considerations resolved: **32 covered, 9 backstop, 5 dismissed, 0 unresolved.**
+
+| Element | Detected kinds |
+|---|---|
+| E1 — QuickStartView `/play` | form, nav, interactive-control, static-content |
+| E2 — DeckImportPanel | form, nav, interactive-control |
+| E3 — Unresolved-card list | form, list-collection, interactive-control, static-content |
+| E4 — CommanderReview | list-collection, static-content |
+| E5 — Display name field | form, static-content |
+| E6 — Mobile heads-up notice | nav, static-content |
+| E7 — Preview totals card | list-collection, static-content *(confirmed override)* |
+
+| Category | Element | Status | Resolution / Reason |
+|----------|---------|--------|---------------------|
+| empty | E1 QuickStartView `/play` | ✅ covered | On first load with no sessionStorage draft, /play renders the Display-role page heading and DeckImportPanel's own empty state — there is no blank-page state. |
+| loading | E1 QuickStartView `/play` | ✅ covered | /play is a public route that renders synchronously with no auth round-trip; the only in-flight state it owns is the terminal createGame call, which disables 'Start my table' and shows inline progress on that button. |
+| error | E1 QuickStartView `/play` | ✅ covered | guest_session_error and create_error render their Copywriting Contract copy with a 'Try again' affordance; the pasted deck, corrected entries, commander picks, and display name all survive via sessionStorage per D-2.12. |
+| partial | E1 QuickStartView `/play` | ✅ covered | A partially completed funnel is the normal state — each step's primary CTA stays disabled until its own preconditions are met, and a refresh restores the partial funnel from sessionStorage. |
+| overflow | E1 QuickStartView `/play` | ✅ covered | Single-column stack below 768px and two-column at >=768px per the Responsive Architecture section; the page scrolls vertically and never scrolls horizontally at 320px. |
+| long-text | E1 QuickStartView `/play` | ✅ covered | Page-level headings are fixed author-controlled copy; all user-supplied long text is bounded at the child level (E5 maxlength=64, E3/E4 chip truncation). |
+| empty | E2 DeckImportPanel | ✅ covered | The 'Paste your decklist' heading and body copy from the Copywriting Contract render before any paste or URL input is entered. |
+| loading | E2 DeckImportPanel | ✅ covered | Inline spinner plus 'Checking your deck...' body text while previewDeck is in flight; the submit button is disabled for the duration. |
+| error | E2 DeckImportPanel | ✅ covered | provider_unavailable renders its copy with a 'Paste instead' affordance and preview_error with 'Fix these cards', both per the Copywriting Contract; raw GraphQL, SQL, and provider output are never rendered. |
+| partial | E2 DeckImportPanel | ✅ covered | Warnings with CanContinue true render a non-blocking banner with Continue enabled; blocking errors disable Continue until they are resolved. |
+| overflow | E2 DeckImportPanel | 🧪 backstop | A 100+ line paste must not grow the panel unbounded — the textarea is fixed-height and internally scrollable. Verify with a held-out UI-state test asserting panel height is stable between a 1-line and a 250-line paste at both breakpoints. |
+| long-text | E2 DeckImportPanel | ✅ covered | The textarea wraps long lines rather than scrolling horizontally; a single 300-character line reflows and never causes horizontal page scroll. |
+| empty | E3 Unresolved-card list | ✅ covered | Zero unresolved rows hides the section entirely rather than rendering an empty-state message — the preview totals line alone communicates the all-clear. |
+| loading | E3 Unresolved-card list | 🧪 backstop | Rows arrive synchronously in the same previewDeck response (Phase 1 computes candidates eagerly), so no independent loading UI exists for this list. Verify no loading-spinner markup is reachable for the unresolved list independent of the panel-level loading state. |
+| error | E3 Unresolved-card list | 🧪 backstop | Row-level failures bubble to DeckImportPanel's panel-level preview_error state — no per-row error UI exists. Verify with a held-out UI-state test asserting a failed preview renders exactly one panel-level error and zero per-row error elements. |
+| populated | E3 Unresolved-card list | ✅ covered | Each row shows the original typed text, up to 3 suggestion chips with the nearest match always shown (Phase 1 D-03), a manual 'type card name' fallback input, and a 'remove this line' control. |
+| partial | E3 Unresolved-card list | ✅ covered | A list where some rows are corrected and others are not is the expected working state; Continue is gated on blocking errors only, never on every row having been touched. |
+| overflow | E3 Unresolved-card list | 🧪 backstop | Capped-height scrollable container reusing the existing .typeahead pattern (max-height 200px, overflow auto) rather than growing the page. Verify a max-height/overflow rule exists on the container at both breakpoints. |
+| zero-one-many | E3 Unresolved-card list | ✅ covered | 0 hides the section; 1 renders a single row with correct singular copy; many renders inside the capped scroll; suggestion chips wrap correctly at 1 and at 3 per row. |
+| long-text | E3 Unresolved-card list | ✅ covered | Long card names truncate with ellipsis plus a title tooltip, matching the existing .stack-name overflow pattern; chips wrap via the existing .chips flex-wrap class. |
+| empty | E4 CommanderReview | ✅ covered | The 'No legal commander detected yet' heading and body copy from the Copywriting Contract render when CommanderCandidates is empty after a successful preview. |
+| loading | E4 CommanderReview | 🧪 backstop | Candidates arrive synchronously in the same previewDeck response; the only async surface is the manual typeahead search, which reuses FormCreateGame.vue's existing typeahead loading treatment. Verify no independent list-level spinner exists. |
+| error | E4 CommanderReview | 🧪 backstop | Candidate-list failures bubble to the panel-level error state; the only failure path is the shared typeahead search, which inherits FormCreateGame.vue's existing handling. Verify with a held-out UI-state test asserting the commander list renders zero independent error elements on a failed preview. |
+| populated | E4 CommanderReview | ✅ covered | Up to 3 detected candidates surface as selectable chips/cards (Phase 1 product decision), with manual typeahead search available beyond the top 3. |
+| partial | E4 CommanderReview | ✅ covered | An incomplete or illegal partner/background pairing renders partnerConstraintMessage from commanderPartner.ts inline; 'Start my table' stays disabled until a single legal commander or a valid pair is selected. |
+| overflow | E4 CommanderReview | 🧪 backstop | Same capped-scroll treatment as the unresolved-card list, plus the 'search all cards' manual fallback for a commander-matters pile. Verify a max-height/overflow rule exists on the candidate container at both breakpoints. |
+| zero-one-many | E4 CommanderReview | ✅ covered | 0 renders the empty state above; 1 is the single-commander happy path with no partner UI shown; many allows up to 2 selected (partner/background) in a wrapping chip grid. |
+| long-text | E4 CommanderReview | ✅ covered | Long legendary card names truncate with ellipsis plus title tooltip, identical to the unresolved-card chip treatment. |
+| empty | E5 Display name field | ✅ covered | Empty is the expected default and a valid terminal state — the placeholder explains that skipping generates a name like 'Brave Sliver', and submission proceeds with a generated MTG name per D-2.5. |
+| loading | E5 Display name field | — dismissed | A plain text input that performs no fetch — per D-2.7 no uniqueness check ever runs against it, so there is no in-flight state to render. |
+| error | E5 Display name field | — dismissed | Per D-2.7 the field is free-form and non-unique, so no validation error may ever appear on it — a 'that name is taken' failure on the activation path would violate the phase's never-redirect-through-signup premise. Length is enforced by maxlength, not by an error message. |
+| partial | E5 Display name field | — dismissed | A single optional text field has no partial-fill state distinct from empty; omission is itself a valid terminal state. |
+| overflow | E5 Display name field | ✅ covered | The input scrolls its own content horizontally at a fixed width and never widens its container; field width is identical at both breakpoints. |
+| long-text | E5 Display name field | ✅ covered | Client maxlength=64 mirrors the existing game-name field bound; downstream render sites truncate with ellipsis plus tooltip once the value is shown via display_name ?? username. |
+| loading | E6 Mobile heads-up notice | — dismissed | Static banner rendered from a fixed author-controlled string with no data dependency — there is nothing to load. The nav kind was a heuristic cue-match on 'above the import tabs', not a real navigation surface. |
+| error | E6 Mobile heads-up notice | — dismissed | Static banner with no fetch, no submit, and no user input — it has no failure mode. Same heuristic nav cue-match as the loading row above. |
+| overflow | E6 Mobile heads-up notice | ✅ covered | Fixed one-sentence copy renders in at most two lines at 320px width; the banner wraps and never clips or scrolls. |
+| long-text | E6 Mobile heads-up notice | ✅ covered | Copy is fixed and author-controlled at roughly 140 characters — no user-supplied text enters this banner, so no truncation logic is required. |
+| empty | E7 Preview totals card | ✅ covered | The card does not render at all before previewDeck resolves — the empty case is the panel's own 'Paste your decklist' state, not an empty totals card. |
+| loading | E7 Preview totals card | ✅ covered | Covered by the panel-level 'Checking your deck...' state; the totals card mounts only on a resolved response. |
+| error | E7 Preview totals card | 🧪 backstop | A failed preview renders the panel-level provider_unavailable or preview_error state instead of the totals card. Verify with a held-out UI-state test asserting the totals card is absent and exactly one panel-level error renders on a failed preview. |
+| populated | E7 Preview totals card | ✅ covered | Totals line reads in the shape '97 of 100 cards ready - 3 need a quick look', alongside non-blocking warning counts and blocking error counts. |
+| partial | E7 Preview totals card | ✅ covered | The partial case is the primary case — warnings with CanContinue true show counts with Continue enabled; blocking errors show counts with Continue disabled. |
+| overflow | E7 Preview totals card | ✅ covered | Counts are bounded small integers and the card is fixed-height; it does not scroll at either breakpoint. |
+| zero-one-many | E7 Preview totals card | ✅ covered | Singular and plural copy is correct at 0, 1, and many for both warning and blocking-error counts (e.g. '1 card needs a quick look' vs '3 cards need a quick look'). |
+| long-text | E7 Preview totals card | 🧪 backstop | A warning or blocking-error line naming a long card name must truncate with ellipsis plus tooltip rather than widening the card. Verify with a held-out UI-state test using a 40-character card name in a warning row at 320px. |
+
+<!-- Status vocabulary (locked by probe-core projectTruths):
+     ✅ covered   → a plain truth string lifted into must_haves.truths
+     🧪 backstop  → a flat scalar { statement, verification: backstop }; at verify time, no explicit
+                    evidence → insufficient_spec → human_needed (never a silent pass, #1154)
+     — dismissed  → reason recorded as audit trail; NOT lifted into must_haves
+     ⚠ unresolved → an explicit planner assumption (surfaced, never silently dropped)
+     Rows are REPLACED (not appended) on a probe re-run — idempotent. -->
 
 ---
 
@@ -274,11 +333,16 @@ Applicable state considerations resolved: 21 covered, 3 backstop, 0 unresolved.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: **PASS** — all CTAs specific; empty/error states carry solution-path copy; destructive-confirmation N/A verified against phase scope (no destructive action exists).
+- [x] Dimension 2 Visuals: **FLAG (addressed)** — checker flagged (a) no explicit focal-point declaration for `/play` and (b) icon-only `×` controls having a hit-target size but no accessible-name requirement. Both were added post-verification: see the **Focal point** paragraph in `## Copywriting Contract` and the accessible-name rule in `## Spacing Scale` exceptions. Recorded as FLAG rather than PASS because the fixes were applied by the orchestrator after sign-off, not re-verified by the checker.
+- [x] Dimension 3 Color: **PASS** — single accent, closed 4-item reserved-for list, 60/30/10 declared, destructive token declared and justified.
+- [x] Dimension 4 Typography: **PASS** — 4 sizes, 2 weights, line heights declared for every role.
+- [x] Dimension 5 Spacing: **PASS** — all tokens are 4-multiples from the standard set; exceptions justified (a11y hit-target, scoped legacy-chrome carve-out).
+- [x] Dimension 6 Registry Safety: **PASS** — no shadcn, no third-party registry; hand-rolled Vue SFC pattern documented with rationale.
 
-**Approval:** pending
+**Verdict:** UI-SPEC VERIFIED (5 PASS, 1 FLAG non-blocking) — `gsd-ui-checker`, 2026-08-08.
+
+**State coverage:** UI-consideration probe run post-verification — 7 elements, 46 applicable
+considerations, 0 unresolved (see `## UI Considerations`).
+
+**Approval:** approved 2026-08-08
