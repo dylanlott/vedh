@@ -1,0 +1,4 @@
+ALTER TABLE users DROP COLUMN IF EXISTS guest_credential_hash;
+ALTER TABLE users DROP COLUMN IF EXISTS display_name;
+ALTER TABLE users DROP COLUMN IF EXISTS expires_at;
+ALTER TABLE users DROP COLUMN IF EXISTS is_guest;

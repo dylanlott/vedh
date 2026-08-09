@@ -265,9 +265,12 @@ type Turn struct {
 }
 
 type User struct {
-	ID         string      `json:"ID"`
-	Username   string      `json:"Username"`
-	Password   *string     `json:"Password,omitempty"`
-	Token      *string     `json:"Token,omitempty"`
-	Boardstate *BoardState `json:"Boardstate,omitempty"`
+	ID              string      `json:"ID"`
+	Username        string      `json:"Username"`
+	Password        *string     `json:"Password,omitempty"`
+	Token           *string     `json:"Token,omitempty"`
+	Boardstate      *BoardState `json:"Boardstate,omitempty"`
+	DisplayName     *string     `json:"DisplayName,omitempty"`
+	IsGuest         *bool       `json:"IsGuest,omitempty"`
+	GuestCredential *string     `json:"GuestCredential,omitempty"`
 }

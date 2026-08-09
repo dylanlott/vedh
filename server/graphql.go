@@ -67,6 +67,35 @@ type Conf struct {
 	// providerEnabled() (server/deck_providers.go) also requires a
 	// non-empty DeckProviderAllowedHosts even when this is true.
 	DeckProviderEnabled bool `envconfig:"DECK_PROVIDER_ENABLED" default:"false"`
+
+	// GuestCreationEnabled is the guest-creation kill switch (DEC-A,
+	// REQ-ACT-005/T-02-02). Unlike DeckProviderEnabled, this defaults to
+	// TRUE: guest creation dials no third party -- it is an internal,
+	// rate-limited, bcrypt-backed write on our own users table, not an
+	// SSRF surface with unread terms of service. Shipping it false by
+	// default (mirroring DeckProviderEnabled "for symmetry") would leave
+	// this entire phase's activation funnel inert on merge, with no way
+	// for Phase 5's release gate to exercise the guest journey without an
+	// out-of-band flag flip. The switch exists so an operator can KILL
+	// the funnel under abuse, not so the funnel starts dead. Do not "fix"
+	// this default to false by analogy with DeckProviderEnabled -- the
+	// two switches guard structurally different risks.
+	GuestCreationEnabled bool `envconfig:"GUEST_CREATION_ENABLED" default:"true"`
+
+	// GuestSessionRatePerMinute and GuestSessionRateBurst are declared per
+	// REQ-ACT-005's rate-limiting requirement for the guestSession
+	// mutation (T-02-01). DEC-C deliberately keeps pkg/ratelimit.Registry
+	// to a single (perMinute, burst) budget shared by every surface on
+	// s.limiter, rather than fragmenting idle eviction and the
+	// vedh_rate_limit_total mental model with a second Registry or a
+	// per-surface budget map. SurfaceGuestSession therefore draws on the
+	// same shared budget as SurfaceDeckImport/SurfaceProductEvent
+	// (s.limiter, constructed from DeckImportRatePerMinute/Burst below);
+	// these two fields exist to make the intended guest-specific budget
+	// operator-visible and are the values a future per-surface Registry
+	// enhancement would consume without a Conf shape change.
+	GuestSessionRatePerMinute int `envconfig:"GUEST_SESSION_RATE_PER_MINUTE" default:"20"`
+	GuestSessionRateBurst     int `envconfig:"GUEST_SESSION_RATE_BURST" default:"5"`
 }
 
 // var userCtxKey = &contextKey{"user"}

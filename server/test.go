@@ -49,6 +49,16 @@ func testAPI(t *testing.T) *graphQLServer {
 		// directly to exercise the limited path.
 		DeckImportRatePerMinute: 100000,
 		DeckImportRateBurst:     100000,
+		// GuestCreationEnabled mirrors the same fix(01-06) reasoning above:
+		// this Conf literal bypasses envconfig.Process, so
+		// GuestCreationEnabled's `default:"true"` tag (server/graphql.go)
+		// never applies here -- an unset field would be Go's zero value
+		// (false), which would make every guest-creation test in this
+		// package fail the kill-switch check by default. Set true so this
+		// package's tests exercise the production default; only
+		// server/guest_users_test.go's TestGuestUsers_KillSwitch overrides
+		// it back to false to exercise the switch itself.
+		GuestCreationEnabled: true,
 	}
 	// WR-02 fix (code review, phase 01): only "Postgres is not reachable at
 	// all" (a plain TCP dial to the configured host:port fails) is treated

@@ -14,6 +14,18 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    // /play is the first genuinely public *functional* route (REQ-ACT-006).
+    // The authenticated-versus-guest branch lives inside QuickStartView
+    // itself, not here: the router guard below only knows "public" vs
+    // "requires auth", and cannot express "public, but behaves differently
+    // once a session exists" without inventing a third meta flag, which
+    // this phase deliberately does not do.
+    path: '/play',
+    name: 'quick-start',
+    component: () => import('../views/QuickStartView.vue'),
+    meta: { public: true },
+  },
+  {
     path: '/signup',
     name: 'signup',
     component: () => import('../views/SignupView.vue'),

@@ -183,6 +183,7 @@ type ComplexityRoot struct {
 		AdvancePhase      func(childComplexity int, gameID string, phase string, number *int) int
 		ClaimWin          func(childComplexity int, gameID string, condition *string) int
 		CreateGame        func(childComplexity int, input InputCreateGame) int
+		GuestSession      func(childComplexity int, displayName *string, sessionID string) int
 		JoinGame          func(childComplexity int, input *InputJoinGame) int
 		Login             func(childComplexity int, username string, password string) int
 		PassPriority      func(childComplexity int, gameID string, toPlayer string) int
@@ -229,11 +230,14 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		Boardstate func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Password   func(childComplexity int) int
-		Token      func(childComplexity int) int
-		Username   func(childComplexity int) int
+		Boardstate      func(childComplexity int) int
+		DisplayName     func(childComplexity int) int
+		GuestCredential func(childComplexity int) int
+		ID              func(childComplexity int) int
+		IsGuest         func(childComplexity int) int
+		Password        func(childComplexity int) int
+		Token           func(childComplexity int) int
+		Username        func(childComplexity int) int
 	}
 }
 
@@ -249,6 +253,7 @@ type MutationResolver interface {
 	ClaimWin(ctx context.Context, gameID string, condition *string) (*Game, error)
 	PreviewDeck(ctx context.Context, input InputDeckImport) (*DeckPreview, error)
 	TrackProductEvent(ctx context.Context, input InputProductEvent) (bool, error)
+	GuestSession(ctx context.Context, displayName *string, sessionID string) (*User, error)
 }
 type QueryResolver interface {
 	Users(ctx context.Context, userID *string) ([]string, error)
@@ -917,6 +922,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateGame(childComplexity, args["input"].(InputCreateGame)), true
+	case "Mutation.guestSession":
+		if e.complexity.Mutation.GuestSession == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_guestSession_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.GuestSession(childComplexity, args["displayName"].(*string), args["sessionID"].(string)), true
 	case "Mutation.joinGame":
 		if e.complexity.Mutation.JoinGame == nil {
 			break
@@ -1187,12 +1203,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.User.Boardstate(childComplexity), true
+	case "User.DisplayName":
+		if e.complexity.User.DisplayName == nil {
+			break
+		}
+
+		return e.complexity.User.DisplayName(childComplexity), true
+	case "User.GuestCredential":
+		if e.complexity.User.GuestCredential == nil {
+			break
+		}
+
+		return e.complexity.User.GuestCredential(childComplexity), true
 	case "User.ID":
 		if e.complexity.User.ID == nil {
 			break
 		}
 
 		return e.complexity.User.ID(childComplexity), true
+	case "User.IsGuest":
+		if e.complexity.User.IsGuest == nil {
+			break
+		}
+
+		return e.complexity.User.IsGuest(childComplexity), true
 	case "User.Password":
 		if e.complexity.User.Password == nil {
 			break
@@ -1413,6 +1447,22 @@ func (ec *executionContext) field_Mutation_createGame_args(ctx context.Context, 
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_guestSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "displayName", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["displayName"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "sessionID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["sessionID"] = arg1
 	return args, nil
 }
 
@@ -4571,6 +4621,12 @@ func (ec *executionContext) fieldContext_Game_Players(_ context.Context, field g
 				return ec.fieldContext_User_Token(ctx, field)
 			case "Boardstate":
 				return ec.fieldContext_User_Boardstate(ctx, field)
+			case "DisplayName":
+				return ec.fieldContext_User_DisplayName(ctx, field)
+			case "IsGuest":
+				return ec.fieldContext_User_IsGuest(ctx, field)
+			case "GuestCredential":
+				return ec.fieldContext_User_GuestCredential(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -5389,6 +5445,12 @@ func (ec *executionContext) fieldContext_Mutation_signup(ctx context.Context, fi
 				return ec.fieldContext_User_Token(ctx, field)
 			case "Boardstate":
 				return ec.fieldContext_User_Boardstate(ctx, field)
+			case "DisplayName":
+				return ec.fieldContext_User_DisplayName(ctx, field)
+			case "IsGuest":
+				return ec.fieldContext_User_IsGuest(ctx, field)
+			case "GuestCredential":
+				return ec.fieldContext_User_GuestCredential(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -5442,6 +5504,12 @@ func (ec *executionContext) fieldContext_Mutation_login(ctx context.Context, fie
 				return ec.fieldContext_User_Token(ctx, field)
 			case "Boardstate":
 				return ec.fieldContext_User_Boardstate(ctx, field)
+			case "DisplayName":
+				return ec.fieldContext_User_DisplayName(ctx, field)
+			case "IsGuest":
+				return ec.fieldContext_User_IsGuest(ctx, field)
+			case "GuestCredential":
+				return ec.fieldContext_User_GuestCredential(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -6013,6 +6081,65 @@ func (ec *executionContext) fieldContext_Mutation_trackProductEvent(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_trackProductEvent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_guestSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_guestSession,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().GuestSession(ctx, fc.Args["displayName"].(*string), fc.Args["sessionID"].(string))
+		},
+		nil,
+		ec.marshalNUser2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐUser,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_guestSession(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ID":
+				return ec.fieldContext_User_ID(ctx, field)
+			case "Username":
+				return ec.fieldContext_User_Username(ctx, field)
+			case "Password":
+				return ec.fieldContext_User_Password(ctx, field)
+			case "Token":
+				return ec.fieldContext_User_Token(ctx, field)
+			case "Boardstate":
+				return ec.fieldContext_User_Boardstate(ctx, field)
+			case "DisplayName":
+				return ec.fieldContext_User_DisplayName(ctx, field)
+			case "IsGuest":
+				return ec.fieldContext_User_IsGuest(ctx, field)
+			case "GuestCredential":
+				return ec.fieldContext_User_GuestCredential(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_guestSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7365,6 +7492,93 @@ func (ec *executionContext) fieldContext_User_Boardstate(_ context.Context, fiel
 				return ec.fieldContext_BoardState_Counters(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type BoardState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_DisplayName(ctx context.Context, field graphql.CollectedField, obj *User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_DisplayName,
+		func(ctx context.Context) (any, error) {
+			return obj.DisplayName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_DisplayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_IsGuest(ctx context.Context, field graphql.CollectedField, obj *User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_IsGuest,
+		func(ctx context.Context) (any, error) {
+			return obj.IsGuest, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_IsGuest(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_GuestCredential(ctx context.Context, field graphql.CollectedField, obj *User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_GuestCredential,
+		func(ctx context.Context) (any, error) {
+			return obj.GuestCredential, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_GuestCredential(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10574,6 +10788,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "guestSession":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_guestSession(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11029,6 +11250,12 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_Token(ctx, field, obj)
 		case "Boardstate":
 			out.Values[i] = ec._User_Boardstate(ctx, field, obj)
+		case "DisplayName":
+			out.Values[i] = ec._User_DisplayName(ctx, field, obj)
+		case "IsGuest":
+			out.Values[i] = ec._User_IsGuest(ctx, field, obj)
+		case "GuestCredential":
+			out.Values[i] = ec._User_GuestCredential(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

@@ -134,3 +134,54 @@ export const UPDATE_BOARDSTATE_MUTATION = gql`
     }
   }
 `;
+
+// --- Guest activation (Phase 2, plan 02-01) ---
+// guestSession and previewDeck are Mutation fields per the locked
+// api-contract in .planning/intel/constraints.md.
+
+export const GUEST_SESSION_MUTATION = gql`
+  mutation GuestSession($displayName: String, $sessionID: String!) {
+    guestSession(displayName: $displayName, sessionID: $sessionID) {
+      ID
+      Username
+      DisplayName
+      IsGuest
+      Token
+      GuestCredential
+    }
+  }
+`;
+
+export const PREVIEW_DECK_MUTATION = gql`
+  mutation PreviewDeck($input: InputDeckImport!) {
+    previewDeck(input: $input) {
+      SourceType
+      CardCount
+      CanContinue
+      Warnings
+      BlockingErrors
+      Entries {
+        Quantity
+        Name
+        Section
+        SourceLine
+        Resolved
+      }
+      CommanderCandidates {
+        ID
+        Name
+      }
+      Unresolved {
+        SourceLine
+        RawLine
+        Name
+        Reason
+        Candidates {
+          Name
+          Score
+          LowConfidence
+        }
+      }
+    }
+  }
+`;

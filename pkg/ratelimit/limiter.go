@@ -34,6 +34,12 @@ const (
 	SurfaceDeckImport Surface = "deck_import"
 	// SurfaceProductEvent identifies the trackProductEvent mutation.
 	SurfaceProductEvent Surface = "product_event"
+	// SurfaceGuestSession identifies the guestSession mutation (REQ-ACT-005,
+	// T-02-01). It shares the same Registry instance as every other
+	// surface -- the composite (Surface, client key) map key already
+	// isolates it from SurfaceDeckImport and SurfaceProductEvent without
+	// a second Registry.
+	SurfaceGuestSession Surface = "guest_session"
 )
 
 // idleWindow is how long a (surface, client key) bucket may go untouched

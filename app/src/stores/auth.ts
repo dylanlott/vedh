@@ -1,13 +1,22 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
 import { apolloClient } from '../services/apollo';
-import { LOGIN_MUTATION, SIGNUP_MUTATION } from '../graphql/mutations';
-import type { LoginMutation, LoginMutationVariables, SignupMutation, SignupMutationVariables } from '../types/generated';
+import { LOGIN_MUTATION, SIGNUP_MUTATION, GUEST_SESSION_MUTATION } from '../graphql/mutations';
+import type {
+  LoginMutation,
+  LoginMutationVariables,
+  SignupMutation,
+  SignupMutationVariables,
+  GuestSessionMutation,
+  GuestSessionMutationVariables,
+} from '../types/generated';
 
 interface AuthProfile {
   ID: string;
   Username: string;
   Token: string;
+  DisplayName?: string;
+  IsGuest?: boolean;
 }
 
 const STORAGE_KEY = 'edhgo/auth';
@@ -94,6 +103,40 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function createGuestSession(args: { displayName?: string; sessionID: string }) {
+    loading.value = true;
+    errorMessage.value = null;
+    try {
+      const { data } = await apolloClient.mutate<GuestSessionMutation, GuestSessionMutationVariables>({
+        mutation: GUEST_SESSION_MUTATION,
+        variables: {
+          displayName: args.displayName,
+          sessionID: args.sessionID,
+        },
+      });
+      if (!data?.guestSession) {
+        throw new Error('GuestSession returned empty response');
+      }
+      // GuestCredential is intentionally omitted here: it must never ride
+      // inside the persisted auth profile (D-2.4). Task 2 gives it its own
+      // localStorage key.
+      profile.value = {
+        ID: data.guestSession.ID,
+        Username: data.guestSession.Username,
+        Token: data.guestSession.Token,
+        DisplayName: data.guestSession.DisplayName ?? undefined,
+        IsGuest: data.guestSession.IsGuest ?? undefined,
+      };
+      return profile.value;
+    } catch (error: unknown) {
+      console.error('[auth] guest session failed', error);
+      errorMessage.value = error instanceof Error ? error.message : 'Guest session failed';
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function logout() {
     profile.value = null;
   }
@@ -105,6 +148,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     login,
     signup,
+    createGuestSession,
     logout,
   };
 });

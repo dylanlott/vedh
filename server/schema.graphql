@@ -12,6 +12,7 @@ type Mutation {
   claimWin(gameID: String!, condition: String): Game!
   previewDeck(input: InputDeckImport!): DeckPreview!
   trackProductEvent(input: InputProductEvent!): Boolean!
+  guestSession(displayName: String, sessionID: String!): User!
 }
 
 type Query {
@@ -114,6 +115,15 @@ type User {
   Password: String
   Token: String
   Boardstate: BoardState
+  # DisplayName is the visitor-typed, non-unique label (D-2.7/D-2.8). Every
+  # render site resolves display names through `DisplayName ?? Username`.
+  DisplayName: String
+  # IsGuest marks a guest identity created through guestSession (D-2.1).
+  IsGuest: Boolean
+  # GuestCredential is the high-entropy guest re-auth secret (DEC-D). It is
+  # returned only by the guest-session mutations and is never persisted in
+  # plaintext -- only its hash is stored server-side.
+  GuestCredential: String
 }
 
 type Game {

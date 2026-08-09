@@ -25,6 +25,24 @@ export interface SignupMutationVariables {
   password: string;
 }
 
+// --- Guest activation (Phase 2, plan 02-01) ---
+
+export interface GuestSessionMutation {
+  guestSession: {
+    ID: string;
+    Username: string;
+    DisplayName?: string | null;
+    IsGuest?: boolean | null;
+    Token: string;
+    GuestCredential?: string | null;
+  };
+}
+
+export interface GuestSessionMutationVariables {
+  displayName?: string | null;
+  sessionID: string;
+}
+
 // --- Deck import / product-event contract (Phase 1, plan 01-01) ---
 // This file has no real codegen tool wired up yet (see the header comment
 // above), so these mirror server/schema.graphql by hand. previewDeck and
