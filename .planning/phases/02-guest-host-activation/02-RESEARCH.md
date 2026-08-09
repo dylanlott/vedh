@@ -761,7 +761,11 @@ func (s *graphQLServer) GuestSession(ctx context.Context, displayName *string, s
 | A3 | The re-auth/silent-reissue mechanism (D-2.3/D-2.4) requires a **new mutation** not named anywhere in REQ-ACT-005's ticket text or `likely_files`. | Open Questions, Pitfall 4 | High if wrong in the other direction — if the planner instead assumes `guestSession` itself can be called again idempotently to "refresh," that contradicts D-2.6 (names never recycled, so calling `guestSession` again for an existing row would either generate a *second* name for the same row or require passing the existing row's identity in a way `guestSession(displayName, sessionID)`'s declared signature does not support). This is flagged as an open question, not asserted as fact, precisely because no source text confirms which shape is intended. |
 | A4 | Vue's default `{{ }}` interpolation escaping is sufficient to satisfy D-2.5/REQ-ACT-005's "pass existing output escaping/validation" acceptance clause, with no additional server- or client-side sanitization needed for `display_name`. | Don't Hand-Roll (XSS row) | Medium — true for HTML/XSS in the Vue template layer (verified: no `v-html` usage found), but does not address non-HTML injection surfaces this research did not check exhaustively (e.g., whether `display_name` ever flows into a non-Vue-rendered surface such as a server log line, a GraphQL error message, or an exported CSV/report). No such surface was found this session, but the search was not exhaustive of every possible future consumer. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All three questions below were resolved during Phase 2 planning; each carries an inline
+`**RESOLVED (Phase 2 planning):**` marker naming the plan and task that settles it. Nothing in
+this section remains open.
 
 1. **What is the actual transport/mutation for D-2.3's silent token re-issue?**
    - What we know: D-2.3 requires "a silent re-issue while their row is alive" whenever a
@@ -784,6 +788,15 @@ func (s *graphQLServer) GuestSession(ctx context.Context, displayName *string, s
      defensible, but CONTEXT.md's D-2.3/D-2.4 read as in-scope decisions for *this* phase,
      not deferred ones — the Deferred Ideas section names only claim-UI, board
      responsiveness, and rename as out of scope, not re-issue.
+   - **RESOLVED (Phase 2 planning):** option (a) — build the mutation now, in this phase.
+     Plan `02-02` Task 2 adds `refreshGuestSession(credential: String!): User!` as a new
+     Mutation field and implements `(*graphQLServer).RefreshGuestSession` in
+     `server/guest_users.go`, deliberately outside `requireAuth` so it works after the JWT has
+     expired. `guestSession` is NOT overloaded (that would contradict D-2.6), and nothing is
+     deferred to Phase 4. The credential wire format is `<users.uuid>.<base64url 32-byte
+     secret>` — minted in plan `02-01` Task 1, with only the secret half bcrypt-hashed into
+     `guest_credential_hash` so the uuid half gives the refresh path an O(1) row lookup. Per
+     DEC-F in `02-02`, the credential is not rotated on re-issue.
 
 2. **Should `AuthUser` (the JWT-derived context object) carry an `IsGuest` bit, or should
    every guest-aware resolver re-query `users.is_guest` fresh?**
@@ -799,6 +812,13 @@ func (s *graphQLServer) GuestSession(ctx context.Context, displayName *string, s
      "verify the *current* row is still a guest at claim time" note in Guest/Password-Login
      Auth Surface above) and avoid adding `IsGuest` to JWT claims unless a concrete
      resolver-level need surfaces during planning.
+   - **RESOLVED (Phase 2 planning):** re-query fresh; `AuthUser` gains no `IsGuest` bit and the
+     JWT claims are unchanged. Plan `02-02` Task 3's `ClaimGuestAccount` runs behind
+     `requireAuth` and then re-reads the row by `AuthUser.ID`, because the JWT's claims were
+     minted before the claim and cannot be trusted to say whether the row is still a guest; the
+     UPDATE additionally carries a `WHERE is_guest` guard so a concurrent double-claim cannot
+     both win. The one other guest-aware check, `Login`'s rejection in `02-02` Task 1, also
+     reads `is_guest` from the row rather than from a claim.
 
 3. **How aggressively should `FormCreateGame.vue`/`JoinGameView.vue` be refactored to share
    `DeckImportPanel.vue`, given both are also embedded in modal/page contexts with
@@ -818,6 +838,13 @@ func (s *graphQLServer) GuestSession(ctx context.Context, displayName *string, s
      [VERIFIED: server/schema.graphql — `input InputDeckImport { text: String sourceURL:
      String sessionID: String! }`]) — this naturally bounds the component's responsibility
      and avoids the slot-customization question entirely.
+   - **RESOLVED (Phase 2 planning):** the recommendation was adopted verbatim and recorded as
+     DEC-J in plan `02-03`: `DeckImportPanel.vue` takes no slots and owns no surrounding chrome;
+     its props are exactly what `InputDeckImport` accepts plus a persistence key, and game name,
+     deck size and format stay with whichever parent owns them. `02-03` Task 1 extracts the
+     panel and `02-03` Task 3 re-points all three call sites at it — `FormCreateGame.vue` and
+     `JoinGameView.vue` pass no persistence key, `QuickStartView.vue` does. The
+     slot-customization question is therefore closed, not deferred.
 
 ## Environment Availability
 
