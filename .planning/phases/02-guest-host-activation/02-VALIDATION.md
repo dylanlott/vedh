@@ -58,18 +58,24 @@ files are written; `validate-phase` completes this table.*
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | REQ-ACT-004 | — | Paste → preview → correct → select commander → continue, state preserved across failures | component | `npx vitest run app/__tests__/DeckImportPanel.spec.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-004 | — | Host and join submit the same normalized deck | integration | `npx vitest run app/__tests__/FormCreateGame.integration.spec.ts app/__tests__/JoinGame.integration.spec.ts` | ✅ (needs update) | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-005 | — | Guest creation requires no username/password; generated names unique & escaped | unit/integration | `go test ./server -run TestGuestUsers_Create -race` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-005 | Guest token vs password `Login` (EoP) | Guest cannot log in via password endpoint before claiming | unit | `go test ./server -run TestUsers_LoginRejectsGuest -race` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-005 | Mass guest creation (DoS) | Guest creation rate-limited behind kill switch | unit | `go test ./server -run TestGuestUsers_RateLimit -race` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-005 | — | Cleanup never deletes a guest referenced by an active game | integration | `go test ./server -run TestGuestUsers_CleanupPreservesActiveGames -race` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-005 | — | `expires_at` gates minting a NEW token only (test against hand-marked row — see note) | unit | `go test ./server -run TestGuestUsers_ExpiredRowRejected -race` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-005 | — | Migration applies cleanly on both prod and test schemas | migration | `go test ./server -run TestMigrations_GuestUsers -race` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-005 | XSS via `display_name` (Tampering) | Server caps length + strips control chars independent of client | unit | `go test ./server -run TestGuestUsers_DisplayNameValidation -race` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-006 | — | `/play` public while unrelated private routes remain protected | router unit | `npx vitest run app/__tests__/router.spec.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | REQ-ACT-006 | — | Guest and authenticated branches; error preservation across all 4 failure classes | component/store | `npx vitest run app/__tests__/QuickStartView.spec.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | Criterion 5 | — | Retried client call does not double-count a conversion | integration | `go test ./server -run TestProductEvents_AuthoritativeDedup -race` | ✅ (needs guest case) | ⬜ pending |
+| 02-01 T1 | 02-01 | 1 | REQ-ACT-005 / 006 | T-02-01, T-02-04 | Tracer: logged-out paste reaches a live board; guest row created once, name unique, event written once | integration (Go) + component | `go test ./server -run TestGuestHost_Tracer -race` and `npm --prefix app run test -- __tests__/QuickStartView.spec.ts` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-01 T1 | 02-01 | 1 | REQ-ACT-005 | — | Generated names unique & collision-retried; guest creation needs no username/password | unit/integration | `go test ./server -run TestGuestUsers_Create -race` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-01 T1 | 02-01 | 1 | REQ-ACT-005 | T-02-01, T-02-02 | Guest creation rate-limited behind a kill switch | unit | `go test ./server -run 'TestGuestUsers_RateLimit\|TestGuestUsers_KillSwitch' -race` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-01 T1 | 02-01 | 1 | REQ-ACT-005 | — | Migration applies cleanly on both prod and test schemas, files byte-identical | migration | `go test ./server -run TestMigrations_GuestUsers -race` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-01 T2 | 02-01 | 1 | REQ-ACT-005 | T-02-03 | Guest credential stored under its own key, absent from the auth profile and the analytics ID | unit | `npm --prefix app run test -- __tests__/authGuest.spec.ts` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-02 T1 | 02-02 | 2 | REQ-ACT-005 | T-02-08 | Guest cannot log in via password endpoint before claiming | unit | `go test ./server -run TestUsers_LoginRejectsGuest -race` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-02 T1 | 02-02 | 2 | REQ-ACT-005 | T-02-11, T-02-14 | Closed error-code set leaks no internals; display name capped by rune and stripped of control chars | unit | `go test ./server -run 'TestActivationErrors\|TestGuestUsers_DisplayNameValidation' -race` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-02 T2 | 02-02 | 2 | REQ-ACT-005 | T-02-09 | `expires_at` gates minting a NEW token only (hand-marked row — see note); silent re-issue works | unit | `go test ./server -run 'TestGuestUsers_Refresh\|TestGuestUsers_ExpiredRow' -race` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-02 T3 | 02-02 | 2 | REQ-ACT-005 | T-02-10, T-02-12 | Claim preserves the row and its games; cleanup never deletes a referenced guest | integration | `go test ./server -run 'TestGuestUsers_Claim\|TestGuestUsers_Cleanup' -race` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-03 T1 | 02-03 | 2 | REQ-ACT-004 | T-02-16, T-02-17 | Paste → preview → correct, every UI state, four failure codes, no raw output rendered | component | `npm --prefix app run test -- __tests__/DeckImportPanel.spec.ts __tests__/activationErrors.spec.ts` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-03 T2 | 02-03 | 2 | REQ-ACT-004 | T-02-18, T-02-20 | Commander review via commanderPartner.ts; draft survives refresh and failed nav, cleared on success | component | `npm --prefix app run test -- __tests__/CommanderReview.spec.ts __tests__/quickStartDraft.spec.ts` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-03 T3 | 02-03 | 2 | REQ-ACT-004 | — | Host and join submit the same normalized deck through one component | integration | `npm --prefix app run test -- __tests__/FormCreateGame.integration.spec.ts __tests__/JoinGame.integration.spec.ts` | ✅ (updated by the task) | ⬜ pending |
+| 02-04 T1 | 02-04 | 3 | REQ-ACT-006 / Criterion 5 | T-02-21, T-02-22, T-02-26 | `game_created` is server-written; a retried call does not double-count a conversion | integration | `go test ./server -run 'TestGames_Create\|TestProductEvents_AuthoritativeDedup' -race` | ✅ (extended by the task) | ⬜ pending |
+| 02-04 T2 | 02-04 | 3 | REQ-ACT-006 | T-02-24 | `/play` public while every previously-protected route still redirects | router unit | `npm --prefix app run test -- __tests__/router.spec.ts` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-04 T2 | 02-04 | 3 | REQ-ACT-006 | T-02-25 | Guest and authenticated branches; error preservation across all 4 failure classes; exactly 3 client events | component/store | `npm --prefix app run test -- __tests__/QuickStartView.spec.ts` | ✅ (extended by the task) | ⬜ pending |
+| 02-05 T1 | 02-05 | 4 | REQ-ACT-005 | — | Display name captured onto the game record at write time; legacy payloads still read | integration | `go test ./server -run TestGames_ -race` | ✅ (extended by the task) | ⬜ pending |
+| 02-05 T2 | 02-05 | 4 | REQ-ACT-005 | T-02-28, T-02-29, T-02-30 | Every display site uses the fallback; every identity site still compares on Username; every document selects DisplayName | unit/component | `npm --prefix app run test -- __tests__/displayName.spec.ts` | ❌ W0 (authored by the task) | ⬜ pending |
+| 02-06 T1 | 02-06 | 5 | REQ-ACT-004 / 005 / 006 | T-02-31, T-02-32, T-02-33 | The four manual-only verifications below | manual | *(blocking human checkpoint — see Manual-Only Verifications)* | n/a | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -83,16 +89,30 @@ one. Verification must not expect to observe this rejection end-to-end.
 
 ## Wave 0 Requirements
 
-- [ ] `server/guest_users_test.go` — REQ-ACT-005's create / collision / rate-limit / expiry /
-      login-rejection / claim / conflict / relationship-preservation acceptance clauses
-- [ ] Migration test for the new `{TS}_guest_users` pair — model on `TestMigrations_CardNameSearch`
-      (`server/deck_import_test.go:150`)
-- [ ] `app/__tests__/DeckImportPanel.spec.ts` — no component test exists (component not yet built)
-- [ ] `app/__tests__/CommanderReview.spec.ts` — no component test exists (component not yet built)
-- [ ] `app/__tests__/QuickStartView.spec.ts` — no integration test exercises a public-but-stateful
-      route branch (guest vs. authenticated)
-- [ ] `app/__tests__/router.spec.ts` — no router test found in `app/__tests__`; needs one asserting
-      `/play` never redirects regardless of `auth.isAuthenticated`
+Every gap below is closed by the task that needs it: each of these tasks carries `tdd="true"` with a
+`<behavior>` block, so the test file is authored (and fails first) inside the same task that
+implements against it. There is no separate Wave 0 plan.
+
+- [ ] `server/guest_users_test.go` — REQ-ACT-005's create / collision / rate-limit / kill-switch /
+      expiry / login-rejection / claim / conflict / relationship-preservation clauses.
+      *Owned by 02-01 T1 (create, collision, rate limit, kill switch, dedup, migration) and
+      02-02 T1/T2/T3 (validation, refresh, expiry, claim).*
+- [ ] Migration test for the `20260809120000_guest_users` pair — model on
+      `TestMigrations_CardNameSearch` (`server/deck_import_test.go:150`). *Owned by 02-01 T1.*
+- [ ] `server/guest_cleanup_test.go` — cleanup preservation, idempotency, and the no-scheduled-work
+      proof. *Owned by 02-02 T3.*
+- [ ] `server/activation_errors_test.go` — closed code set, no leaked internals. *Owned by 02-02 T1.*
+- [ ] `app/__tests__/DeckImportPanel.spec.ts` — *Owned by 02-03 T1.*
+- [ ] `app/__tests__/activationErrors.spec.ts` — *Owned by 02-03 T1.*
+- [ ] `app/__tests__/CommanderReview.spec.ts` and `app/__tests__/quickStartDraft.spec.ts` —
+      *Owned by 02-03 T2.*
+- [ ] `app/__tests__/QuickStartView.spec.ts` — created by 02-01 T1 (tracer path), extended by
+      02-03 T2 (draft survival, responsive) and 02-04 T2 (events, branches, four failure classes).
+- [ ] `app/__tests__/authGuest.spec.ts` — guest credential storage separation. *Owned by 02-01 T2.*
+- [ ] `app/__tests__/router.spec.ts` — `/play` never redirects; every previously-protected route
+      still does. *Owned by 02-04 T2.*
+- [ ] `app/__tests__/displayName.spec.ts` — the display-versus-identity invariant and the
+      GraphQL-document completeness assertion. *Owned by 02-05 T2.*
 
 ---
 

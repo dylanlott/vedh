@@ -126,9 +126,31 @@ Plans:
   5. `game_created` and `guest_session_created` are written by the server; the client emits only `quick_start_viewed`, `deck_import_started`, and `game_create_started`, and a retried client call does not double-count a conversion.
 
 **Ticket waves**: wave 1 — ACT-004 and ACT-005 in parallel (independent; deps satisfied in Phase 1) → wave 2 — ACT-006
-**Open decisions to resolve here**: **OPEN-2 — guest expiry duration: 24 hours or seven days (the token stays 24 hours either way).** Status: open, owned by ACT-005. **OPEN-3 — does the first quiet beta target desktop only, or a minimum supported tablet breakpoint?** Status: open, first needed by ACT-004's viewport verification; revisited in Phase 4 for ACT-011. Neither is pre-answered; `/gsd-discuss-phase 2` should pick both up.
-**Plans**: TBD
+**Open decisions to resolve here**: **OPEN-2 — RESOLVED outside its own option set (D-2.1):** guest rows live indefinitely, distinguished by an `is_guest` flag rather than reaped on a timer; the 24-hour token is unchanged and `expires_at` survives as an operator mark that gates minting a *new* token only (D-2.2). **OPEN-3 — RESOLVED (D-2.10/D-2.11):** desktop and tablet at a single ascending 768px breakpoint applied to the new activation components only; `/play` still works below it with a visible heads-up notice and no hard bounce. Both were settled in `/gsd-discuss-phase 2`; OPEN-3 returns in Phase 4 for ACT-011's board work, which inherits `app/src/styles/breakpoints.scss`.
+**Plans**: 6 plans in 5 waves
 **UI hint**: yes
+Plans:
+
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Tracer: a logged-out visitor pastes a deck at `/play` and reaches a live board (guest columns migration pair, `guestSession` with kill switch + rate limit + curated MTG name generation, `/play` route and `QuickStartView.vue`, D-2.4's separate guest credential seam)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 02-02-PLAN.md — Guest identity backend completion: the closed four-code activation error vocabulary, password-login guest rejection, server-side display-name validation, `refreshGuestSession` silent re-issue, `claimGuestAccount`, and the retryable cleanup path
+- [ ] 02-03-PLAN.md — Reusable deck import and commander review UI: `DeckImportPanel.vue` serving all three call sites, `CommanderReview.vue`, the mobile heads-up notice, the codebase's first shared breakpoint, the client failure-code map, and sessionStorage draft survival
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 02-04-PLAN.md — Quick-start completion: server-authoritative `game_created` with `SessionID` on `InputCreateGame`, the first observations of the guest-session and game-create collectors, the three client events, the authenticated-versus-guest branch, all four failure exits, and the router test
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 02-05-PLAN.md — `display_name ?? username` sweep: write-time capture onto game records, `DisplayName` in all five `Players` selection sets, one `displayNameOf` helper, every display site swept and every identity join left comparing on `Username`
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 02-06-PLAN.md — Blocking human verification: full curated guest-name cross product review, the complete logged-out journey on a running system, real failure recovery, responsive reflow at 1024/768/375px, and the authenticated road creating zero guest rows
 
 ### Phase 3: Invite, Join, and Board Readiness
 
@@ -196,7 +218,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Measured Deck Import Foundation | 10/10 | Complete    | 2026-08-08 |
-| 2. Guest Host Activation | 0/TBD | Not started | - |
+| 2. Guest Host Activation | 0/6 | Planned | - |
 | 3. Invite, Join, and Board Readiness | 0/TBD | Not started | - |
 | 4. Post-Value Acquisition and Funnel Readout | 0/TBD | Not started | - |
 | 5. Release Gate and Regression Suite | 0/TBD | Not started | - |
