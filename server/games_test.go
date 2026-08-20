@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -12,6 +13,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/matryer/is"
 	"github.com/openmtg/edh-go/pkg/deckimport"
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,8 +51,8 @@ func TestCreateGame_GenericDuelFormatRoundTrips(t *testing.T) {
 	game, err := s.CreateGame(authCtx("shakezula"), InputCreateGame{
 		ID:       "format-generic-duel",
 		FormatID: &formatID,
-		Turn: &InputTurn{Player: "shakezula", Phase: "invalid", Number: 1, Priority: "shakezula"},
-		Players: []*InputBoardState{{UserID: "0xACAB", User: "shakezula", GameID: "format-generic-duel", Life: 0, Decklist: deck}},
+		Turn:     &InputTurn{Player: "shakezula", Phase: "invalid", Number: 1, Priority: "shakezula"},
+		Players:  []*InputBoardState{{UserID: "0xACAB", User: "shakezula", GameID: "format-generic-duel", Life: 0, Decklist: deck}},
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "GENERIC_DUEL", findRuleValue(game.Rules, "format"))
@@ -63,12 +66,12 @@ func TestGameFormatDefaults(t *testing.T) {
 	s := testAPI(t)
 	deck := func() *string { v := "1,Island"; return &v }()
 	cases := []struct {
-		name string
-		formatID *string
+		name       string
+		formatID   *string
 		wantFormat string
-		wantDeck int
-		wantLife int
-		wantPhase string
+		wantDeck   int
+		wantLife   int
+		wantPhase  string
 	}{
 		{name: "default format", formatID: nil, wantFormat: "EDH", wantDeck: 99, wantLife: 40, wantPhase: "pregame"},
 		{name: "edh format", formatID: ptrString("EDH"), wantFormat: "EDH", wantDeck: 99, wantLife: 40, wantPhase: "pregame"},
@@ -78,10 +81,10 @@ func TestGameFormatDefaults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gameID := "fmt-" + tt.wantFormat + "-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 			game, err := s.CreateGame(authCtx("shakezula"), InputCreateGame{
-				ID: gameID,
+				ID:       gameID,
 				FormatID: tt.formatID,
-				Turn: &InputTurn{Player: "shakezula", Phase: "", Number: 1, Priority: "shakezula"},
-				Players: []*InputBoardState{{UserID: "0xACAB", User: "shakezula", GameID: gameID, Life: 0, Decklist: deck}},
+				Turn:     &InputTurn{Player: "shakezula", Phase: "", Number: 1, Priority: "shakezula"},
+				Players:  []*InputBoardState{{UserID: "0xACAB", User: "shakezula", GameID: gameID, Life: 0, Decklist: deck}},
 			})
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantFormat, findRuleValue(game.Rules, "format"))
@@ -91,6 +94,205 @@ func TestGameFormatDefaults(t *testing.T) {
 			assert.Equal(t, tt.wantPhase, game.Turn.Phase)
 		})
 	}
+}
+
+func TestGames_CreateWritesGameCreated(t *testing.T) {
+	s := testAPI(t)
+	sessionID := uniqueSessionID(t)
+	gameID := "game-created-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	input := telemetryCreateGameInput(gameID)
+	setCreateGameSessionID(t, &input, sessionID)
+	cleanupGameCreateTelemetry(t, s, gameID, sessionID)
+
+	created, err := s.CreateGame(authCtxWithID(mastershake, mastershake), input)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	var persisted bool
+	assert.NoError(t, s.db.QueryRow(`SELECT EXISTS (SELECT 1 FROM games WHERE id = $1)`, gameID).Scan(&persisted))
+	assert.True(t, persisted, "game must be persisted before its conversion row is observable")
+
+	var gotUserID, gotGameID string
+	err = s.db.QueryRow(`
+		SELECT user_id, game_id
+		FROM product_events
+		WHERE session_id = $1 AND event_name = 'game_created'
+	`, sessionID).Scan(&gotUserID, &gotGameID)
+	assert.NoError(t, err)
+	assert.Equal(t, mastershake, gotUserID)
+	assert.Equal(t, gameID, gotGameID)
+	assert.Equal(t, 1, countProductEvents(t, s.db, sessionID, "game_created"))
+}
+
+func TestGames_CreateGameCreatedDedup(t *testing.T) {
+	s := testAPI(t)
+	sessionID := uniqueSessionID(t)
+	gameID := "game-created-dedup-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	input := telemetryCreateGameInput(gameID)
+	setCreateGameSessionID(t, &input, sessionID)
+	cleanupGameCreateTelemetry(t, s, gameID, sessionID)
+
+	for attempt := 0; attempt < 2; attempt++ {
+		created, err := s.CreateGame(authCtxWithID(mastershake, mastershake), input)
+		assert.NoError(t, err)
+		assert.NotNil(t, created)
+	}
+
+	assert.Equal(t, 1, countProductEvents(t, s.db, sessionID, "game_created"))
+}
+
+func TestGames_CreateWithoutSessionWritesNoEvent(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		sessionID *string
+	}{
+		{name: "absent"},
+		{name: "whitespace", sessionID: ptrString("  \t\n  ")},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			s := testAPI(t)
+			lookupSessionID := uniqueSessionID(t)
+			gameID := "game-created-no-session-" + tt.name + "-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+			input := telemetryCreateGameInput(gameID)
+			if tt.sessionID != nil {
+				setCreateGameSessionID(t, &input, *tt.sessionID)
+			}
+			cleanupGameCreateTelemetry(t, s, gameID, lookupSessionID)
+
+			beforeDrops := sumDroppedCounters()
+			created, err := s.CreateGame(authCtxWithID(mastershake, mastershake), input)
+			assert.NoError(t, err)
+			assert.NotNil(t, created)
+			assert.Equal(t, beforeDrops, sumDroppedCounters(), "blank session must skip the event rather than record a telemetry rejection")
+
+			var count int
+			assert.NoError(t, s.db.QueryRow(`SELECT count(*) FROM product_events WHERE game_id = $1 AND event_name = 'game_created'`, gameID).Scan(&count))
+			assert.Zero(t, count)
+		})
+	}
+}
+
+func TestGames_CreateFailureWritesNoEvent(t *testing.T) {
+	s := testAPI(t)
+	sessionID := uniqueSessionID(t)
+	gameID := "game-created-failure-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	input := telemetryCreateGameInput(gameID)
+	unknownFormat := "NOT_A_FORMAT"
+	input.FormatID = &unknownFormat
+	setCreateGameSessionID(t, &input, sessionID)
+	cleanupGameCreateTelemetry(t, s, gameID, sessionID)
+
+	beforeFailures := metricCounterValue(t, "vedh_game_create_total", "failure")
+	created, err := s.CreateGame(authCtxWithID(mastershake, mastershake), input)
+	assert.Error(t, err)
+	assert.Nil(t, created)
+	assert.Equal(t, 0, countProductEvents(t, s.db, sessionID, "game_created"))
+	assert.Greater(t, metricCounterValue(t, "vedh_game_create_total", "failure"), beforeFailures)
+}
+
+func TestGames_CreateAndGuestMetricsHaveBoundedLabels(t *testing.T) {
+	s := testAPI(t)
+	_, _ = s.GuestSession(context.Background(), nil, "")
+
+	sessionID := uniqueSessionID(t)
+	gameID := "game-created-metrics-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	input := telemetryCreateGameInput(gameID)
+	setCreateGameSessionID(t, &input, sessionID)
+	cleanupGameCreateTelemetry(t, s, gameID, sessionID)
+	created, err := s.CreateGame(authCtxWithID(mastershake, mastershake), input)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	for _, familyName := range []string{
+		"vedh_guest_session_total",
+		"vedh_guest_session_duration_seconds",
+		"vedh_game_create_total",
+		"vedh_game_create_duration_seconds",
+	} {
+		family := gatheredMetricFamily(t, familyName)
+		assert.NotEmpty(t, family.Metric, "%s must carry at least one observation", familyName)
+		for _, metric := range family.Metric {
+			labels := make([]string, 0, len(metric.Label))
+			for _, label := range metric.Label {
+				labels = append(labels, label.GetName())
+			}
+			assert.ElementsMatch(t, []string{"outcome"}, labels, "%s must not expose a caller-derived identifier label", familyName)
+		}
+	}
+}
+
+func telemetryCreateGameInput(gameID string) InputCreateGame {
+	formatID := "EDH"
+	deck := "1,Island"
+	return InputCreateGame{
+		ID:       gameID,
+		FormatID: &formatID,
+		Players: []*InputBoardState{{
+			UserID:   mastershake,
+			User:     mastershake,
+			GameID:   gameID,
+			Life:     40,
+			Decklist: &deck,
+		}},
+		Turn: &InputTurn{
+			Player:   mastershake,
+			Phase:    "pregame",
+			Number:   0,
+			Priority: mastershake,
+		},
+	}
+}
+
+// setCreateGameSessionID keeps the RED test commit buildable before gqlgen
+// creates InputCreateGame.SessionID. Its first assertion is the schema gate;
+// once generated, it sets the optional pointer exactly as GraphQL decoding does.
+func setCreateGameSessionID(t *testing.T, input *InputCreateGame, sessionID string) {
+	t.Helper()
+	field := reflect.ValueOf(input).Elem().FieldByName("SessionID")
+	if !field.IsValid() {
+		t.Fatal("InputCreateGame.SessionID is missing; add it to schema.graphql and run make generate")
+	}
+	if field.Type() != reflect.TypeOf((*string)(nil)) {
+		t.Fatalf("InputCreateGame.SessionID type = %v, want *string", field.Type())
+	}
+	value := sessionID
+	field.Set(reflect.ValueOf(&value))
+}
+
+func cleanupGameCreateTelemetry(t *testing.T, s *graphQLServer, gameID, sessionID string) {
+	t.Helper()
+	t.Cleanup(func() {
+		_, _ = s.db.Exec(`DELETE FROM product_events WHERE session_id = $1 OR game_id = $2`, sessionID, gameID)
+		_, _ = s.db.Exec(`DELETE FROM games WHERE id = $1`, gameID)
+	})
+}
+
+func gatheredMetricFamily(t *testing.T, name string) *dto.MetricFamily {
+	t.Helper()
+	families, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("gather Prometheus metrics: %v", err)
+	}
+	for _, family := range families {
+		if family.GetName() == name {
+			return family
+		}
+	}
+	t.Fatalf("metric family %s was not observed", name)
+	return nil
+}
+
+func metricCounterValue(t *testing.T, familyName, outcome string) float64 {
+	t.Helper()
+	family := gatheredMetricFamily(t, familyName)
+	for _, metric := range family.Metric {
+		for _, label := range metric.Label {
+			if label.GetName() == "outcome" && label.GetValue() == outcome {
+				return metric.GetCounter().GetValue()
+			}
+		}
+	}
+	return 0
 }
 
 func TestCreateGame(t *testing.T) {
