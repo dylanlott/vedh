@@ -35,6 +35,7 @@ export const CREATE_GAME_MUTATION = gql`
       Players {
         ID
         Username
+        DisplayName
       }
       Turn {
         Player
@@ -53,6 +54,7 @@ export const JOIN_GAME_MUTATION = gql`
       Players {
         ID
         Username
+        DisplayName
       }
     }
   }

@@ -74,6 +74,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { apolloClient } from '../services/apollo';
 import { GAME_LOGS_QUERY, GET_GAME_QUERY } from '../graphql/queries';
+import { displayNameOf } from '../services/displayName';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 
@@ -93,7 +94,7 @@ interface GameSummary {
   WinnerIDs?: string[] | null;
   WinCondition?: string | null;
   Turn?: { Number?: number | null };
-  Players: { ID?: string; Username: string; Boardstate?: { Life?: number | null } }[];
+  Players: { ID?: string; Username: string; DisplayName?: string | null; Boardstate?: { Life?: number | null } }[];
 }
 
 const route = useRoute();
@@ -122,7 +123,7 @@ const recentEvents = computed(() => orderedEvents.value.slice(-20));
 const statusLabel = computed(() => game.value?.Status ?? 'IN_PROGRESS');
 const winnerLabel = computed(() => {
   if (!game.value?.WinnerIDs?.length) return game.value?.Result ?? '—';
-  const lookup = new Map((game.value?.Players ?? []).map(p => [p.ID, p.Username]));
+  const lookup = new Map((game.value?.Players ?? []).map(p => [p.ID, displayNameOf(p)]));
   const names = game.value.WinnerIDs.map(id => lookup.get(id) ?? id);
   return names.join(', ');
 });
@@ -161,7 +162,8 @@ function formatEventTime(ts: string) {
 
 function buildLifeSeries(events: GameLogEvent[]) {
   const players = game.value?.Players ?? [];
-  const names = players.map(p => p.Username);
+  const usernames = players.map(p => p.Username);
+  const names = players.map(displayNameOf);
   const lifeByPlayer = new Map<string, number>();
   for (const p of players) {
     lifeByPlayer.set(p.Username, p.Boardstate?.Life ?? 40);
@@ -188,8 +190,8 @@ function buildLifeSeries(events: GameLogEvent[]) {
 
   function pushPoint(time: number) {
     x.push(time);
-    names.forEach((name, idx) => {
-      series[idx].push(lifeByPlayer.get(name) ?? 0);
+    usernames.forEach((username, idx) => {
+      series[idx].push(lifeByPlayer.get(username) ?? 0);
     });
   }
 

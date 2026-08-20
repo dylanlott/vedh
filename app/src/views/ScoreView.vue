@@ -7,7 +7,7 @@
     <div class="score-grid">
       <article v-for="player in game?.Players ?? []" :key="player.ID">
         <div class="player-head">
-          <h2>{{ player.Username }}</h2>
+          <h2>{{ displayNameOf(player) }}</h2>
           <span class="life">{{ player.Boardstate?.Life ?? '—' }} life</span>
         </div>
         <div class="score-meta">
@@ -29,6 +29,7 @@ import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useGamesStore } from '../stores/games';
+import { displayNameOf } from '../services/displayName';
 
 const games = useGamesStore();
 const auth = useAuthStore();

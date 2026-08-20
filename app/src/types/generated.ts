@@ -63,6 +63,33 @@ export interface CreateGameMutationVariables {
   input: InputCreateGame;
 }
 
+export interface PlayerIdentity {
+  ID?: string;
+  Username: string;
+  DisplayName?: string | null;
+}
+
+export interface CreateGameMutation {
+  createGame: {
+    ID: string;
+    CreatedAt?: string | null;
+    Players: PlayerIdentity[];
+    Turn?: {
+      Player: string;
+      Phase: string;
+      Number: number;
+      Priority: string;
+    } | null;
+  };
+}
+
+export interface JoinGameMutation {
+  joinGame: {
+    ID: string;
+    Players: PlayerIdentity[];
+  };
+}
+
 // --- Deck import / product-event contract (Phase 1, plan 01-01) ---
 // This file has no real codegen tool wired up yet (see the header comment
 // above), so these mirror server/schema.graphql by hand. previewDeck and

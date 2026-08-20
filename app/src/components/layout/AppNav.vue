@@ -23,12 +23,13 @@
 import { computed } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import { displayNameOf } from '../../services/displayName';
 
 const auth = useAuthStore();
 const router = useRouter();
 
 const isAuthenticated = computed(() => auth.isAuthenticated);
-const username = computed(() => auth.profile?.Username ?? '');
+const username = computed(() => displayNameOf(auth.profile));
 
 function goHome() {
   router.push('/');

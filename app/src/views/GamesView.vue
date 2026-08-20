@@ -61,7 +61,7 @@
                 <span v-if="game.Players?.length === 0">—</span>
                 <template v-else>
                   <span v-for="(player, i) in game.Players" :key="player.ID || player.Username">
-                    {{ player.Username }}<span v-if="i < game.Players.length - 1">, </span>
+                    {{ displayNameOf(player) }}<span v-if="i < game.Players.length - 1">, </span>
                   </span>
                 </template>
               </div>
@@ -90,6 +90,7 @@ import { useRouter } from 'vue-router';
 import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
 import FormCreateGame from '../components/games/FormCreateGame.vue';
+import { displayNameOf } from '../services/displayName';
 
 const gamesStore = useGamesStore();
 const auth = useAuthStore();
@@ -142,8 +143,8 @@ function handleGameCreated(id: string) {
   router.push({ name: 'board', params: { id } });
 }
 
-function formatGameTitle(game: { ID: string; Players?: { Username?: string }[] }) {
-  const playerNames = (game.Players ?? []).map((player) => player?.Username).filter(Boolean).join(', ');
+function formatGameTitle(game: { ID: string; Players?: { Username?: string; DisplayName?: string | null }[] }) {
+  const playerNames = (game.Players ?? []).map(displayNameOf).filter(Boolean).join(', ');
   return playerNames || `Game ${game.ID.slice(0, 4)}`;
 }
 

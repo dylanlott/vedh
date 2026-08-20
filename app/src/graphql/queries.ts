@@ -13,7 +13,7 @@ export const GAMES_QUERY = gql`
     games(offset: $offset, limit: $limit) {
       ID
       Rules { Name Value }
-      Players { ID Username }
+      Players { ID Username DisplayName }
     }
   }
 `;
@@ -45,6 +45,7 @@ export const GET_GAME_QUERY = gql`
       Players {
         ID
         Username
+        DisplayName
         Boardstate {
           Life
           Commander { ID Name Tapped }
@@ -80,6 +81,7 @@ export const GAME_UPDATED_SUBSCRIPTION = gql`
       Players {
         ID
         Username
+        DisplayName
         Boardstate {
           Life
           Battlefield { ID Name Types Tapped }

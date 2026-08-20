@@ -63,7 +63,7 @@
       <aside class="players opponents">
         <article v-for="player in opponents" :key="player.ID" :class="{ active: isActivePlayer(player.Username) }">
           <header>
-            <h2>{{ player.Username }}</h2>
+            <h2>{{ displayNameOf(player) }}</h2>
             <span class="life">{{ player.Boardstate?.Life ?? '—' }} life</span>
           </header>
           <div class="player-summary">
@@ -252,7 +252,7 @@
       <article :class="{ active: isActivePlayer(selfPlayer.Username) }">
         <div class="main-player-left">
           <header class="main-player-header">
-            <h2>{{ selfPlayer.Username }}</h2>
+            <h2>{{ displayNameOf(selfPlayer) }}</h2>
             <div class="life-row">
               <span class="life life-pill" :class="lifePulseClass">{{ selfPlayer.Boardstate?.Life ?? '—' }} life</span>
               <div class="life-tools inline">
@@ -683,6 +683,7 @@ import { apolloClient } from '../services/apollo';
 import { ADVANCE_PHASE_MUTATION, CLAIM_WIN_MUTATION, PASS_PRIORITY_MUTATION, UPDATE_BOARDSTATE_MUTATION, UPDATE_GAME_MUTATION } from '../graphql/mutations';
 // Subscriptions are handled centrally in the games store.
 import { fetchScryfallImageByName } from '../services/scryfall';
+import { displayNameOf } from '../services/displayName';
 import Card from '../components/Card.vue';
 import { isLandCard, moveHandCardToStackState, resolveStackCardToGraveyardState } from '../utils/stack';
 // Dev logging helper: use console.log so messages appear without enabling Verbose level
