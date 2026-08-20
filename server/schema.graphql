@@ -16,6 +16,7 @@ type Mutation {
   # Silent D-2.3 token re-issue. This is the only mutation to which a
   # browser sends the separate guest bearer credential.
   refreshGuestSession(credential: String!): User!
+  claimGuestAccount(username: String!, password: String!, sessionID: String!): User!
 }
 
 type Query {

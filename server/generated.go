@@ -181,6 +181,7 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AdvancePhase        func(childComplexity int, gameID string, phase string, number *int) int
+		ClaimGuestAccount   func(childComplexity int, username string, password string, sessionID string) int
 		ClaimWin            func(childComplexity int, gameID string, condition *string) int
 		CreateGame          func(childComplexity int, input InputCreateGame) int
 		GuestSession        func(childComplexity int, displayName *string, sessionID string) int
@@ -256,6 +257,7 @@ type MutationResolver interface {
 	TrackProductEvent(ctx context.Context, input InputProductEvent) (bool, error)
 	GuestSession(ctx context.Context, displayName *string, sessionID string) (*User, error)
 	RefreshGuestSession(ctx context.Context, credential string) (*User, error)
+	ClaimGuestAccount(ctx context.Context, username string, password string, sessionID string) (*User, error)
 }
 type QueryResolver interface {
 	Users(ctx context.Context, userID *string) ([]string, error)
@@ -902,6 +904,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.AdvancePhase(childComplexity, args["gameID"].(string), args["phase"].(string), args["number"].(*int)), true
+	case "Mutation.claimGuestAccount":
+		if e.complexity.Mutation.ClaimGuestAccount == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_claimGuestAccount_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ClaimGuestAccount(childComplexity, args["username"].(string), args["password"].(string), args["sessionID"].(string)), true
 	case "Mutation.claimWin":
 		if e.complexity.Mutation.ClaimWin == nil {
 			break
@@ -1433,6 +1446,27 @@ func (ec *executionContext) field_Mutation_advancePhase_args(ctx context.Context
 		return nil, err
 	}
 	args["number"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_claimGuestAccount_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "username", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["username"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "password", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["password"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "sessionID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["sessionID"] = arg2
 	return args, nil
 }
 
@@ -6229,6 +6263,65 @@ func (ec *executionContext) fieldContext_Mutation_refreshGuestSession(ctx contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_claimGuestAccount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_claimGuestAccount,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ClaimGuestAccount(ctx, fc.Args["username"].(string), fc.Args["password"].(string), fc.Args["sessionID"].(string))
+		},
+		nil,
+		ec.marshalNUser2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐUser,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_claimGuestAccount(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ID":
+				return ec.fieldContext_User_ID(ctx, field)
+			case "Username":
+				return ec.fieldContext_User_Username(ctx, field)
+			case "Password":
+				return ec.fieldContext_User_Password(ctx, field)
+			case "Token":
+				return ec.fieldContext_User_Token(ctx, field)
+			case "Boardstate":
+				return ec.fieldContext_User_Boardstate(ctx, field)
+			case "DisplayName":
+				return ec.fieldContext_User_DisplayName(ctx, field)
+			case "IsGuest":
+				return ec.fieldContext_User_IsGuest(ctx, field)
+			case "GuestCredential":
+				return ec.fieldContext_User_GuestCredential(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_claimGuestAccount_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PendingWinClaim_ClaimedBy(ctx context.Context, field graphql.CollectedField, obj *PendingWinClaim) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10881,6 +10974,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "refreshGuestSession":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_refreshGuestSession(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "claimGuestAccount":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_claimGuestAccount(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

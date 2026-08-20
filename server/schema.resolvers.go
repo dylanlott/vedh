@@ -74,6 +74,11 @@ func (r *mutationResolver) RefreshGuestSession(ctx context.Context, credential s
 	panic(fmt.Errorf("not implemented: RefreshGuestSession - refreshGuestSession"))
 }
 
+// ClaimGuestAccount is the resolver for the claimGuestAccount field.
+func (r *mutationResolver) ClaimGuestAccount(ctx context.Context, username string, password string, sessionID string) (*User, error) {
+	panic(fmt.Errorf("not implemented: ClaimGuestAccount - claimGuestAccount"))
+}
+
 // Users is the resolver for the users field.
 func (r *queryResolver) Users(ctx context.Context, userID *string) ([]string, error) {
 	panic(fmt.Errorf("not implemented: Users - users"))

@@ -727,7 +727,7 @@ func TestGuestUsers_Claim(t *testing.T) {
 		before := readGuestClaimRow(t, s, guest.ID)
 
 		claimed, err := s.ClaimGuestAccount(guestAuthContext(t, guest), taken, "new-password", guestTestSessionID(t))
-		if err == nil || err.Error() != "That username is already taken. Try another one." {
+		if err == nil || activationProductMessage(t, err) != "That username is already taken. Try another one." {
 			t.Fatalf("ClaimGuestAccount() error = %v, want Signup's taken-name message", err)
 		}
 		if claimed != nil {
@@ -764,7 +764,7 @@ func TestGuestUsers_Claim(t *testing.T) {
 		}
 		before := readGuestClaimRow(t, s, guest.ID)
 		claimed, err := s.ClaimGuestAccount(guestAuthContext(t, guest), uniqueUsername("claim_empty_password"), "", guestTestSessionID(t))
-		if err == nil || err.Error() != "must provide a password" {
+		if err == nil || activationProductMessage(t, err) != "must provide a password" {
 			t.Fatalf("ClaimGuestAccount() error = %v, want Signup's empty-password message", err)
 		}
 		if claimed != nil {
@@ -796,6 +796,15 @@ func TestGuestUsers_Claim(t *testing.T) {
 			t.Fatalf("account_claimed rows after retry = %d, want 1", got)
 		}
 	})
+}
+
+func activationProductMessage(t *testing.T, err error) string {
+	t.Helper()
+	var gqlErr *gqlerror.Error
+	if !errors.As(err, &gqlErr) {
+		t.Fatalf("error type = %T, want *gqlerror.Error: %v", err, err)
+	}
+	return gqlErr.Message
 }
 
 type guestClaimRow struct {

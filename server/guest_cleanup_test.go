@@ -103,6 +103,7 @@ func createCleanupGuest(t *testing.T, s *graphQLServer, suffix string) *User {
 	if err != nil {
 		t.Fatalf("GuestSession(%q) error = %v", suffix, err)
 	}
+	t.Cleanup(func() { _, _ = s.db.Exec(`DELETE FROM users WHERE uuid = $1`, guest.ID) })
 	return guest
 }
 

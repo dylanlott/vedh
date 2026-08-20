@@ -23,6 +23,8 @@ var (
 	errGuestSessionRateLimited    = errors.New("guest session: rate limited")
 	errGuestSessionNameExhausted  = errors.New("guest session: unique name attempts exhausted")
 	errGuestSessionInvalidRefresh = errors.New("guest session: invalid refresh credential")
+	errGuestClaimNotGuest         = errors.New("guest account claim: row is not an active guest")
+	errGuestClaimMissingSession   = errors.New("guest account claim: missing session ID")
 )
 
 // guestSessionNow is the exact clock used for expires_at comparisons. It
@@ -69,6 +71,11 @@ const (
 // DB-enforced username_unique retry path -- the actual property this test
 // proves -- completely real.
 var hashGuestSecret = hashPassword
+
+// hashClaimPassword is the existing Signup bcrypt path. The seam exists so
+// the database integration tests can lower bcrypt cost under -race without
+// changing the production claim contract.
+var hashClaimPassword = hashPassword
 
 // guestCreationEnabled reports whether the guestSession mutation may run at
 // all (DEC-A, T-02-02). Shaped like providerEnabled() (server/deck_providers.go),
@@ -302,6 +309,101 @@ func (s *graphQLServer) RefreshGuestSession(ctx context.Context, credential stri
 
 	outcome = guestSessionOutcomeRefreshSuccess
 	return &user, nil
+}
+
+// ClaimGuestAccount makes the currently authenticated guest permanent by
+// updating the same users row, preserving its UUID and every game association.
+// Phase 4's form should prefill the freely chosen username from DisplayName
+// when present and from the generated Username otherwise (D-2.9).
+func (s *graphQLServer) ClaimGuestAccount(ctx context.Context, username string, password string, sessionID string) (*User, error) {
+	authUser, err := requireAuth(ctx)
+	if err != nil {
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
+	}
+	trimmedSessionID := strings.TrimSpace(sessionID)
+	if trimmedSessionID == "" {
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestClaimMissingSession)
+	}
+
+	var currentIsGuest bool
+	err = s.db.QueryRowContext(ctx, `
+		SELECT is_guest
+		FROM users
+		WHERE uuid = $1
+	`, authUser.ID).Scan(&currentIsGuest)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			s.loggerFor(ctx).Error("failed to load guest for account claim", "err", err, "user_id", authUser.ID)
+		}
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
+	}
+	if !currentIsGuest {
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestClaimNotGuest)
+	}
+	if password == "" {
+		return nil, newGuestSessionError("must provide a password", errors.New("guest account claim: empty password"))
+	}
+
+	hashedPassword, err := hashClaimPassword(password)
+	if err != nil {
+		s.loggerFor(ctx).Error("failed to hash claimed account password", "err", err, "user_id", authUser.ID)
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
+	}
+
+	claimed := &User{}
+	var (
+		displayName sql.NullString
+		isGuest     bool
+	)
+	err = s.db.QueryRowContext(ctx, `
+		UPDATE users
+		SET username = $1,
+		    password = $2,
+		    is_guest = false,
+		    expires_at = NULL,
+		    guest_credential_hash = NULL
+		WHERE uuid = $3 AND is_guest = true
+		RETURNING uuid, username, display_name, is_guest
+	`, username, hashedPassword, authUser.ID).Scan(
+		&claimed.ID,
+		&claimed.Username,
+		&displayName,
+		&isGuest,
+	)
+	if err != nil {
+		switch {
+		case isUniqueViolation(err):
+			return nil, newGuestSessionError("That username is already taken. Try another one.", err)
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, newGuestSessionError(guestSessionProductMessage, errGuestClaimNotGuest)
+		default:
+			s.loggerFor(ctx).Error("failed to update guest account claim", "err", err, "user_id", authUser.ID)
+			return nil, newGuestSessionError(guestSessionProductMessage, err)
+		}
+	}
+
+	if displayName.Valid {
+		claimed.DisplayName = &displayName.String
+	}
+	claimed.IsGuest = &isGuest
+	claimed.Password = nil
+	claimed.GuestCredential = nil
+
+	token, err := newAuthToken(claimed, 24*time.Hour)
+	if err != nil {
+		s.loggerFor(ctx).Error("failed to mint claimed account token", "err", err, "user_id", authUser.ID)
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
+	}
+	claimed.Token = &token
+
+	userID := claimed.ID
+	s.recordProductEvent(ctx, ProductEvent{
+		Name:      "account_claimed",
+		SessionID: trimmedSessionID,
+		UserID:    &userID,
+	}, false)
+
+	return claimed, nil
 }
 
 // insertGuestUser runs the single-row INSERT and scans its RETURNING
