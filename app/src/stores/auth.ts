@@ -20,6 +20,45 @@ interface AuthProfile {
 }
 
 const STORAGE_KEY = 'edhgo/auth';
+const GUEST_CREDENTIAL_STORAGE_KEY = 'edhgo/guest-credential';
+
+function getStorage(): Storage | null {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage) return localStorage;
+  } catch {
+    // Ignore and try the window-scoped accessor below.
+  }
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
+  } catch {
+    // Storage is unavailable in this environment.
+  }
+  return null;
+}
+
+export function readGuestCredential(): string | null {
+  try {
+    return getStorage()?.getItem(GUEST_CREDENTIAL_STORAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeGuestCredential(value: string): void {
+  try {
+    getStorage()?.setItem(GUEST_CREDENTIAL_STORAGE_KEY, value);
+  } catch {
+    // A disabled storage surface must not prevent the guest session itself.
+  }
+}
+
+function clearGuestCredential(): void {
+  try {
+    getStorage()?.removeItem(GUEST_CREDENTIAL_STORAGE_KEY);
+  } catch {
+    // A disabled storage surface is already effectively cleared.
+  }
+}
 
 function loadPersistedProfile(): AuthProfile | null {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -117,9 +156,12 @@ export const useAuthStore = defineStore('auth', () => {
       if (!data?.guestSession) {
         throw new Error('GuestSession returned empty response');
       }
+      if (!data.guestSession.GuestCredential) {
+        throw new Error('GuestSession returned empty credential');
+      }
+      writeGuestCredential(data.guestSession.GuestCredential);
       // GuestCredential is intentionally omitted here: it must never ride
-      // inside the persisted auth profile (D-2.4). Task 2 gives it its own
-      // localStorage key.
+      // inside the persisted auth profile (D-2.4).
       profile.value = {
         ID: data.guestSession.ID,
         Username: data.guestSession.Username,
@@ -139,6 +181,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function logout() {
     profile.value = null;
+    clearGuestCredential();
   }
 
   return {
@@ -149,6 +192,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     signup,
     createGuestSession,
+    readGuestCredential,
     logout,
   };
 });
