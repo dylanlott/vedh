@@ -28,7 +28,7 @@ const READY_PREVIEW = {
   SourceType: 'PASTE',
   CardCount: 100,
   Entries: [],
-  CommanderCandidates: [],
+  CommanderCandidates: [{ ID: 'commander-1', Name: 'Atraxa', Text: '' }],
   Unresolved: [],
   Warnings: [],
   CanContinue: true,
@@ -50,10 +50,16 @@ const CREATE_GAME_RESULT = { createGame: { ID: 'game-1' } };
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   setActivePinia(createPinia());
   mutate().mockReset();
   pushMock.mockReset();
 });
+
+async function chooseCommander(wrapper: ReturnType<typeof mount>) {
+  await wrapper.get('[data-testid="continue-to-commanders"]').trigger('click');
+  await wrapper.get('[data-testid="commander-candidate"]').trigger('click');
+}
 
 describe('QuickStartView', () => {
   it('renders the paste surface for a logged-out visitor with no navigation to login/signup', () => {
@@ -90,6 +96,7 @@ describe('QuickStartView', () => {
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
+    await chooseCommander(wrapper);
     await wrapper.find('[data-testid="start-table"]').trigger('click');
     await flushPromises();
 
@@ -115,6 +122,7 @@ describe('QuickStartView', () => {
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
+    await chooseCommander(wrapper);
     await wrapper.find('[data-testid="start-table"]').trigger('click');
     await flushPromises();
 
@@ -126,7 +134,7 @@ describe('QuickStartView', () => {
 
   it('an empty paste leaves the submit control disabled and previewDeck uncalled', async () => {
     const wrapper = mount(QuickStartView);
-    const submit = wrapper.find('[data-testid="preview-submit"]');
+    const submit = wrapper.find('[data-testid="deck-preview-submit"]');
     expect(submit.attributes('disabled')).toBeDefined();
 
     await wrapper.find('form').trigger('submit');
@@ -151,6 +159,7 @@ describe('QuickStartView', () => {
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
+    await chooseCommander(wrapper);
     await wrapper.find('[data-testid="start-table"]').trigger('click');
     await flushPromises();
 
@@ -159,5 +168,108 @@ describe('QuickStartView', () => {
     const createGameCalls = mutate().mock.calls.filter((call) => call[0].variables?.input?.Players);
     expect(guestSessionCalls).toHaveLength(1);
     expect(createGameCalls).toHaveLength(1);
+  });
+
+  it('restores deck text, corrections, commander picks, and display name from a stored draft', async () => {
+    sessionStorage.setItem('edhgo/quickstart-draft', JSON.stringify({
+      deckText: '1 Sl Ring',
+      sourceURL: '',
+      corrections: { 1: 'Sol Ring' },
+      selectedCommanders: [{ ID: 'commander-1', Name: 'Atraxa', Text: '' }],
+      displayName: 'Zoë 💫',
+    }));
+
+    const wrapper = mount(QuickStartView);
+    await flushPromises();
+
+    expect((wrapper.get('[data-testid="deck-text"]').element as HTMLTextAreaElement).value).toBe('1 Sl Ring');
+    expect((wrapper.get('[data-testid="display-name"]').element as HTMLInputElement).value).toBe('Zoë 💫');
+    expect(wrapper.text()).toContain('Atraxa');
+    expect(wrapper.text()).toContain('Using Sol Ring');
+  });
+
+  it('a failed create preserves every field on screen and in the draft', async () => {
+    const unresolvedPreview = {
+      ...READY_PREVIEW,
+      Unresolved: [{
+        SourceLine: 1,
+        RawLine: '1 Sl Ring',
+        Name: 'Sl Ring',
+        Reason: 'not found',
+        Candidates: [{ Name: 'Sol Ring', Score: 0.99, LowConfidence: false }],
+      }],
+    };
+    mutate()
+      .mockResolvedValueOnce({ data: { previewDeck: unresolvedPreview } })
+      .mockResolvedValueOnce({ data: GUEST_SESSION_RESULT })
+      .mockRejectedValueOnce({
+        message: 'raw SQL create failure',
+        graphQLErrors: [{ message: 'raw SQL create failure', extensions: { code: 'create_error' } }],
+      });
+
+    const wrapper = mount(QuickStartView);
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sl Ring');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    await wrapper.get('[data-testid="suggestion-chip"]').trigger('click');
+    await chooseCommander(wrapper);
+    await wrapper.get('[data-testid="display-name"]').setValue('Zoë 💫');
+    await wrapper.get('[data-testid="start-table"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("We couldn't create your table.");
+    expect(wrapper.text()).not.toContain('raw SQL create failure');
+    expect((wrapper.get('[data-testid="deck-text"]').element as HTMLTextAreaElement).value).toBe('1 Sl Ring');
+    expect(wrapper.text()).toContain('Atraxa');
+    expect((wrapper.get('[data-testid="display-name"]').element as HTMLInputElement).value).toBe('Zoë 💫');
+    expect(JSON.parse(sessionStorage.getItem('edhgo/quickstart-draft') ?? '{}')).toMatchObject({
+      deckText: '1 Sl Ring',
+      corrections: { 1: 'Sol Ring' },
+      selectedCommanders: [{ ID: 'commander-1', Name: 'Atraxa' }],
+      displayName: 'Zoë 💫',
+    });
+  });
+
+  it('clears the draft before successful navigation and the next mount is empty', async () => {
+    mutate()
+      .mockResolvedValueOnce({ data: { previewDeck: READY_PREVIEW } })
+      .mockResolvedValueOnce({ data: GUEST_SESSION_RESULT })
+      .mockResolvedValueOnce({ data: CREATE_GAME_RESULT });
+    const wrapper = mount(QuickStartView);
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    await chooseCommander(wrapper);
+    await wrapper.get('[data-testid="start-table"]').trigger('click');
+    await flushPromises();
+
+    expect(sessionStorage.getItem('edhgo/quickstart-draft')).toBeNull();
+    wrapper.unmount();
+
+    const fresh = mount(QuickStartView);
+    expect((fresh.get('[data-testid="deck-text"]').element as HTMLTextAreaElement).value).toBe('');
+    expect(fresh.text()).toContain('Paste your decklist');
+  });
+
+  it('shows the static non-dismissible phone heads-up without blocking the empty funnel', () => {
+    const wrapper = mount(QuickStartView);
+
+    expect(wrapper.text()).toContain('built for tablets and larger');
+    expect(wrapper.find('[data-testid="mobile-heads-up"] button').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="deck-preview-submit"]').attributes('disabled')).toBeDefined();
+  });
+
+  it('keeps each primary action disabled until that step is ready', async () => {
+    mutate().mockResolvedValueOnce({ data: { previewDeck: READY_PREVIEW } });
+    const wrapper = mount(QuickStartView);
+
+    expect(wrapper.get('[data-testid="deck-preview-submit"]').attributes('disabled')).toBeDefined();
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    await wrapper.get('[data-testid="continue-to-commanders"]').trigger('click');
+    expect(wrapper.get('[data-testid="start-table"]').attributes('disabled')).toBeDefined();
+    await wrapper.get('[data-testid="commander-candidate"]').trigger('click');
+    expect(wrapper.get('[data-testid="start-table"]').attributes('disabled')).toBeUndefined();
   });
 });
