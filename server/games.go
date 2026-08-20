@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/openmtg/edh-go/pkg/deckimport"
+	"github.com/zeebo/errs"
 )
 
 // GameObserver binds a UserID to a Channel.
@@ -501,6 +502,14 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	if err != nil {
 		return nil, err
 	}
+	var joiningDisplayName sql.NullString
+	if err := s.db.QueryRow(`SELECT display_name FROM users WHERE uuid = $1`, authUser.ID).Scan(&joiningDisplayName); err != nil {
+		s.loggerFor(ctx).Warn("unable to load joining player's display name", "err", errs.Wrap(err), "user_id", authUser.ID)
+	}
+	var joiningDisplayNameValue *string
+	if joiningDisplayName.Valid {
+		joiningDisplayNameValue = &joiningDisplayName.String
+	}
 	// TODO: Handle rejoins by detecting if that player's user.ID already exists
 	// in a given game. If it does, just return that same setup.
 	// TODO: Check context for User auth and append user info that way
@@ -558,8 +567,9 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		life = formatFromRules(game.Rules).StartingLife
 	}
 	user := &User{
-		Username: input.BoardState.User,
-		ID:       input.BoardState.UserID,
+		Username:    input.BoardState.User,
+		ID:          input.BoardState.UserID,
+		DisplayName: joiningDisplayNameValue,
 		Boardstate: &BoardState{
 			User:        input.BoardState.User,
 			Life:        life,
@@ -645,6 +655,14 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	if err != nil {
 		return nil, err
 	}
+	var creatingDisplayName sql.NullString
+	if err := s.db.QueryRow(`SELECT display_name FROM users WHERE uuid = $1`, authUser.ID).Scan(&creatingDisplayName); err != nil {
+		s.loggerFor(ctx).Warn("unable to load creating player's display name", "err", errs.Wrap(err), "user_id", authUser.ID)
+	}
+	var creatingDisplayNameValue *string
+	if creatingDisplayName.Valid {
+		creatingDisplayNameValue = &creatingDisplayName.String
+	}
 	// don't allow a game to be created with an existing name
 	// TECHDEBT replace this with a proper cache
 	if _, exists := s.games[inputGame.ID]; exists {
@@ -729,6 +747,9 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 				Battlefield: getBareCard(player.Battlefield),
 				Controlled:  getBareCard(player.Controlled),
 			},
+		}
+		if player.UserID == authUser.ID {
+			user.DisplayName = creatingDisplayNameValue
 		}
 		if defaultLifeForAll {
 			user.Boardstate.Life = format.StartingLife
