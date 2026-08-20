@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"os"
 	"reflect"
@@ -653,6 +654,213 @@ func parseTokenAt(tokenString string, at time.Time) (*AuthClaims, error) {
 		return nil, errors.New("invalid token")
 	}
 	return claims, nil
+}
+
+func TestGuestUsers_Claim(t *testing.T) {
+	useFastGuestHashes(t)
+	useFastClaimHashes(t)
+
+	t.Run("HappyPath", func(t *testing.T) {
+		s := testAPI(t)
+		guest, err := s.GuestSession(context.Background(), stringPtr("Table Mage"), guestTestSessionID(t))
+		if err != nil {
+			t.Fatalf("GuestSession() error = %v", err)
+		}
+		beforeUsers := countUsers(t, s)
+		gameID := createGameForGuest(t, s, guest)
+
+		claimSessionID := guestTestSessionID(t)
+		t.Cleanup(func() { cleanupProductEvents(t, s.db, claimSessionID) })
+		claimedUsername := uniqueUsername("claimed")
+		claimedPassword := "permanent-password"
+		claimed, err := s.ClaimGuestAccount(guestAuthContext(t, guest), claimedUsername, claimedPassword, claimSessionID)
+		if err != nil {
+			t.Fatalf("ClaimGuestAccount() error = %v", err)
+		}
+		if countUsers(t, s) != beforeUsers {
+			t.Fatalf("claim changed users row count: before=%d after=%d", beforeUsers, countUsers(t, s))
+		}
+		if claimed == nil || claimed.ID != guest.ID || claimed.Username != claimedUsername {
+			t.Fatalf("claimed user = %+v, want same ID %q and username %q", claimed, guest.ID, claimedUsername)
+		}
+		if claimed.IsGuest == nil || *claimed.IsGuest || claimed.GuestCredential != nil || claimed.Password != nil {
+			t.Fatalf("claimed response retained guest or secret state: %+v", claimed)
+		}
+		if claimed.Token == nil || *claimed.Token == "" {
+			t.Fatal("claim returned no full-session token")
+		}
+
+		row := readGuestClaimRow(t, s, guest.ID)
+		if row.Username != claimedUsername || row.IsGuest || row.ExpiresAt.Valid || row.CredentialHash.Valid {
+			t.Fatalf("claimed row has wrong identity state: %+v", row)
+		}
+		if !checkPasswordHash(claimedPassword, row.Password) {
+			t.Fatal("claimed password does not validate through checkPasswordHash")
+		}
+
+		claimedAuth, err := parseAndValidateToken(*claimed.Token)
+		if err != nil {
+			t.Fatalf("parse claimed token: %v", err)
+		}
+		game, err := s.GetGame(withAuth(context.Background(), claimedAuth), gameID)
+		if err != nil {
+			t.Fatalf("GetGame() after claim error = %v", err)
+		}
+		if game == nil || game.ID != gameID {
+			t.Fatalf("GetGame() after claim = %+v, want %q", game, gameID)
+		}
+		if got := countProductEvents(t, s.db, claimSessionID, "account_claimed"); got != 1 {
+			t.Fatalf("account_claimed rows = %d, want 1 (a stored authoritative event proves clientSubmitted=false)", got)
+		}
+	})
+
+	t.Run("UsernameTaken", func(t *testing.T) {
+		s := testAPI(t)
+		taken := uniqueUsername("claim_taken")
+		if _, err := s.db.Exec(`INSERT INTO users (uuid, username, password, is_guest) VALUES ($1, $2, $3, false)`, uuid.NewString(), taken, "unused"); err != nil {
+			t.Fatalf("seed taken username: %v", err)
+		}
+		guest, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+		if err != nil {
+			t.Fatalf("GuestSession() error = %v", err)
+		}
+		before := readGuestClaimRow(t, s, guest.ID)
+
+		claimed, err := s.ClaimGuestAccount(guestAuthContext(t, guest), taken, "new-password", guestTestSessionID(t))
+		if err == nil || err.Error() != "That username is already taken. Try another one." {
+			t.Fatalf("ClaimGuestAccount() error = %v, want Signup's taken-name message", err)
+		}
+		if claimed != nil {
+			t.Fatalf("ClaimGuestAccount() returned user on conflict: %+v", claimed)
+		}
+		if after := readGuestClaimRow(t, s, guest.ID); !reflect.DeepEqual(after, before) {
+			t.Fatalf("guest row changed on username conflict:\nbefore=%+v\nafter=%+v", before, after)
+		}
+	})
+
+	t.Run("NotAGuest", func(t *testing.T) {
+		s := testAPI(t)
+		id := uuid.NewString()
+		username := uniqueUsername("claim_real")
+		if _, err := s.db.Exec(`INSERT INTO users (uuid, username, password, is_guest) VALUES ($1, $2, $3, false)`, id, username, "unchanged-password"); err != nil {
+			t.Fatalf("insert non-guest: %v", err)
+		}
+		before := readGuestClaimRow(t, s, id)
+		claimed, err := s.ClaimGuestAccount(authCtxWithID(id, username), uniqueUsername("should_not_apply"), "new-password", guestTestSessionID(t))
+		assertActivationCode(t, err, ActivationCodeGuestSessionError)
+		if claimed != nil {
+			t.Fatalf("ClaimGuestAccount() returned non-guest: %+v", claimed)
+		}
+		if after := readGuestClaimRow(t, s, id); !reflect.DeepEqual(after, before) {
+			t.Fatalf("non-guest row changed:\nbefore=%+v\nafter=%+v", before, after)
+		}
+	})
+
+	t.Run("EmptyPassword", func(t *testing.T) {
+		s := testAPI(t)
+		guest, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+		if err != nil {
+			t.Fatalf("GuestSession() error = %v", err)
+		}
+		before := readGuestClaimRow(t, s, guest.ID)
+		claimed, err := s.ClaimGuestAccount(guestAuthContext(t, guest), uniqueUsername("claim_empty_password"), "", guestTestSessionID(t))
+		if err == nil || err.Error() != "must provide a password" {
+			t.Fatalf("ClaimGuestAccount() error = %v, want Signup's empty-password message", err)
+		}
+		if claimed != nil {
+			t.Fatalf("ClaimGuestAccount() returned user for empty password: %+v", claimed)
+		}
+		if after := readGuestClaimRow(t, s, guest.ID); !reflect.DeepEqual(after, before) {
+			t.Fatalf("guest row changed for empty password:\nbefore=%+v\nafter=%+v", before, after)
+		}
+	})
+
+	t.Run("EventOnce", func(t *testing.T) {
+		s := testAPI(t)
+		guest, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+		if err != nil {
+			t.Fatalf("GuestSession() error = %v", err)
+		}
+		sessionID := guestTestSessionID(t)
+		t.Cleanup(func() { cleanupProductEvents(t, s.db, sessionID) })
+		claimed, err := s.ClaimGuestAccount(guestAuthContext(t, guest), uniqueUsername("claim_event"), "new-password", sessionID)
+		if err != nil {
+			t.Fatalf("ClaimGuestAccount() error = %v", err)
+		}
+		if got := countProductEvents(t, s.db, sessionID, "account_claimed"); got != 1 {
+			t.Fatalf("account_claimed rows after claim = %d, want 1", got)
+		}
+		userID := claimed.ID
+		s.recordProductEvent(context.Background(), ProductEvent{Name: "account_claimed", SessionID: sessionID, UserID: &userID}, false)
+		if got := countProductEvents(t, s.db, sessionID, "account_claimed"); got != 1 {
+			t.Fatalf("account_claimed rows after retry = %d, want 1", got)
+		}
+	})
+}
+
+type guestClaimRow struct {
+	Username       string
+	Password       string
+	IsGuest        bool
+	ExpiresAt      sql.NullTime
+	DisplayName    sql.NullString
+	CredentialHash sql.NullString
+}
+
+func readGuestClaimRow(t *testing.T, s *graphQLServer, id string) guestClaimRow {
+	t.Helper()
+	var row guestClaimRow
+	if err := s.db.QueryRow(`
+		SELECT username, password, is_guest, expires_at, display_name, guest_credential_hash
+		FROM users WHERE uuid = $1
+	`, id).Scan(&row.Username, &row.Password, &row.IsGuest, &row.ExpiresAt, &row.DisplayName, &row.CredentialHash); err != nil {
+		t.Fatalf("read user row %q: %v", id, err)
+	}
+	return row
+}
+
+func guestAuthContext(t *testing.T, guest *User) context.Context {
+	t.Helper()
+	if guest == nil || guest.Token == nil {
+		t.Fatal("guest has no token")
+	}
+	authUser, err := parseAndValidateToken(*guest.Token)
+	if err != nil {
+		t.Fatalf("parse guest token: %v", err)
+	}
+	return withAuth(context.Background(), authUser)
+}
+
+func createGameForGuest(t *testing.T, s *graphQLServer, guest *User) string {
+	t.Helper()
+	ctx := guestAuthContext(t, guest)
+	gameID := "claim-preserves-game-" + guestTestSessionID(t)
+	decklist := "1,Sol Ring"
+	game, err := s.CreateGame(ctx, InputCreateGame{
+		ID:   gameID,
+		Turn: &InputTurn{Player: guest.Username, Phase: "MAIN", Number: 1, Priority: guest.Username},
+		Players: []*InputBoardState{{
+			UserID: guest.ID, User: guest.Username, GameID: gameID, Life: 40, Decklist: &decklist,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("CreateGame() error = %v", err)
+	}
+	if game == nil || game.ID != gameID {
+		t.Fatalf("CreateGame() = %+v, want %q", game, gameID)
+	}
+	t.Cleanup(func() { _, _ = s.db.Exec(`DELETE FROM games WHERE id = $1`, gameID) })
+	return gameID
+}
+
+func useFastClaimHashes(t *testing.T) {
+	t.Helper()
+	originalHash := hashClaimPassword
+	hashClaimPassword = func(password string) (string, error) {
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+		return string(hash), err
+	}
+	t.Cleanup(func() { hashClaimPassword = originalHash })
 }
 
 // TestMigrations_GuestUsers proves the migration itself: the four new
