@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: guest-host-activation
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-08-20T18:02:56.090Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-08-20T18:42:48.635Z"
 last_activity: 2026-08-20
-last_activity_desc: Plan 02-01 complete
+last_activity_desc: Plan 02-02 complete
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 16
-  completed_plans: 11
+  completed_plans: 12
   percent: 20
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 02 (guest-host-activation) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
-Last activity: 2026-08-20 — Plan 02-01 complete
+Last activity: 2026-08-20 — Plan 02-02 complete
 
-Progress: [███████░░░] 69%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Progress: [███████░░░] 69%
 | Phase 01 P09 | 40min | 2 tasks | 3 files |
 | Phase 01 P10 | 12min | 1 tasks | 3 files |
 | Phase 02 P01 | 6min | 2 tasks | 21 files |
+| Phase 02 P02 | 32min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,10 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase 02]: Guest rows are durable with expires_at NULL; the 24-hour JWT remains the expiring session boundary.
 - [Phase 02]: Guest creation uses the existing shared rate-limit registry through SurfaceGuestSession.
 - [Phase 02]: Store the guest re-auth bearer secret under edhgo/guest-credential, separate from edhgo/auth and edhgo/session-id.
+- [Phase 02]: Activation failures expose exactly four allowlisted codes; internal causes remain server-only.
+- [Phase 02]: Guest refresh checks row expiry only when minting a new JWT and does not alter requireAuth.
+- [Phase 02]: Guest claims update the same UUID with an is_guest concurrency guard and clear guest-only credentials.
+- [Phase 02]: Expired-guest cleanup remains an unscheduled, game-reference-guarded operator safety valve.
 
 ### Pending Todos
 
@@ -142,6 +147,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-20T18:02:27.131Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-08-20T18:42:40.336Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
