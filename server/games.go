@@ -626,8 +626,21 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	return game, nil
 }
 
+const (
+	gameCreateOutcomeSuccess = "success"
+	gameCreateOutcomeFailure = "failure"
+)
+
 // CreateGame creates a new game and hydrates the decklists for the players in it.
 func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGame) (*Game, error) {
+	start := time.Now()
+	outcome := gameCreateOutcomeFailure
+	defer func() {
+		// outcome is selected only by this resolver's success/failure branch.
+		// No caller-derived identifier is ever exposed as a Prometheus label.
+		collectors.ObserveGameCreate(outcome, time.Since(start))
+	}()
+
 	authUser, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -768,6 +781,22 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		return nil, fmt.Errorf("failed to update game: %w", err)
 	}
 
+	// DEC-L: the conversion belongs strictly after persistence. Existing
+	// callers may omit SessionID; that is an ordinary non-funnel create,
+	// not a telemetry rejection, so do not attempt an invalid event write.
+	if inputGame.SessionID != nil {
+		if sessionID := strings.TrimSpace(*inputGame.SessionID); sessionID != "" {
+			userID := authUser.ID
+			gameID := g.ID
+			s.recordProductEvent(ctx, ProductEvent{
+				Name:      "game_created",
+				SessionID: sessionID,
+				UserID:    &userID,
+				GameID:    &gameID,
+			}, false)
+		}
+	}
+
 	var players []map[string]interface{}
 	for _, p := range g.Players {
 		if p == nil || p.Boardstate == nil {
@@ -788,6 +817,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		},
 	})
 
+	outcome = gameCreateOutcomeSuccess
 	return g, nil
 }
 

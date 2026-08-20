@@ -9567,7 +9567,7 @@ func (ec *executionContext) unmarshalInputInputCreateGame(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"ID", "Turn", "Handle", "FormatID", "Players"}
+	fieldsInOrder := [...]string{"ID", "Turn", "Handle", "FormatID", "SessionID", "Players"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -9602,6 +9602,13 @@ func (ec *executionContext) unmarshalInputInputCreateGame(ctx context.Context, o
 				return it, err
 			}
 			it.FormatID = data
+		case "SessionID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SessionID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SessionID = data
 		case "Players":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Players"))
 			data, err := ec.unmarshalNInputBoardState2ᚕᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐInputBoardStateᚄ(ctx, v)

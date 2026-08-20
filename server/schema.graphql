@@ -288,6 +288,9 @@ input InputCreateGame {
   Turn: InputTurn!
   Handle: String
   FormatID: String
+  # Browser attribution for the server-owned game_created event (DEC-K).
+  # Optional for existing callers and never used outside product telemetry.
+  SessionID: String
   Players: [InputBoardState!]!
 }
 
