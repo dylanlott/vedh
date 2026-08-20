@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: guest-host-activation
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-08-20T19:09:15.594Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-08-20T19:40:25.425Z"
 last_activity: 2026-08-20
-last_activity_desc: Plan 02-03 complete
+last_activity_desc: Plan 02-04 complete
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 16
-  completed_plans: 13
-  percent: 81
+  completed_plans: 14
+  percent: 20
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 02 (guest-host-activation) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
-Last activity: 2026-08-20 — Plan 02-03 complete
+Last activity: 2026-08-20 — Plan 02-04 complete
 
-Progress: [████████░░] 81%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -72,6 +72,7 @@ Progress: [████████░░] 81%
 | Phase 02 P01 | 6min | 2 tasks | 21 files |
 | Phase 02 P02 | 32min | 3 tasks | 15 files |
 | Phase 02 P03 | 22min | 3 tasks | 17 files |
+| Phase 02 P04 | 21min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,9 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase 02]: DeckImportPanel preserves raw input and explicit corrections separately while publishing one prepared Decklist string to every create/join consumer.
 - [Phase 02]: DeckImportPanel owns preview failures while QuickStartView owns terminal guest-session and create failures, preventing duplicate recovery copy.
 - [Phase 02]: The shared deck panel is form-free so it embeds safely inside the existing authenticated create and join forms.
+- [Phase 02]: InputCreateGame.SessionID is optional attribution only; blank values skip game_created without a telemetry drop.
+- [Phase 02]: game_created is server-owned, recorded after persistence, and deduplicated by event, user, game, and session.
+- [Phase 02]: DeckImportPanel emits one submit boundary while QuickStartView owns all three client activation event names.
 
 ### Pending Todos
 
@@ -151,6 +155,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-20T19:09:08.125Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-08-20T19:39:44.249Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
