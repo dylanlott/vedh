@@ -78,6 +78,11 @@
           {{ activationError.affordance }}
         </button>
       </section>
+      <div v-if="Object.keys(corrections).length && !previewResult" class="restored-corrections">
+        <p v-for="(name, line) in corrections" :key="line">
+          Line {{ line }}: Using {{ name || 'removed line' }}
+        </p>
+      </div>
     </div>
 
     <div class="preview-pane">
@@ -181,12 +186,12 @@
       </section>
 
       <button
-        v-if="previewResult"
+        v-if="previewResult && !continued"
         class="primary continue-button"
         type="button"
         data-testid="continue-to-commanders"
         :disabled="!canContinue"
-        @click="emit('continue', previewResult)"
+        @click="continueToCommanders"
       >
         Continue to commanders
       </button>
@@ -248,6 +253,7 @@ const manualDebounces = new Map<number, number>();
 const loading = ref(false);
 const previewResult = ref<DeckPreview | null>(null);
 const activationError = ref<ActivationErrorEntry | null>(null);
+const continued = ref(false);
 const deckTextElement = ref<HTMLTextAreaElement | null>(null);
 let requestSequence = 0;
 
@@ -302,6 +308,7 @@ async function submitPreview(): Promise<void> {
   loading.value = true;
   activationError.value = null;
   previewResult.value = null;
+  continued.value = false;
 
   const input = activeSource.value === 'url'
     ? { sourceURL: sourceURL.value, sessionID: props.sessionId }
@@ -374,6 +381,12 @@ async function runManualSearch(sourceLine: number, query: string): Promise<void>
 function applyManualCorrection(sourceLine: number): void {
   const value = manualQueries[sourceLine]?.trim();
   if (value) applyCorrection(sourceLine, value);
+}
+
+function continueToCommanders(): void {
+  if (!previewResult.value || !canContinue.value) return;
+  continued.value = true;
+  emit('continue', previewResult.value);
 }
 
 async function handleErrorAffordance(): Promise<void> {
