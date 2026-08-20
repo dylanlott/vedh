@@ -13,6 +13,9 @@ type Mutation {
   previewDeck(input: InputDeckImport!): DeckPreview!
   trackProductEvent(input: InputProductEvent!): Boolean!
   guestSession(displayName: String, sessionID: String!): User!
+  # Silent D-2.3 token re-issue. This is the only mutation to which a
+  # browser sends the separate guest bearer credential.
+  refreshGuestSession(credential: String!): User!
 }
 
 type Query {

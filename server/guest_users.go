@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -21,7 +22,13 @@ var (
 	errGuestSessionDisabled       = errors.New("guest session: disabled")
 	errGuestSessionRateLimited    = errors.New("guest session: rate limited")
 	errGuestSessionNameExhausted  = errors.New("guest session: unique name attempts exhausted")
+	errGuestSessionInvalidRefresh = errors.New("guest session: invalid refresh credential")
 )
+
+// guestSessionNow is the exact clock used for expires_at comparisons. It
+// remains time.Now in production; the seam lets the boundary test provide a
+// value at PostgreSQL's native TIMESTAMPTZ resolution without rounding.
+var guestSessionNow = time.Now
 
 // guestNameMaxAttempts bounds GuestSession's username_unique collision
 // retry loop (T-02-04). Each attempt draws a fresh pairing (or, once the
@@ -40,8 +47,10 @@ const guestCredentialSecretBytes = 32
 // collectors.ObserveGuestSession -- never a caller-derived string, so the
 // label stays bounded.
 const (
-	guestSessionOutcomeSuccess = "success"
-	guestSessionOutcomeFailure = "failure"
+	guestSessionOutcomeSuccess        = "success"
+	guestSessionOutcomeFailure        = "failure"
+	guestSessionOutcomeRefreshSuccess = "refresh_success"
+	guestSessionOutcomeRefreshFailure = "refresh_failure"
 )
 
 // hashGuestSecret is the injectable seam GuestSession uses for both the
@@ -218,6 +227,81 @@ func normalizeDisplayName(raw *string) *string {
 		}
 	}
 	return &filtered
+}
+
+// RefreshGuestSession exchanges the separate guest bearer credential for a
+// fresh 24-hour JWT. It deliberately does not call requireAuth: the mutation
+// exists for the moment the old JWT is already expired. The credential is not
+// rotated, so another tab holding the same browser credential remains valid.
+func (s *graphQLServer) RefreshGuestSession(ctx context.Context, credential string) (*User, error) {
+	start := time.Now()
+	outcome := guestSessionOutcomeRefreshFailure
+	defer func() {
+		collectors.ObserveGuestSession(outcome, time.Since(start))
+	}()
+
+	userID, secret, ok := strings.Cut(credential, ".")
+	if !ok || userID == "" || secret == "" {
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestSessionInvalidRefresh)
+	}
+	if _, err := uuid.Parse(userID); err != nil {
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestSessionInvalidRefresh)
+	}
+
+	if !s.allowRequest(ctx, ratelimit.SurfaceGuestSession, clientKeyFor(ctx, "")) {
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestSessionRateLimited)
+	}
+
+	var (
+		user           User
+		displayName    sql.NullString
+		isGuest        bool
+		expiresAt      sql.NullTime
+		credentialHash sql.NullString
+	)
+	err := s.db.QueryRowContext(ctx, `
+		SELECT uuid, username, display_name, is_guest, expires_at, guest_credential_hash
+		FROM users
+		WHERE uuid = $1
+	`, userID).Scan(
+		&user.ID,
+		&user.Username,
+		&displayName,
+		&isGuest,
+		&expiresAt,
+		&credentialHash,
+	)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			s.loggerFor(ctx).Error("failed to load guest for session refresh", "err", err)
+		}
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
+	}
+
+	if !isGuest || !credentialHash.Valid || credentialHash.String == "" ||
+		!checkPasswordHash(secret, credentialHash.String) {
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestSessionInvalidRefresh)
+	}
+	if expiresAt.Valid && !expiresAt.Time.After(guestSessionNow()) {
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestSessionInvalidRefresh)
+	}
+
+	if displayName.Valid {
+		user.DisplayName = &displayName.String
+	}
+	user.IsGuest = &isGuest
+	user.GuestCredential = &credential
+	user.Password = nil
+
+	token, err := newAuthToken(&user, 24*time.Hour)
+	if err != nil {
+		s.loggerFor(ctx).Error("failed to mint refreshed guest auth token", "err", err)
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
+	}
+	user.Token = &token
+
+	outcome = guestSessionOutcomeRefreshSuccess
+	return &user, nil
 }
 
 // insertGuestUser runs the single-row INSERT and scans its RETURNING
