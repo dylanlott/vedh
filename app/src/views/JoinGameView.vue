@@ -27,11 +27,13 @@
         </div>
       </label>
 
-      <label class="stacked">
-        <span>Decklist (CSV: quantity,name per line)</span>
-        <textarea v-model="decklist" rows="6" placeholder="1, Atraxa, Pr…\n99, Basic Island"></textarea>
-        <p class="hint">Deck count: {{ deckCount }}</p>
-      </label>
+      <DeckImportPanel
+        :initial-text="decklist"
+        :session-id="sessionID"
+        @change="handleDeckChange"
+        @preview-resolved="deckPreview = $event"
+      />
+      <p class="hint">Deck count: {{ deckPreview?.CardCount ?? 0 }}</p>
 
       <footer class="actions">
         <button class="primary" :disabled="games.loading">{{ games.loading ? 'Joining…' : 'Join game' }}</button>
@@ -106,6 +108,9 @@ import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
 import { apolloClient } from '../services/apollo';
 import { SEARCH_CARDS_QUERY } from '../graphql/queries';
+import DeckImportPanel, { type DeckImportChange } from '../components/decks/DeckImportPanel.vue';
+import { getSessionID } from '../services/productEvents';
+import type { DeckPreview } from '../types/generated';
 import {
   type CommanderPick,
   canAddSecondCommander,
@@ -245,20 +250,15 @@ function clearAllCommanders() {
   commanderError.value = '';
 }
 
-// Decklist
+// The shared panel owns deck parsing and correction. This view only forwards
+// its prepared representation through the unchanged join payload.
 const decklist = ref('');
-const deckCount = computed(() => {
-  if (!decklist.value) return 0;
-  let count = 0;
-  for (const line of decklist.value.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const [qtyRaw] = trimmed.split(',');
-    const qty = parseInt(qtyRaw, 10);
-    if (!Number.isNaN(qty)) count += qty; else count += 1;
-  }
-  return count;
-});
+const deckPreview = ref<DeckPreview | null>(null);
+const sessionID = getSessionID();
+
+function handleDeckChange(change: DeckImportChange) {
+  decklist.value = change.decklist;
+}
 
 async function handleJoin() {
   if (!gameID.value || !auth.profile) return;

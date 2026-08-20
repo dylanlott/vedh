@@ -72,11 +72,13 @@
           <p v-if="commanderError" class="hint">{{ commanderError }}</p>
           <p v-else-if="!selectedCommanders.length" class="hint">No commander selected</p>
         </label>
-        <label>
-          <span>Decklist (CSV: quantity,name per line)</span>
-          <textarea v-model="decklist" rows="6" placeholder="1, Atraxa, Pr…\n99, Basic Island"></textarea>
-          <p class="hint">Deck count: {{ deckCount }}</p>
-        </label>
+        <DeckImportPanel
+          :initial-text="decklist"
+          :session-id="sessionID"
+          @change="handleDeckChange"
+          @preview-resolved="deckPreview = $event"
+        />
+        <p class="hint">Deck count: {{ deckCount }}</p>
         <footer>
           <button type="button" class="secondary" @click="close">Cancel</button>
           <button type="submit" class="primary" :disabled="games.loading">
@@ -94,6 +96,9 @@ import { useGamesStore } from '../../stores/games';
 import { useAuthStore } from '../../stores/auth';
 import { apolloClient } from '../../services/apollo';
 import { SEARCH_CARDS_QUERY } from '../../graphql/queries';
+import DeckImportPanel, { type DeckImportChange } from '../decks/DeckImportPanel.vue';
+import { getSessionID } from '../../services/productEvents';
+import type { DeckPreview } from '../../types/generated';
 import {
   type CommanderPick,
   canAddSecondCommander,
@@ -237,21 +242,16 @@ const commanderPlaceholder = computed(() => {
   return 'Search for a commander (e.g., Atraxa)';
 });
 
-// Decklist raw CSV input
+// The shared panel owns deck parsing and correction; this form only carries
+// its prepared deck representation into the existing create payload.
 const decklist = ref('');
-const deckCount = computed(() => {
-  if (!decklist.value) return 0;
-  let count = 0;
-  for (const line of decklist.value.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const [qtyRaw] = trimmed.split(',');
-    const qty = parseInt(qtyRaw, 10);
-    if (!Number.isNaN(qty)) count += qty;
-    else count += 1;
-  }
-  return count;
-});
+const deckPreview = ref<DeckPreview | null>(null);
+const deckCount = computed(() => deckPreview.value?.CardCount ?? 0);
+const sessionID = getSessionID();
+
+function handleDeckChange(change: DeckImportChange) {
+  decklist.value = change.decklist;
+}
 
 function close() {
   emit('close');

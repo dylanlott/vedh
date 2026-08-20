@@ -73,7 +73,7 @@ describe('QuickStartView', () => {
 
     const wrapper = mount(QuickStartView);
     await wrapper.find('textarea').setValue('1, Sol Ring');
-    await wrapper.find('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
 
     expect(mutate()).toHaveBeenCalledTimes(1);
@@ -93,7 +93,7 @@ describe('QuickStartView', () => {
 
     const wrapper = mount(QuickStartView);
     await wrapper.find('textarea').setValue('1, Sol Ring');
-    await wrapper.find('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
 
     await chooseCommander(wrapper);
@@ -119,7 +119,7 @@ describe('QuickStartView', () => {
 
     const wrapper = mount(QuickStartView);
     await wrapper.find('textarea').setValue('1, Sol Ring');
-    await wrapper.find('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
 
     await chooseCommander(wrapper);
@@ -137,7 +137,7 @@ describe('QuickStartView', () => {
     const submit = wrapper.find('[data-testid="deck-preview-submit"]');
     expect(submit.attributes('disabled')).toBeDefined();
 
-    await wrapper.find('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     expect(mutate()).not.toHaveBeenCalled();
   });
@@ -151,12 +151,12 @@ describe('QuickStartView', () => {
 
     const wrapper = mount(QuickStartView);
     await wrapper.find('textarea').setValue('1, Sol Ring');
-    await wrapper.find('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     // Submitting the identical paste again (e.g. a second click before
     // noticing the first request already resolved) re-runs previewDeck but
     // must not multiply anything downstream.
-    await wrapper.find('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
 
     await chooseCommander(wrapper);
@@ -209,7 +209,7 @@ describe('QuickStartView', () => {
 
     const wrapper = mount(QuickStartView);
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sl Ring');
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="suggestion-chip"]').trigger('click');
     await chooseCommander(wrapper);
@@ -237,7 +237,7 @@ describe('QuickStartView', () => {
       .mockResolvedValueOnce({ data: CREATE_GAME_RESULT });
     const wrapper = mount(QuickStartView);
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     await chooseCommander(wrapper);
     await wrapper.get('[data-testid="start-table"]').trigger('click');
@@ -265,7 +265,7 @@ describe('QuickStartView', () => {
 
     expect(wrapper.get('[data-testid="deck-preview-submit"]').attributes('disabled')).toBeDefined();
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="continue-to-commanders"]').trigger('click');
     expect(wrapper.get('[data-testid="start-table"]').attributes('disabled')).toBeDefined();

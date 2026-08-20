@@ -33,7 +33,7 @@
         </button>
       </div>
 
-      <form @submit.prevent="submitPreview">
+      <div class="panel-form">
         <label v-if="activeSource === 'paste'" class="stacked">
           <span>Decklist</span>
           <textarea
@@ -53,6 +53,7 @@
             data-testid="source-url"
             type="url"
             placeholder="https://archidekt.com/decks/…"
+            @keydown.enter.prevent="submitPreview"
           />
         </label>
 
@@ -61,10 +62,11 @@
           type="submit"
           data-testid="deck-preview-submit"
           :disabled="!canSubmit"
+          @click="submitPreview"
         >
           {{ activeSource === 'url' ? 'Import from URL' : 'Preview deck' }}
         </button>
-      </form>
+      </div>
 
       <div v-if="loading" class="loading-state" aria-live="polite">
         <span class="spinner" data-testid="preview-spinner" aria-hidden="true"></span>
@@ -220,6 +222,7 @@ export type DeckImportChange = {
   text: string;
   sourceURL: string;
   corrections: Record<number, string>;
+  decklist: string;
 };
 
 const props = withDefaults(defineProps<{
@@ -294,7 +297,26 @@ function currentChange(): DeckImportChange {
     text: deckText.value,
     sourceURL: sourceURL.value,
     corrections: { ...corrections },
+    decklist: preparedDecklist(),
   };
+}
+
+function preparedDecklist(): string {
+  if (activeSource.value === 'url' && previewResult.value) {
+    return previewResult.value.Entries.map((entry) => `${entry.Quantity} ${entry.Name}`).join('\n');
+  }
+  const lines = deckText.value.split(/\r?\n/);
+  for (const [sourceLine, correctedName] of Object.entries(corrections)) {
+    const index = Number(sourceLine) - 1;
+    if (index < 0 || index >= lines.length) continue;
+    if (!correctedName) {
+      lines[index] = '';
+      continue;
+    }
+    const quantityPrefix = lines[index].match(/^\s*\d+\s*(?:x|×)?\s*[,;:\-]?\s*/i)?.[0] ?? '';
+    lines[index] = `${quantityPrefix}${correctedName}`;
+  }
+  return lines.filter((line) => line.length > 0).join('\n');
 }
 
 watch([deckText, sourceURL, corrections], () => emit('change', currentChange()), {
@@ -324,6 +346,7 @@ async function submitPreview(): Promise<void> {
     if (!result) throw new Error('previewDeck returned no result');
     previewResult.value = result;
     emit('preview-resolved', result);
+    emit('change', currentChange());
   } catch (error: unknown) {
     if (sequence !== requestSequence) return;
     const entry = resolveActivationError(error);
@@ -433,7 +456,7 @@ defineExpose({ submitPreview, currentChange });
 
 .input-pane,
 .preview-pane,
-form,
+.panel-form,
 .stacked,
 .panel-heading,
 .unresolved-section {

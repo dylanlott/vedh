@@ -55,7 +55,7 @@ describe('DeckImportPanel', () => {
     expect(wrapper.text()).toContain('Paste a list from any format you already use');
     expect(wrapper.get('[data-testid="deck-preview-submit"]').attributes('disabled')).toBeDefined();
 
-    await wrapper.get('form').trigger('submit');
+    await (wrapper.vm as unknown as { submitPreview: () => Promise<void> }).submitPreview();
     expect(mutate()).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="preview-totals"]').exists()).toBe(false);
   });
@@ -66,7 +66,7 @@ describe('DeckImportPanel', () => {
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
 
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
 
     expect(wrapper.text()).toContain('Checking your deck');
     expect(wrapper.find('[data-testid="preview-spinner"]').exists()).toBe(true);
@@ -86,7 +86,7 @@ describe('DeckImportPanel', () => {
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sol Ring' } });
 
     expect(wrapper.find('[data-testid="preview-totals"]').exists()).toBe(false);
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('1 of 1 card ready');
@@ -103,7 +103,7 @@ describe('DeckImportPanel', () => {
     });
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sol Ring' } });
 
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain(copy);
@@ -131,18 +131,18 @@ describe('DeckImportPanel', () => {
       .mockResolvedValueOnce({ data: { previewDeck: preview({ Unresolved: [issue(1), issue(2), issue(3)] }) } });
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Typo Card' } });
 
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     expect(wrapper.find('[data-testid="unresolved-list"]').exists()).toBe(false);
 
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     expect(wrapper.text()).toContain('1 card needs a quick look');
     expect(wrapper.findAll('[data-testid="suggestion-chip"]')).toHaveLength(3);
     expect(wrapper.find('[data-testid="manual-card-name"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="remove-unresolved-line"]').exists()).toBe(true);
 
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     expect(wrapper.findAll('[data-testid="unresolved-row"]')).toHaveLength(3);
     expect(wrapper.get('[data-testid="unresolved-list"]').classes()).toContain('typeahead');
@@ -161,14 +161,14 @@ describe('DeckImportPanel', () => {
       .mockResolvedValueOnce({ data: { previewDeck: preview({ Unresolved: unresolved }) } });
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sl Ring' } });
 
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     expect(wrapper.emitted('change')?.at(-1)?.[0]).toMatchObject({ corrections: {} });
 
     await wrapper.get('[data-testid="suggestion-chip"]').trigger('click');
     expect(wrapper.emitted('change')?.at(-1)?.[0]).toMatchObject({ corrections: { 1: 'Sol Ring' } });
 
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     expect(wrapper.emitted('change')?.at(-1)?.[0]).toMatchObject({ corrections: { 1: 'Sol Ring' } });
     expect(mutate().mock.calls[1][0].variables.input.text).toBe('1 Sl Ring');
@@ -182,7 +182,7 @@ describe('DeckImportPanel', () => {
     mutate().mockRejectedValueOnce(apolloError(code, raw));
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sol Ring' } });
 
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.findAll('[data-testid="activation-error"]')).toHaveLength(1);
@@ -206,7 +206,7 @@ describe('DeckImportPanel', () => {
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
 
     await wrapper.get('[data-testid="deck-text"]').setValue(pasted);
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
 
     expect(mutate().mock.calls[0][0].variables.input.text).toBe(pasted);
@@ -221,14 +221,15 @@ describe('DeckImportPanel', () => {
     mutate().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sol Ring' } });
 
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     // A disabled button prevents a second user click, while a programmatic
     // submit (or two submits dispatched before the DOM reflects loading)
     // still exercises the component's stale-response safety boundary.
-    await wrapper.get('form').trigger('submit');
+    const secondSubmit = (wrapper.vm as unknown as { submitPreview: () => Promise<void> }).submitPreview();
     second.resolve({ data: { previewDeck: preview({ CardCount: 2 }) } });
     await flushPromises();
     first.resolve({ data: { previewDeck: preview({ CardCount: 99 }) } });
+    await secondSubmit;
     await flushPromises();
 
     expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('2 of 2 cards ready');
@@ -242,13 +243,13 @@ describe('DeckImportPanel', () => {
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-123' } });
 
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     expect(mutate().mock.calls[0][0].variables.input).toEqual({ text: '1 Sol Ring', sessionID: 'session-123' });
 
     await wrapper.get('[data-testid="source-url-tab"]').trigger('click');
     await wrapper.get('[data-testid="source-url"]').setValue('https://archidekt.com/decks/123');
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     expect(mutate().mock.calls[1][0].variables.input).toEqual({
       sourceURL: 'https://archidekt.com/decks/123',
