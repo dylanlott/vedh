@@ -14,6 +14,60 @@ func uniqueUsername(prefix string) string {
 	return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
 }
 
+func TestUsers_LoginRejectsGuest(t *testing.T) {
+	s := testAPI(t)
+	password := "correct-password"
+	hash, err := hashPassword(password)
+	if err != nil {
+		t.Fatalf("hashPassword() error = %v", err)
+	}
+
+	guestUsername := uniqueUsername("login_guest")
+	guestID := uniqueUsername("login_guest_id")
+	if _, err := s.db.Exec(
+		`INSERT INTO users (uuid, username, password, is_guest) VALUES ($1, $2, $3, true)`,
+		guestID, guestUsername, hash,
+	); err != nil {
+		t.Fatalf("insert guest: %v", err)
+	}
+
+	realUsername := uniqueUsername("login_real")
+	realID := uniqueUsername("login_real_id")
+	if _, err := s.db.Exec(
+		`INSERT INTO users (uuid, username, password, is_guest) VALUES ($1, $2, $3, false)`,
+		realID, realUsername, hash,
+	); err != nil {
+		t.Fatalf("insert real user: %v", err)
+	}
+
+	guest, guestErr := s.Login(context.Background(), guestUsername, password)
+	if guestErr == nil {
+		t.Fatal("Login() with a guest's correct password returned nil error")
+	}
+	if guest != nil {
+		t.Fatalf("Login() issued a guest response: %+v", guest)
+	}
+
+	wrongPasswordUser, wrongPasswordErr := s.Login(context.Background(), realUsername, "wrong-password")
+	if wrongPasswordErr == nil {
+		t.Fatal("Login() with a wrong password returned nil error")
+	}
+	if wrongPasswordUser != nil {
+		t.Fatalf("Login() issued a response for a wrong password: %+v", wrongPasswordUser)
+	}
+	if guestErr.Error() != wrongPasswordErr.Error() {
+		t.Fatalf("guest rejection = %q, wrong-password rejection = %q; messages must be byte-identical", guestErr, wrongPasswordErr)
+	}
+
+	real, err := s.Login(context.Background(), realUsername, password)
+	if err != nil {
+		t.Fatalf("Login() for a non-guest regression guard error = %v", err)
+	}
+	if real == nil || real.ID != realID || real.Username != realUsername || real.Token == nil || *real.Token == "" {
+		t.Fatalf("Login() for a non-guest returned an incomplete user: %+v", real)
+	}
+}
+
 func Test_graphQLServer_Signup(t *testing.T) {
 	type args struct {
 		username string

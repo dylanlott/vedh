@@ -2,13 +2,16 @@ package server
 
 import (
 	"context"
+	"errors"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/openmtg/edh-go/pkg/ratelimit"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
 // guestTestSessionID returns a session ID unique to the calling (sub)test,
@@ -303,6 +306,138 @@ func TestGuestUsers_EventDedup(t *testing.T) {
 	if got := countProductEvents(t, s.db, sessionID, "guest_session_created"); got != 1 {
 		t.Fatalf("guest_session_created rows after a repeated call = %d, want 1 (dedup failed)", got)
 	}
+}
+
+func TestGuestUsers_DisplayNameValidation(t *testing.T) {
+	originalHash := hashGuestSecret
+	hashGuestSecret = func(secret string) (string, error) { return "fake-hash:" + secret, nil }
+	t.Cleanup(func() { hashGuestSecret = originalHash })
+
+	tests := []struct {
+		name string
+		raw  *string
+		want *string
+	}{
+		{name: "null stays null"},
+		{name: "whitespace becomes null", raw: stringPtr(" \t\n\r ")},
+		{name: "truncates by rune", raw: stringPtr(strings.Repeat("界", 200)), want: stringPtr(strings.Repeat("界", 64))},
+		{name: "strips controls", raw: stringPtr(" \x00A\nli\tce\u007f "), want: stringPtr("Alice")},
+		{name: "keeps 64 multibyte runes", raw: stringPtr(strings.Repeat("界", 64)), want: stringPtr(strings.Repeat("界", 64))},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := testAPI(t)
+			user, err := s.GuestSession(context.Background(), tt.raw, guestTestSessionID(t))
+			if err != nil {
+				t.Fatalf("GuestSession() error = %v", err)
+			}
+			if !reflect.DeepEqual(user.DisplayName, tt.want) {
+				t.Fatalf("DisplayName = %#v, want %#v", user.DisplayName, tt.want)
+			}
+
+			var stored *string
+			if err := s.db.QueryRow(`SELECT display_name FROM users WHERE uuid = $1`, user.ID).Scan(&stored); err != nil {
+				t.Fatalf("scan display_name: %v", err)
+			}
+			if !reflect.DeepEqual(stored, tt.want) {
+				t.Fatalf("stored display_name = %#v, want %#v", stored, tt.want)
+			}
+		})
+	}
+
+	t.Run("display names are deliberately non-unique", func(t *testing.T) {
+		s := testAPI(t)
+		name := "Dylan"
+		first, err := s.GuestSession(context.Background(), &name, guestTestSessionID(t)+"-first")
+		if err != nil {
+			t.Fatalf("first GuestSession() error = %v", err)
+		}
+		second, err := s.GuestSession(context.Background(), &name, guestTestSessionID(t)+"-second")
+		if err != nil {
+			t.Fatalf("second GuestSession() error = %v", err)
+		}
+		if first.DisplayName == nil || second.DisplayName == nil || *first.DisplayName != name || *second.DisplayName != name {
+			t.Fatalf("duplicate display names not preserved: first=%#v second=%#v", first.DisplayName, second.DisplayName)
+		}
+	})
+
+	t.Run("normalization forms remain distinct and accepted", func(t *testing.T) {
+		s := testAPI(t)
+		composed := "Caf\u00e9"
+		decomposed := "Cafe\u0301"
+		first, err := s.GuestSession(context.Background(), &composed, guestTestSessionID(t)+"-composed")
+		if err != nil {
+			t.Fatalf("composed GuestSession() error = %v", err)
+		}
+		second, err := s.GuestSession(context.Background(), &decomposed, guestTestSessionID(t)+"-decomposed")
+		if err != nil {
+			t.Fatalf("decomposed GuestSession() error = %v", err)
+		}
+		if first.DisplayName == nil || second.DisplayName == nil || *first.DisplayName == *second.DisplayName {
+			t.Fatalf("normalization forms were collapsed: first=%#v second=%#v", first.DisplayName, second.DisplayName)
+		}
+	})
+}
+
+func TestGuestUsers_ErrorCodes(t *testing.T) {
+	originalHash := hashGuestSecret
+	hashGuestSecret = func(secret string) (string, error) { return "fake-hash:" + secret, nil }
+	t.Cleanup(func() { hashGuestSecret = originalHash })
+
+	assertGuestSessionError := func(t *testing.T, err error) {
+		t.Helper()
+		if err == nil {
+			t.Fatal("expected an error")
+		}
+		var gqlErr *gqlerror.Error
+		if !errors.As(err, &gqlErr) {
+			t.Fatalf("error type = %T, want *gqlerror.Error: %v", err, err)
+		}
+		if gqlErr.Extensions["code"] != string(ActivationCodeGuestSessionError) {
+			t.Fatalf("extensions.code = %#v, want %q", gqlErr.Extensions["code"], ActivationCodeGuestSessionError)
+		}
+	}
+
+	t.Run("empty session ID", func(t *testing.T) {
+		s := testAPI(t)
+		_, err := s.GuestSession(context.Background(), nil, " \t\n")
+		assertGuestSessionError(t, err)
+	})
+
+	t.Run("kill switch", func(t *testing.T) {
+		s := testAPI(t)
+		s.cfg.GuestCreationEnabled = false
+		_, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+		assertGuestSessionError(t, err)
+	})
+
+	t.Run("rate limited", func(t *testing.T) {
+		s := testAPI(t)
+		s.limiter = ratelimit.NewRegistry(1, 1)
+		sessionID := guestTestSessionID(t)
+		if _, err := s.GuestSession(context.Background(), nil, sessionID); err != nil {
+			t.Fatalf("first GuestSession() error = %v", err)
+		}
+		_, err := s.GuestSession(context.Background(), nil, sessionID)
+		assertGuestSessionError(t, err)
+	})
+
+	t.Run("insert failure", func(t *testing.T) {
+		s := testAPI(t)
+		if err := s.db.Close(); err != nil {
+			t.Fatalf("close test database: %v", err)
+		}
+		_, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+		assertGuestSessionError(t, err)
+		if strings.Contains(err.Error(), "database is closed") {
+			t.Fatalf("client-facing error leaked database failure: %v", err)
+		}
+	})
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
 
 // TestMigrations_GuestUsers proves the migration itself: the four new
