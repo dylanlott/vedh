@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
+import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 
 // Create a global window/document before importing any app modules that
 // reference `window` during module initialization (e.g. src/services/apollo.ts).
@@ -18,6 +20,48 @@ const dom = new JSDOM('', { url: 'http://localhost' });
 import { CREATE_GAME_MUTATION } from '../src/graphql/mutations';
 import { apolloClient } from '../src/services/apollo';
 import { SIGNUP_MUTATION } from '../src/graphql/mutations';
+import FormCreateGame from '../src/components/games/FormCreateGame.vue';
+import DeckImportPanel from '../src/components/decks/DeckImportPanel.vue';
+import { useGamesStore } from '../src/stores/games';
+
+beforeEach(() => {
+  localStorage.clear();
+  localStorage.setItem('edhgo/auth', JSON.stringify({ ID: 'user-1', Username: 'Host', Token: 'token' }));
+  setActivePinia(createPinia());
+});
+
+describe('FormCreateGame shared deck import', () => {
+  it('renders DeckImportPanel without a persistence key and removes legacy CSV copy', () => {
+    const wrapper = mount(FormCreateGame);
+    const panel = wrapper.getComponent(DeckImportPanel);
+
+    expect(panel.exists()).toBe(true);
+    expect(panel.props('persistenceKey')).toBeUndefined();
+    expect(wrapper.text()).not.toContain('quantity,name per line');
+  });
+
+  it('submits the panel deck text with the pre-existing game payload fields unchanged', async () => {
+    const games = useGamesStore();
+    const createGame = vi.spyOn(games, 'createGame').mockResolvedValue('game-1');
+    const wrapper = mount(FormCreateGame);
+
+    await wrapper.get('input[placeholder="Friday Night Commander"]').setValue('Friday pod');
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring\n99 Island');
+    await wrapper.get('form').trigger('submit');
+
+    expect(createGame).toHaveBeenCalledOnce();
+    const payload = createGame.mock.calls[0][0] as any;
+    expect(payload.Players[0]).toMatchObject({
+      UserID: 'user-1',
+      User: 'Host',
+      Life: 40,
+      Decklist: '1 Sol Ring\n99 Island',
+      Commander: [],
+    });
+    expect(payload.Turn).toMatchObject({ Player: 'Host', Phase: 'MAIN', Number: 1, Priority: 'Host' });
+    expect(payload.ID).toBe(payload.Players[0].GameID);
+  });
+});
 
 const runLiveIntegration = process.env.VEDH_RUN_LIVE_INTEGRATION === '1';
 const describeLiveIntegration = runLiveIntegration ? describe : describe.skip;

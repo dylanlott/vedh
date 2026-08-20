@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
+import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
+
+const pushMock = vi.fn();
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ params: { id: 'game-1' } }),
+  useRouter: () => ({ push: pushMock }),
+}));
 
 // Setup minimal DOM and storage before importing modules that use window/localStorage
 const dom = new JSDOM('', { url: 'http://localhost' });
@@ -10,6 +18,50 @@ const dom = new JSDOM('', { url: 'http://localhost' });
 
 import { apolloClient } from '../src/services/apollo';
 import { SIGNUP_MUTATION, CREATE_GAME_MUTATION, JOIN_GAME_MUTATION } from '../src/graphql/mutations';
+import JoinGameView from '../src/views/JoinGameView.vue';
+import DeckImportPanel from '../src/components/decks/DeckImportPanel.vue';
+import { useGamesStore } from '../src/stores/games';
+
+beforeEach(() => {
+  localStorage.clear();
+  localStorage.setItem('edhgo/auth', JSON.stringify({ ID: 'user-2', Username: 'Joiner', Token: 'token' }));
+  setActivePinia(createPinia());
+  pushMock.mockReset();
+});
+
+describe('JoinGame shared deck import', () => {
+  it('renders DeckImportPanel without a persistence key and removes legacy CSV copy', () => {
+    const wrapper = mount(JoinGameView);
+    const panel = wrapper.getComponent(DeckImportPanel);
+
+    expect(panel.exists()).toBe(true);
+    expect(panel.props('persistenceKey')).toBeUndefined();
+    expect(wrapper.text()).not.toContain('quantity,name per line');
+  });
+
+  it('submits the same panel deck representation through the unchanged join payload', async () => {
+    const games = useGamesStore();
+    const joinGame = vi.spyOn(games, 'joinGame').mockResolvedValue('game-1');
+    const wrapper = mount(JoinGameView);
+
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring\n99 Island');
+    await wrapper.get('form').trigger('submit');
+
+    expect(joinGame).toHaveBeenCalledOnce();
+    expect(joinGame.mock.calls[0][0]).toMatchObject({
+      ID: 'game-1',
+      Decklist: '1 Sol Ring\n99 Island',
+      BoardState: {
+        UserID: 'user-2',
+        User: 'Joiner',
+        GameID: 'game-1',
+        Life: 40,
+        Commander: [],
+      },
+    });
+    expect(pushMock).toHaveBeenCalledWith({ name: 'board', params: { id: 'game-1' } });
+  });
+});
 
 const runLiveIntegration = process.env.VEDH_RUN_LIVE_INTEGRATION === '1';
 const describeLiveIntegration = runLiveIntegration ? describe : describe.skip;
