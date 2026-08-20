@@ -94,7 +94,7 @@ deck-to-board activation; P1 improves post-value acquisition and operating confi
 
 ### Guest host path
 
-- [ ] **REQ-ACT-004**: Reusable deck import and commander review UI — `DeckImportPanel.vue` with text/URL input, source detection, loading/error states, totals, warnings, and unresolved-card correction; a commander-review component driven by `CommanderCandidates`; preserve pasted input, corrections, commander choices, and display name across recoverable failures; replace duplicated deck entry in `FormCreateGame.vue` and `JoinGameView.vue`; keep the authenticated create flow usable during rollout.
+- [x] **REQ-ACT-004**: Reusable deck import and commander review UI — `DeckImportPanel.vue` with text/URL input, source detection, loading/error states, totals, warnings, and unresolved-card correction; a commander-review component driven by `CommanderCandidates`; preserve pasted input, corrections, commander choices, and display name across recoverable failures; replace duplicated deck entry in `FormCreateGame.vue` and `JoinGameView.vue`; keep the authenticated create flow usable during rollout.
   `P0 · L · depends_on: ACT-002 · order 4`
 
 - [x] **REQ-ACT-005**: Guest identity and account-claim backend — `is_guest` and `expires_at` on prod and test user schemas; `guestSession(displayName, sessionID)` and `claimGuestAccount(username, password, sessionID)`; collision-safe readable guest names; random non-recoverable password hash and 24-hour guest token; reject expired backing guests in authorization; claim the existing row, clear expiry, set credentials through current bcrypt rules, issue a new full token; rate limits, feature flag/kill switch, and an independently retryable cleanup path for unreferenced expired guests.
@@ -209,7 +209,7 @@ v1** (see INFO-2 and the milestone scope decision); only the items below remain 
 | REQ-ACT-001 | P0 | M | Phase 1 | Complete |
 | REQ-ACT-002 | P0 | L | Phase 1 | Complete |
 | REQ-ACT-003 | P0 | M | Phase 1 | Complete |
-| REQ-ACT-004 | P0 | L | Phase 2 | Pending |
+| REQ-ACT-004 | P0 | L | Phase 2 | Complete |
 | REQ-ACT-005 | P0 | L | Phase 2 | Complete |
 | REQ-ACT-006 | P0 | L | Phase 2 | Complete |
 | REQ-ACT-007 | P0 | M | Phase 3 | Pending |

@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: guest-host-activation
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-08-20T18:42:48.635Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-08-20T19:09:15.594Z"
 last_activity: 2026-08-20
-last_activity_desc: Plan 02-02 complete
+last_activity_desc: Plan 02-03 complete
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 16
-  completed_plans: 12
-  percent: 20
+  completed_plans: 13
+  percent: 81
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 02 (guest-host-activation) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
-Last activity: 2026-08-20 — Plan 02-02 complete
+Last activity: 2026-08-20 — Plan 02-03 complete
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 81%
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Progress: [████████░░] 75%
 | Phase 01 P10 | 12min | 1 tasks | 3 files |
 | Phase 02 P01 | 6min | 2 tasks | 21 files |
 | Phase 02 P02 | 32min | 3 tasks | 15 files |
+| Phase 02 P03 | 22min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,9 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase 02]: Guest refresh checks row expiry only when minting a new JWT and does not alter requireAuth.
 - [Phase 02]: Guest claims update the same UUID with an is_guest concurrency guard and clear guest-only credentials.
 - [Phase 02]: Expired-guest cleanup remains an unscheduled, game-reference-guarded operator safety valve.
+- [Phase 02]: DeckImportPanel preserves raw input and explicit corrections separately while publishing one prepared Decklist string to every create/join consumer.
+- [Phase 02]: DeckImportPanel owns preview failures while QuickStartView owns terminal guest-session and create failures, preventing duplicate recovery copy.
+- [Phase 02]: The shared deck panel is form-free so it embeds safely inside the existing authenticated create and join forms.
 
 ### Pending Todos
 
@@ -147,6 +151,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-20T18:42:40.336Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-08-20T19:09:08.125Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
