@@ -10,8 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/openmtg/edh-go/pkg/ratelimit"
 	"github.com/vektah/gqlparser/v2/gqlerror"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // guestTestSessionID returns a session ID unique to the calling (sub)test,
@@ -438,6 +441,218 @@ func TestGuestUsers_ErrorCodes(t *testing.T) {
 
 func stringPtr(value string) *string {
 	return &value
+}
+
+func TestGuestUsers_Refresh(t *testing.T) {
+	useFastGuestHashes(t)
+
+	t.Run("HappyPath", func(t *testing.T) {
+		s := testAPI(t)
+		guest, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+		if err != nil {
+			t.Fatalf("GuestSession() error = %v", err)
+		}
+
+		refreshed, err := s.RefreshGuestSession(context.Background(), *guest.GuestCredential)
+		if err != nil {
+			t.Fatalf("RefreshGuestSession() error = %v", err)
+		}
+		if refreshed == nil || refreshed.Token == nil || *refreshed.Token == "" {
+			t.Fatalf("RefreshGuestSession() returned no token: %+v", refreshed)
+		}
+		authUser, err := parseAndValidateToken(*refreshed.Token)
+		if err != nil {
+			t.Fatalf("parseAndValidateToken() error = %v", err)
+		}
+		if authUser.ID != guest.ID || authUser.Username != guest.Username {
+			t.Fatalf("refreshed claims = %+v, want ID=%q Username=%q", authUser, guest.ID, guest.Username)
+		}
+		if refreshed.GuestCredential == nil || *refreshed.GuestCredential != *guest.GuestCredential {
+			t.Fatalf("GuestCredential rotated: got %#v, want %q", refreshed.GuestCredential, *guest.GuestCredential)
+		}
+		if refreshed.Password != nil {
+			t.Fatal("RefreshGuestSession() returned Password material")
+		}
+	})
+
+	t.Run("WrongSecret", func(t *testing.T) {
+		s := testAPI(t)
+		guest, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+		if err != nil {
+			t.Fatalf("GuestSession() error = %v", err)
+		}
+		parts := strings.SplitN(*guest.GuestCredential, ".", 2)
+		_, wrongErr := s.RefreshGuestSession(context.Background(), parts[0]+".definitely-the-wrong-secret")
+		assertActivationCode(t, wrongErr, ActivationCodeGuestSessionError)
+
+		_, missingErr := s.RefreshGuestSession(context.Background(), uuid.NewString()+".definitely-the-wrong-secret")
+		assertActivationCode(t, missingErr, ActivationCodeGuestSessionError)
+		if wrongErr.Error() != missingErr.Error() {
+			t.Fatalf("wrong-secret error = %q, missing-row error = %q; messages must be identical", wrongErr, missingErr)
+		}
+	})
+
+	t.Run("MalformedCredential", func(t *testing.T) {
+		for _, credential := range []string{"no-separator", uuid.NewString() + ".", ".secret", "not-a-uuid.secret"} {
+			t.Run(credential, func(t *testing.T) {
+				s := testAPI(t)
+				if err := s.db.Close(); err != nil {
+					t.Fatalf("close test database: %v", err)
+				}
+				_, err := s.RefreshGuestSession(context.Background(), credential)
+				assertActivationCode(t, err, ActivationCodeGuestSessionError)
+				if strings.Contains(err.Error(), "database is closed") {
+					t.Fatalf("malformed credential reached the database: %v", err)
+				}
+			})
+		}
+	})
+
+	t.Run("NonGuestRefused", func(t *testing.T) {
+		s := testAPI(t)
+		id := uuid.NewString()
+		secret := "known-refresh-secret"
+		hash, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.MinCost)
+		if err != nil {
+			t.Fatalf("hash credential: %v", err)
+		}
+		if _, err := s.db.Exec(
+			`INSERT INTO users (uuid, username, password, is_guest, guest_credential_hash) VALUES ($1, $2, $3, false, $4)`,
+			id, uniqueUsername("refresh_non_guest"), "unused", string(hash),
+		); err != nil {
+			t.Fatalf("insert non-guest: %v", err)
+		}
+		_, err = s.RefreshGuestSession(context.Background(), id+"."+secret)
+		assertActivationCode(t, err, ActivationCodeGuestSessionError)
+	})
+}
+
+func TestGuestUsers_ExpiredRowRejected(t *testing.T) {
+	useFastGuestHashes(t)
+	s := testAPI(t)
+	guest, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+	if err != nil {
+		t.Fatalf("GuestSession() error = %v", err)
+	}
+
+	comparisonNow := time.Now().UTC().Truncate(time.Microsecond).Add(321 * time.Microsecond)
+	originalNow := guestSessionNow
+	guestSessionNow = func() time.Time { return comparisonNow }
+	t.Cleanup(func() { guestSessionNow = originalNow })
+
+	setExpiry := func(value any) {
+		t.Helper()
+		if _, err := s.db.Exec(`UPDATE users SET expires_at = $1 WHERE uuid = $2`, value, guest.ID); err != nil {
+			t.Fatalf("set expires_at = %#v: %v", value, err)
+		}
+	}
+
+	setExpiry(comparisonNow.Add(-time.Second))
+	_, err = s.RefreshGuestSession(context.Background(), *guest.GuestCredential)
+	assertActivationCode(t, err, ActivationCodeGuestSessionError)
+
+	setExpiry(comparisonNow.Add(time.Second))
+	if _, err := s.RefreshGuestSession(context.Background(), *guest.GuestCredential); err != nil {
+		t.Fatalf("future expires_at was refused: %v", err)
+	}
+
+	setExpiry(comparisonNow)
+	_, err = s.RefreshGuestSession(context.Background(), *guest.GuestCredential)
+	assertActivationCode(t, err, ActivationCodeGuestSessionError)
+
+	setExpiry(nil)
+	if _, err := s.RefreshGuestSession(context.Background(), *guest.GuestCredential); err != nil {
+		t.Fatalf("NULL expires_at was refused: %v", err)
+	}
+}
+
+func TestGuestUsers_ExpiredRowStillAuthorized(t *testing.T) {
+	useFastGuestHashes(t)
+	s := testAPI(t)
+	guest, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+	if err != nil {
+		t.Fatalf("GuestSession() error = %v", err)
+	}
+	if _, err := s.db.Exec(`UPDATE users SET expires_at = $1 WHERE uuid = $2`, time.Now().Add(-time.Hour), guest.ID); err != nil {
+		t.Fatalf("mark guest expired: %v", err)
+	}
+
+	authUser, err := parseAndValidateToken(*guest.Token)
+	if err != nil {
+		t.Fatalf("parseAndValidateToken() error = %v", err)
+	}
+	ctx := withAuth(context.Background(), authUser)
+	gameID := "expired-row-live-token-" + guestTestSessionID(t)
+	decklist := "1,Sol Ring"
+	game, err := s.CreateGame(ctx, InputCreateGame{
+		ID:   gameID,
+		Turn: &InputTurn{Player: authUser.Username, Phase: "MAIN", Number: 1, Priority: authUser.Username},
+		Players: []*InputBoardState{{
+			UserID: authUser.ID, User: authUser.Username, GameID: gameID, Life: 40, Decklist: &decklist,
+		}},
+	})
+	t.Cleanup(func() { _, _ = s.db.Exec(`DELETE FROM games WHERE id = $1`, gameID) })
+	if err != nil {
+		t.Fatalf("CreateGame() with a live JWT for a marked-expired row error = %v", err)
+	}
+	if game == nil || game.ID != gameID {
+		t.Fatalf("CreateGame() = %+v, want game %q", game, gameID)
+	}
+}
+
+func TestGuestUsers_TokenTTLBoundary(t *testing.T) {
+	useFastGuestHashes(t)
+	s := testAPI(t)
+	guest, err := s.GuestSession(context.Background(), nil, guestTestSessionID(t))
+	if err != nil {
+		t.Fatalf("GuestSession() error = %v", err)
+	}
+
+	claims := &AuthClaims{}
+	if _, _, err := jwt.NewParser().ParseUnverified(*guest.Token, claims); err != nil {
+		t.Fatalf("ParseUnverified() error = %v", err)
+	}
+	if claims.IssuedAt == nil || claims.ExpiresAt == nil {
+		t.Fatalf("token lacks issuance/expiry: %+v", claims)
+	}
+	if got := claims.ExpiresAt.Time.Sub(claims.IssuedAt.Time); got != 24*time.Hour {
+		t.Fatalf("token TTL = %v, want 24h", got)
+	}
+
+	if _, err := parseTokenAt(*guest.Token, claims.IssuedAt.Time.Add(23*time.Hour+59*time.Minute)); err != nil {
+		t.Fatalf("token rejected at 23h59m: %v", err)
+	}
+	if _, err := parseTokenAt(*guest.Token, claims.IssuedAt.Time.Add(24*time.Hour+time.Second)); err == nil {
+		t.Fatal("token accepted at 24h00m01s")
+	}
+}
+
+func useFastGuestHashes(t *testing.T) {
+	t.Helper()
+	originalHash := hashGuestSecret
+	hashGuestSecret = func(secret string) (string, error) {
+		hash, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.MinCost)
+		return string(hash), err
+	}
+	t.Cleanup(func() { hashGuestSecret = originalHash })
+}
+
+func parseTokenAt(tokenString string, at time.Time) (*AuthClaims, error) {
+	secret, err := jwtSecret()
+	if err != nil {
+		return nil, err
+	}
+	claims := &AuthClaims{}
+	parsed, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
+		return secret, nil
+	}, jwt.WithTimeFunc(func() time.Time { return at }))
+	if err != nil {
+		return nil, err
+	}
+	if !parsed.Valid {
+		return nil, errors.New("invalid token")
+	}
+	return claims, nil
 }
 
 // TestMigrations_GuestUsers proves the migration itself: the four new
