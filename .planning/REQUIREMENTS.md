@@ -97,10 +97,10 @@ deck-to-board activation; P1 improves post-value acquisition and operating confi
 - [ ] **REQ-ACT-004**: Reusable deck import and commander review UI — `DeckImportPanel.vue` with text/URL input, source detection, loading/error states, totals, warnings, and unresolved-card correction; a commander-review component driven by `CommanderCandidates`; preserve pasted input, corrections, commander choices, and display name across recoverable failures; replace duplicated deck entry in `FormCreateGame.vue` and `JoinGameView.vue`; keep the authenticated create flow usable during rollout.
   `P0 · L · depends_on: ACT-002 · order 4`
 
-- [ ] **REQ-ACT-005**: Guest identity and account-claim backend — `is_guest` and `expires_at` on prod and test user schemas; `guestSession(displayName, sessionID)` and `claimGuestAccount(username, password, sessionID)`; collision-safe readable guest names; random non-recoverable password hash and 24-hour guest token; reject expired backing guests in authorization; claim the existing row, clear expiry, set credentials through current bcrypt rules, issue a new full token; rate limits, feature flag/kill switch, and an independently retryable cleanup path for unreferenced expired guests.
+- [x] **REQ-ACT-005**: Guest identity and account-claim backend — `is_guest` and `expires_at` on prod and test user schemas; `guestSession(displayName, sessionID)` and `claimGuestAccount(username, password, sessionID)`; collision-safe readable guest names; random non-recoverable password hash and 24-hour guest token; reject expired backing guests in authorization; claim the existing row, clear expiry, set credentials through current bcrypt rules, issue a new full token; rate limits, feature flag/kill switch, and an independently retryable cleanup path for unreferenced expired guests.
   `P0 · L · depends_on: ACT-001 · order 5`
 
-- [ ] **REQ-ACT-006**: Public quick-start host flow — public route `/play` and `QuickStartView.vue`; deck import first, then commander review and optional display name; reuse an authenticated user when present, otherwise create a guest only once the deck can continue; submit `Handle` and `FormatID` correctly with the normalized deck; call the existing `createGame` and route to `/games/:id`; emit host activation events; visible recovery for preview, guest-session, and create failures.
+- [x] **REQ-ACT-006**: Public quick-start host flow — public route `/play` and `QuickStartView.vue`; deck import first, then commander review and optional display name; reuse an authenticated user when present, otherwise create a guest only once the deck can continue; submit `Handle` and `FormatID` correctly with the normalized deck; call the existing `createGame` and route to `/games/:id`; emit host activation events; visible recovery for preview, guest-session, and create failures.
   `P0 · L · depends_on: ACT-004, ACT-005 · order 6`
 
 ### Guest join path
@@ -210,8 +210,8 @@ v1** (see INFO-2 and the milestone scope decision); only the items below remain 
 | REQ-ACT-002 | P0 | L | Phase 1 | Complete |
 | REQ-ACT-003 | P0 | M | Phase 1 | Complete |
 | REQ-ACT-004 | P0 | L | Phase 2 | Pending |
-| REQ-ACT-005 | P0 | L | Phase 2 | Pending |
-| REQ-ACT-006 | P0 | L | Phase 2 | Pending |
+| REQ-ACT-005 | P0 | L | Phase 2 | Complete |
+| REQ-ACT-006 | P0 | L | Phase 2 | Complete |
 | REQ-ACT-007 | P0 | M | Phase 3 | Pending |
 | REQ-ACT-008 | P0 | L | Phase 3 | Pending |
 | REQ-ACT-009 | P0 | M | Phase 3 | Pending |

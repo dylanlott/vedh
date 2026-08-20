@@ -2,18 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-current_phase: 2
-current_phase_name: Guest Host Activation
+current_phase: 02
+current_phase_name: guest-host-activation
 status: executing
-stopped_at: Phase 2 UI-SPEC approved
-last_updated: "2026-08-09T04:41:04.987Z"
-last_activity: 2026-08-08
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-08-20T18:02:56.090Z"
+last_activity: 2026-08-20
+last_activity_desc: Plan 02-01 complete
 progress:
-  total_phases: 2
+  total_phases: 5
   completed_phases: 1
   total_plans: 16
-  completed_plans: 10
+  completed_plans: 11
+  percent: 20
 ---
 
 # Project State
@@ -23,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-03)
 
 **Core value:** A person with a decklist reaches a working, shareable Commander board without registering — and every step of that path is measured.
-**Current focus:** Phase 01 — measured-deck-import-foundation
+**Current focus:** Phase 02 — guest-host-activation
 
 ## Current Position
 
-Phase: 2 — Guest Host Activation
-Plan: Not started
+Phase: 02 (guest-host-activation) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-08-08 — Phase 01 complete, transitioned to Phase 2
+Last activity: 2026-08-20 — Plan 02-01 complete
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 69%
 
 ## Performance Metrics
 
@@ -68,6 +69,7 @@ Progress: [██████████] 100%
 | Phase 01 P08 | 55min | 2 tasks | 5 files |
 | Phase 01 P09 | 40min | 2 tasks | 3 files |
 | Phase 01 P10 | 12min | 1 tasks | 3 files |
+| Phase 02 P01 | 6min | 2 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -102,6 +104,10 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase ?]: 01-09: Rule 1 bug fix -- archidektCollectorNumberRoundTrips gates formatArchidektDeckLine's printing-metadata suffix; a hyphenated Archidekt collector number (e.g. 'MH1-216' from The List reprints) previously folded into the parsed card name and silently failed to resolve, dropping 7 real cards from a 100-card deck (found via this plan's own fixture test)
 - [Phase ?]: 01-09: TestDeckImport_ArchidektURLPath's non-allowlisted-host subtest deliberately uses the real, unstubbed fetchDeckProviderURL (not a spy) since its own host check runs before any dial or DNS lookup -- a genuine end-to-end zero-dial proof
 - [Phase ?]: 01-10: REQ-ACT-003's Complete status independently audited clause-by-clause against 01-09's passing tests and confirmed (comparison/decision record, hostname-keyed adapter, SSRF controls, normalize-through-ACT-002, feature flag/kill switch) -- not merely accepted from 01-09's mechanical frontmatter carry-forward; the human archidekt.com/terms ToS-read precondition gates enabling in deployment, not this requirement's own text, so it does not block completeness
+- [Phase 02]: Guest creation defaults enabled; GUEST_CREATION_ENABLED is an operator kill switch, not a rollout gate.
+- [Phase 02]: Guest rows are durable with expires_at NULL; the 24-hour JWT remains the expiring session boundary.
+- [Phase 02]: Guest creation uses the existing shared rate-limit registry through SurfaceGuestSession.
+- [Phase 02]: Store the guest re-auth bearer secret under edhgo/guest-credential, separate from edhgo/auth and edhgo/session-id.
 
 ### Pending Todos
 
@@ -136,6 +142,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-09T03:52:00.251Z
-Stopped at: Phase 2 UI-SPEC approved
-Resume file: .planning/phases/02-guest-host-activation/02-UI-SPEC.md
+Last session: 2026-08-20T18:02:27.131Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
