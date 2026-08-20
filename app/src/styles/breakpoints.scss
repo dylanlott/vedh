@@ -1,0 +1,7 @@
+// The activation path's first deliberate responsive source of truth.
+// Breakpoints are mobile-first and ascend from the phone layout. Phase 4's
+// board work extends this file instead of creating a second breakpoint map.
+// LandingView, BoardView, and GamesView retain three older, undocumented
+// descending queries; this new architecture deliberately does not extend or
+// reconcile those max-width rules.
+$breakpoint-tablet: 768px;

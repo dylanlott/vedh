@@ -222,7 +222,10 @@ describe('DeckImportPanel', () => {
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sol Ring' } });
 
     await wrapper.get('form').trigger('submit');
-    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    // A disabled button prevents a second user click, while a programmatic
+    // submit (or two submits dispatched before the DOM reflects loading)
+    // still exercises the component's stale-response safety boundary.
+    await wrapper.get('form').trigger('submit');
     second.resolve({ data: { previewDeck: preview({ CardCount: 2 }) } });
     await flushPromises();
     first.resolve({ data: { previewDeck: preview({ CardCount: 99 }) } });

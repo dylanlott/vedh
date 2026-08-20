@@ -16,6 +16,9 @@
   --vedh-muted: rgba(255, 244, 237, 0.74);
   --vedh-primary: #f2a041;
   --vedh-primary-rgb: 242, 160, 65;
+  // Attention only: recoverable activation failures and blocking card errors.
+  // This is never an action color, so "needs attention" cannot read as proceed.
+  --vedh-danger: #e5484d;
   --vedh-secondary: #f00876;
   --vedh-secondary-rgb: 240, 8, 118;
   --vedh-primary-gradient: linear-gradient(120deg, #f2a041, #f00876);
