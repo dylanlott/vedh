@@ -43,6 +43,26 @@ export interface GuestSessionMutationVariables {
   sessionID: string;
 }
 
+// --- Game creation (Phase 2, plan 02-04) ---
+
+export interface InputCreateGame {
+  ID: string;
+  Handle?: string | null;
+  FormatID?: string | null;
+  SessionID?: string | null;
+  Turn: {
+    Player: string;
+    Phase: string;
+    Number: number;
+    Priority: string;
+  };
+  Players: Array<Record<string, unknown>>;
+}
+
+export interface CreateGameMutationVariables {
+  input: InputCreateGame;
+}
+
 // --- Deck import / product-event contract (Phase 1, plan 01-01) ---
 // This file has no real codegen tool wired up yet (see the header comment
 // above), so these mirror server/schema.graphql by hand. previewDeck and

@@ -27,6 +27,7 @@ export const TRACK_PRODUCT_EVENT_MUTATION = gql`
 `;
 
 export const CREATE_GAME_MUTATION = gql`
+  # InputCreateGame carries optional SessionID for server-owned game_created attribution.
   mutation CreateGame($input: InputCreateGame!) {
     createGame(input: $input) {
       ID

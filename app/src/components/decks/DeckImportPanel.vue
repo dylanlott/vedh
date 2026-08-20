@@ -238,6 +238,7 @@ const props = withDefaults(defineProps<{
 });
 
 const emit = defineEmits<{
+  (event: 'submit'): void;
   (event: 'preview-resolved', preview: DeckPreview): void;
   (event: 'change', value: DeckImportChange): void;
   (event: 'error', value: ActivationErrorEntry): void;
@@ -328,6 +329,7 @@ watch([deckText, sourceURL, corrections], () => emit('change', currentChange()),
 
 async function submitPreview(): Promise<void> {
   if (!hasCurrentInput.value) return;
+  emit('submit');
   const sequence = ++requestSequence;
   loading.value = true;
   activationError.value = null;

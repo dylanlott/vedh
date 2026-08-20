@@ -261,6 +261,9 @@ async function handleSubmit() {
   const newId = crypto.randomUUID();
   const payload = {
     ID: newId,
+    Handle: form.name,
+    FormatID: form.format,
+    SessionID: sessionID,
     Turn: { Player: auth.profile?.Username ?? 'Unknown', Phase: 'MAIN', Number: 1, Priority: auth.profile?.Username ?? 'Unknown' },
     Players: [
       {

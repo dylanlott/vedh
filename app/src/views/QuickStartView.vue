@@ -9,6 +9,7 @@
         :initial-source-u-r-l="sourceURL"
         :session-id="sessionID"
         persistence-key="edhgo/quickstart-draft"
+        @submit="handleDeckImportStarted"
         @change="handleDeckChange"
         @preview-resolved="handlePreviewResolved"
         @continue="stage = 'commander'"
@@ -56,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import CommanderReview from '../components/decks/CommanderReview.vue';
 import DeckImportPanel, { type DeckImportChange } from '../components/decks/DeckImportPanel.vue';
@@ -66,7 +67,7 @@ import {
   type ActivationErrorEntry,
 } from '../services/activationErrors';
 import type { CommanderPick } from '../services/commanderPartner';
-import { getSessionID } from '../services/productEvents';
+import { getSessionID, track } from '../services/productEvents';
 import {
   clearDraft,
   readDraft,
@@ -92,6 +93,8 @@ const previewResult = ref<DeckPreview | null>(null);
 const stage = ref<'import' | 'commander'>(selectedCommanders.value.length ? 'commander' : 'import');
 const creating = ref(false);
 const pageError = ref<ActivationErrorEntry | null>(null);
+
+onMounted(() => track('quick_start_viewed'));
 
 const commanderCandidates = computed<CommanderPick[]>(() => {
   const candidates = previewResult.value?.CommanderCandidates ?? [];
@@ -133,6 +136,10 @@ function handleDeckChange(change: DeckImportChange): void {
   sourceURL.value = change.sourceURL;
   corrections.value = { ...change.corrections };
   persistDraft();
+}
+
+function handleDeckImportStarted(): void {
+  track('deck_import_started');
 }
 
 function handlePreviewResolved(preview: DeckPreview): void {
@@ -188,6 +195,9 @@ async function handleStartTable(): Promise<void> {
     const gameID = crypto.randomUUID();
     const payload = {
       ID: gameID,
+      Handle: 'Commander table',
+      FormatID: 'EDH',
+      SessionID: sessionID,
       Turn: { Player: profile.Username, Phase: 'MAIN', Number: 1, Priority: profile.Username },
       Players: [{
         UserID: profile.ID,
@@ -207,6 +217,7 @@ async function handleStartTable(): Promise<void> {
       }],
     } as const;
 
+    track('game_create_started');
     const createdID = await games.createGame(payload);
     if (!createdID) throw new Error('createGame returned no game');
     clearDraft();
