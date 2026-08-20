@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"reflect"
@@ -219,6 +220,193 @@ func TestGames_CreateAndGuestMetricsHaveBoundedLabels(t *testing.T) {
 			assert.ElementsMatch(t, []string{"outcome"}, labels, "%s must not expose a caller-derived identifier label", familyName)
 		}
 	}
+}
+
+func TestGames_CreateStoresDisplayName(t *testing.T) {
+	tests := []struct {
+		name        string
+		displayName *string
+	}{
+		{name: "typed display name", displayName: ptrString("Dylan")},
+		{name: "no display name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := testAPI(t)
+			userID := "create-display-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+			username := "Generated Sliver " + strconv.FormatInt(time.Now().UnixNano(), 10)
+			insertGameTestUser(t, s, userID, username, tt.displayName)
+
+			gameID := "create-display-game-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+			input := displayNameCreateGameInput(gameID, userID, username)
+			cleanupGameTestRows(t, s, gameID, userID)
+
+			created, err := s.CreateGame(authCtxWithID(userID, username), input)
+			assert.NoError(t, err)
+			if assert.Len(t, created.Players, 1) {
+				assert.Equal(t, tt.displayName, created.Players[0].DisplayName)
+				assert.Equal(t, username, created.Players[0].Username)
+			}
+
+			loaded, err := s.GetGame(authCtxWithID(userID, username), gameID)
+			assert.NoError(t, err)
+			if assert.Len(t, loaded.Players, 1) {
+				assert.Equal(t, tt.displayName, loaded.Players[0].DisplayName)
+				assert.Equal(t, username, loaded.Players[0].Username)
+			}
+		})
+	}
+}
+
+func TestGames_JoinStoresDisplayName(t *testing.T) {
+	s := testAPI(t)
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	hostID, hostUsername := "join-host-"+suffix, "Host Sliver "+suffix
+	joinerID, joinerUsername := "join-player-"+suffix, "Joining Sliver "+suffix
+	hostDisplay, joinerDisplay := "Host Dylan", "Guest Dylan"
+	insertGameTestUser(t, s, hostID, hostUsername, &hostDisplay)
+	insertGameTestUser(t, s, joinerID, joinerUsername, &joinerDisplay)
+
+	gameID := "join-display-game-" + suffix
+	cleanupGameTestRows(t, s, gameID, hostID, joinerID)
+	created, err := s.CreateGame(authCtxWithID(hostID, hostUsername), displayNameCreateGameInput(gameID, hostID, hostUsername))
+	assert.NoError(t, err)
+	assert.Equal(t, &hostDisplay, created.Players[0].DisplayName)
+
+	deck := "1,Island"
+	joined, err := s.JoinGame(authCtxWithID(joinerID, joinerUsername), &InputJoinGame{
+		ID:       gameID,
+		Decklist: &deck,
+		BoardState: &InputBoardState{
+			UserID: joinerID,
+			User:   joinerUsername,
+			GameID: gameID,
+			Life:   40,
+		},
+	})
+	assert.NoError(t, err)
+	if assert.Len(t, joined.Players, 2) {
+		assert.Equal(t, &hostDisplay, joined.Players[0].DisplayName, "joining must not disturb the host's stored label")
+		assert.Equal(t, &joinerDisplay, joined.Players[1].DisplayName)
+	}
+}
+
+func TestGames_LegacyPayloadHasNoDisplayName(t *testing.T) {
+	s := testAPI(t)
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	userID, username := "legacy-player-"+suffix, "Legacy Sliver "+suffix
+	gameID := "legacy-display-game-" + suffix
+	cleanupGameTestRows(t, s, gameID)
+
+	legacy := &Game{
+		ID:        gameID,
+		CreatedAt: time.Now(),
+		Players:   []*User{{ID: userID, Username: username}},
+		Stack:     []*Card{},
+		Status:    GameStatusInProgress,
+		Turn:      &Turn{Player: username, Phase: "pregame", Priority: username},
+		Rules:     []*Rule{},
+	}
+	payload, err := json.Marshal(legacy)
+	assert.NoError(t, err)
+	assert.NotContains(t, string(payload), "DisplayName", "nil display names must stay absent from legacy-compatible JSON")
+	_, err = s.db.Exec(`INSERT INTO games (id, payload) VALUES ($1, $2::jsonb)`, gameID, string(payload))
+	assert.NoError(t, err)
+
+	loaded, err := s.GetGame(authCtxWithID(userID, username), gameID)
+	assert.NoError(t, err)
+	if assert.Len(t, loaded.Players, 1) {
+		assert.Nil(t, loaded.Players[0].DisplayName)
+		assert.Equal(t, username, loaded.Players[0].Username)
+	}
+}
+
+func TestGames_DisplayNameIsNotAnIdentityKey(t *testing.T) {
+	s := testAPI(t)
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	hostID, hostUsername := "identity-host-"+suffix, "Brave Sliver "+suffix
+	joinerID, joinerUsername := "identity-joiner-"+suffix, "Clever Wizard "+suffix
+	sharedDisplayName := "Dylan"
+	insertGameTestUser(t, s, hostID, hostUsername, &sharedDisplayName)
+	insertGameTestUser(t, s, joinerID, joinerUsername, &sharedDisplayName)
+
+	gameID := "identity-display-game-" + suffix
+	cleanupGameTestRows(t, s, gameID, hostID, joinerID)
+	_, err := s.CreateGame(authCtxWithID(hostID, hostUsername), displayNameCreateGameInput(gameID, hostID, hostUsername))
+	assert.NoError(t, err)
+	deck := "1,Island"
+	_, err = s.JoinGame(authCtxWithID(joinerID, joinerUsername), &InputJoinGame{
+		ID:       gameID,
+		Decklist: &deck,
+		BoardState: &InputBoardState{
+			UserID: joinerID,
+			User:   joinerUsername,
+			GameID: gameID,
+			Life:   40,
+		},
+	})
+	assert.NoError(t, err)
+
+	for _, identity := range []struct {
+		id       string
+		username string
+	}{
+		{id: hostID, username: hostUsername},
+		{id: joinerID, username: joinerUsername},
+	} {
+		loaded, err := s.GetGame(authCtxWithID(identity.id, identity.username), gameID)
+		assert.NoError(t, err)
+		var matched *User
+		for _, player := range loaded.Players {
+			if player.Username == identity.username {
+				matched = player
+			}
+		}
+		if assert.NotNil(t, matched, "identity lookup must continue matching Username") {
+			assert.Equal(t, identity.id, matched.ID)
+			assert.Equal(t, &sharedDisplayName, matched.DisplayName)
+		}
+	}
+}
+
+func displayNameCreateGameInput(gameID, userID, username string) InputCreateGame {
+	formatID := "EDH"
+	deck := "1,Island"
+	return InputCreateGame{
+		ID:       gameID,
+		FormatID: &formatID,
+		Players: []*InputBoardState{{
+			UserID:   userID,
+			User:     username,
+			GameID:   gameID,
+			Life:     40,
+			Decklist: &deck,
+		}},
+		Turn: &InputTurn{Player: username, Phase: "pregame", Priority: username},
+	}
+}
+
+func insertGameTestUser(t *testing.T, s *graphQLServer, userID, username string, displayName *string) {
+	t.Helper()
+	_, err := s.db.Exec(
+		`INSERT INTO users (uuid, username, password, is_guest, display_name) VALUES ($1, $2, $3, true, $4)`,
+		userID,
+		username,
+		"unused-test-password",
+		displayName,
+	)
+	assert.NoError(t, err)
+}
+
+func cleanupGameTestRows(t *testing.T, s *graphQLServer, gameID string, userIDs ...string) {
+	t.Helper()
+	t.Cleanup(func() {
+		_, _ = s.db.Exec(`DELETE FROM games WHERE id = $1`, gameID)
+		for _, userID := range userIDs {
+			_, _ = s.db.Exec(`DELETE FROM users WHERE uuid = $1`, userID)
+		}
+	})
 }
 
 func telemetryCreateGameInput(gameID string) InputCreateGame {
