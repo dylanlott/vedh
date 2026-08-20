@@ -7,7 +7,6 @@
       <DeckImportPanel
         :initial-text="deckText"
         :initial-source-u-r-l="sourceURL"
-        :initial-corrections="corrections"
         :session-id="sessionID"
         persistence-key="edhgo/quickstart-draft"
         @change="handleDeckChange"

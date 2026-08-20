@@ -210,6 +210,7 @@ import {
   resolveActivationError,
   type ActivationErrorEntry,
 } from '../../services/activationErrors';
+import { QUICK_START_DRAFT_KEY, readDraft } from '../../services/quickStartDraft';
 import type {
   DeckImportIssue,
   DeckPreview,
@@ -228,13 +229,11 @@ export type DeckImportChange = {
 const props = withDefaults(defineProps<{
   initialText?: string;
   initialSourceURL?: string;
-  initialCorrections?: Record<number, string>;
   sessionId: string;
   persistenceKey?: string;
 }>(), {
   initialText: '',
   initialSourceURL: '',
-  initialCorrections: () => ({}),
   persistenceKey: undefined,
 });
 
@@ -248,7 +247,10 @@ const emit = defineEmits<{
 const deckText = ref(props.initialText);
 const sourceURL = ref(props.initialSourceURL);
 const activeSource = ref<'paste' | 'url'>(props.initialSourceURL && !props.initialText ? 'url' : 'paste');
-const corrections = reactive<Record<number, string>>({ ...props.initialCorrections });
+const restoredCorrections = props.persistenceKey === QUICK_START_DRAFT_KEY
+  ? readDraft()?.corrections ?? {}
+  : {};
+const corrections = reactive<Record<number, string>>({ ...restoredCorrections });
 const manualQueries = reactive<Record<number, string>>({});
 const manualResults = reactive<Record<number, Card[]>>({});
 const manualSearching = reactive(new Set<number>());
