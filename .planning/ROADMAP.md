@@ -127,7 +127,7 @@ Plans:
 
 **Ticket waves**: wave 1 — ACT-004 and ACT-005 in parallel (independent; deps satisfied in Phase 1) → wave 2 — ACT-006
 **Open decisions to resolve here**: **OPEN-2 — RESOLVED outside its own option set (D-2.1):** guest rows live indefinitely, distinguished by an `is_guest` flag rather than reaped on a timer; the 24-hour token is unchanged and `expires_at` survives as an operator mark that gates minting a *new* token only (D-2.2). **OPEN-3 — RESOLVED (D-2.10/D-2.11):** desktop and tablet at a single ascending 768px breakpoint applied to the new activation components only; `/play` still works below it with a visible heads-up notice and no hard bounce. Both were settled in `/gsd-discuss-phase 2`; OPEN-3 returns in Phase 4 for ACT-011's board work, which inherits `app/src/styles/breakpoints.scss`.
-**Plans**: 4/6 plans executed
+**Plans**: 5/6 plans executed
 **UI hint**: yes
 Plans:
 
@@ -146,7 +146,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 02-05-PLAN.md — `display_name ?? username` sweep: write-time capture onto game records, `DisplayName` in all five `Players` selection sets, one `displayNameOf` helper, every display site swept and every identity join left comparing on `Username`
+- [x] 02-05-PLAN.md — `display_name ?? username` sweep: write-time capture onto game records, `DisplayName` in all five `Players` selection sets, one `displayNameOf` helper, every display site swept and every identity join left comparing on `Username`
 
 **Wave 5** *(blocked on Wave 4)*
 
@@ -218,7 +218,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Measured Deck Import Foundation | 10/10 | Complete    | 2026-08-08 |
-| 2. Guest Host Activation | 4/6 | In Progress|  |
+| 2. Guest Host Activation | 5/6 | In Progress|  |
 | 3. Invite, Join, and Board Readiness | 0/TBD | Not started | - |
 | 4. Post-Value Acquisition and Funnel Readout | 0/TBD | Not started | - |
 | 5. Release Gate and Regression Suite | 0/TBD | Not started | - |

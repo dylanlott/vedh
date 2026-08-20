@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: guest-host-activation
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-08-20T19:40:25.425Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-08-20T20:03:02.908Z"
 last_activity: 2026-08-20
-last_activity_desc: Plan 02-04 complete
+last_activity_desc: Plan 02-05 complete
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 16
-  completed_plans: 14
+  completed_plans: 15
   percent: 20
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-08-03)
 ## Current Position
 
 Phase: 02 (guest-host-activation) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
-Last activity: 2026-08-20 — Plan 02-04 complete
+Last activity: 2026-08-20 — Plan 02-05 complete
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ Progress: [█████████░] 88%
 | Phase 02 P02 | 32min | 3 tasks | 15 files |
 | Phase 02 P03 | 22min | 3 tasks | 17 files |
 | Phase 02 P04 | 21min | 2 tasks | 13 files |
+| Phase 02 P05 | 14min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,8 @@ Precedence resolutions applied at ingest that affect execution:
 - [Phase 02]: InputCreateGame.SessionID is optional attribution only; blank values skip game_created without a telemetry drop.
 - [Phase 02]: game_created is server-owned, recorded after persistence, and deduplicated by event, user, game, and session.
 - [Phase 02]: DeckImportPanel emits one submit boundary while QuickStartView owns all three client activation event names.
+- [Phase 02]: CreateGame and JoinGame snapshot only the authenticated actor's users.display_name; cosmetic lookup failures log and proceed with nil. — Display names are cosmetic write-time labels and must never block activation.
+- [Phase 02]: displayNameOf is rendering-only; Username remains every comparison, map, turn, zone, and authorization key. — Non-unique display labels cannot safely participate in identity operations.
 
 ### Pending Todos
 
@@ -155,6 +158,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-20T19:39:44.249Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-08-20T20:03:02.857Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
