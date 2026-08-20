@@ -4,13 +4,23 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/openmtg/edh-go/pkg/ratelimit"
-	"github.com/zeebo/errs"
+)
+
+const guestSessionProductMessage = "We couldn't set up your seat at the table."
+
+var (
+	errGuestSessionMissingSession = errors.New("guest session: missing session ID")
+	errGuestSessionDisabled       = errors.New("guest session: disabled")
+	errGuestSessionRateLimited    = errors.New("guest session: rate limited")
+	errGuestSessionNameExhausted  = errors.New("guest session: unique name attempts exhausted")
 )
 
 // guestNameMaxAttempts bounds GuestSession's username_unique collision
@@ -77,25 +87,19 @@ func (s *graphQLServer) GuestSession(ctx context.Context, displayName *string, s
 
 	trimmedSession := strings.TrimSpace(sessionID)
 	if trimmedSession == "" {
-		return nil, errs.New("must provide a sessionID")
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestSessionMissingSession)
 	}
 
 	if !s.guestCreationEnabled() {
-		return nil, errs.New("guest sessions are not available right now")
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestSessionDisabled)
 	}
 
 	clientKey := clientKeyFor(ctx, trimmedSession)
 	if !s.allowRequest(ctx, ratelimit.SurfaceGuestSession, clientKey) {
-		return nil, errs.New("too many guest session requests -- please try again in a moment")
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestSessionRateLimited)
 	}
 
-	var trimmedDisplayName *string
-	if displayName != nil {
-		trimmed := strings.TrimSpace(*displayName)
-		if trimmed != "" {
-			trimmedDisplayName = &trimmed
-		}
-	}
+	normalizedDisplayName := normalizeDisplayName(displayName)
 
 	// The guest's password is crypto/rand and hashed through the same
 	// bcrypt cost-14 path a real signup uses (T-02-05) -- never a cheaper
@@ -104,22 +108,26 @@ func (s *graphQLServer) GuestSession(ctx context.Context, displayName *string, s
 	// credential minted below (DEC-D).
 	rawPassword, err := randomBase64Secret(guestCredentialSecretBytes)
 	if err != nil {
-		return nil, errs.Wrap(err)
+		s.loggerFor(ctx).Error("failed to generate guest password", "err", err)
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
 	}
 	hashedPassword, err := hashGuestSecret(rawPassword)
 	if err != nil {
-		return nil, errs.Wrap(err)
+		s.loggerFor(ctx).Error("failed to hash guest password", "err", err)
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
 	}
 
 	id := uuid.New().String()
 
 	credentialSecret, err := randomBase64Secret(guestCredentialSecretBytes)
 	if err != nil {
-		return nil, errs.Wrap(err)
+		s.loggerFor(ctx).Error("failed to generate guest credential", "err", err)
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
 	}
 	credentialSecretHash, err := hashGuestSecret(credentialSecret)
 	if err != nil {
-		return nil, errs.Wrap(err)
+		s.loggerFor(ctx).Error("failed to hash guest credential", "err", err)
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
 	}
 	// The credential returned to the client is the row's uuid, a single
 	// "." separator, and the plaintext secret -- the uuid half is the O(1)
@@ -138,10 +146,11 @@ func (s *graphQLServer) GuestSession(ctx context.Context, displayName *string, s
 	for attempt := 0; attempt < guestNameMaxAttempts; attempt++ {
 		username, genErr := generateGuestName(attempt)
 		if genErr != nil {
-			return nil, errs.Wrap(genErr)
+			s.loggerFor(ctx).Error("failed to generate guest username", "err", genErr)
+			return nil, newGuestSessionError(guestSessionProductMessage, genErr)
 		}
 
-		row, insertErr := s.insertGuestUser(ctx, stmt, id, username, hashedPassword, trimmedDisplayName, credentialSecretHash)
+		row, insertErr := s.insertGuestUser(ctx, stmt, id, username, hashedPassword, normalizedDisplayName, credentialSecretHash)
 		if insertErr == nil {
 			user = row
 			break
@@ -152,15 +161,18 @@ func (s *graphQLServer) GuestSession(ctx context.Context, displayName *string, s
 			// failure (D-2.6/D-2.7's prohibition).
 			continue
 		}
-		return nil, errs.Wrap(insertErr)
+		s.loggerFor(ctx).Error("failed to insert guest user", "err", insertErr)
+		return nil, newGuestSessionError(guestSessionProductMessage, insertErr)
 	}
 	if user == nil {
-		return nil, errs.New("failed to allocate a unique guest name")
+		s.loggerFor(ctx).Warn("guest username attempts exhausted")
+		return nil, newGuestSessionError(guestSessionProductMessage, errGuestSessionNameExhausted)
 	}
 
 	token, err := newAuthToken(user, time.Hour*24)
 	if err != nil {
-		return nil, errs.Wrap(err)
+		s.loggerFor(ctx).Error("failed to mint guest auth token", "err", err)
+		return nil, newGuestSessionError(guestSessionProductMessage, err)
 	}
 	user.Token = &token
 	user.GuestCredential = &guestCredential
@@ -176,6 +188,36 @@ func (s *graphQLServer) GuestSession(ctx context.Context, displayName *string, s
 
 	outcome = guestSessionOutcomeSuccess
 	return user, nil
+}
+
+// normalizeDisplayName applies the server-authoritative D-2.7 input bound.
+// It strips Unicode control code points, trims surrounding whitespace, and
+// caps the result at 64 runes (not bytes). It deliberately performs no
+// Unicode normalization because display names are non-unique labels.
+func normalizeDisplayName(raw *string) *string {
+	if raw == nil {
+		return nil
+	}
+
+	filtered := strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, *raw)
+	filtered = strings.TrimSpace(filtered)
+	if filtered == "" {
+		return nil
+	}
+
+	runes := []rune(filtered)
+	if len(runes) > 64 {
+		filtered = strings.TrimSpace(string(runes[:64]))
+		if filtered == "" {
+			return nil
+		}
+	}
+	return &filtered
 }
 
 // insertGuestUser runs the single-row INSERT and scans its RETURNING

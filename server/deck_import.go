@@ -205,7 +205,15 @@ func (s *graphQLServer) PreviewDeck(ctx context.Context, input InputDeckImport) 
 		return s.finishPreviewDeck(ctx, input, start, deckimport.SourceUnknown, 0,
 			blockedPreview(deckimport.SourceUnknown, "Provide either a pasted decklist or a deck link, not both."))
 	case hasURL:
-		return s.finishPreviewDeck(ctx, input, start, deckimport.SourceUnknown, 0, s.previewDeckURL(ctx, *input.SourceURL))
+		preview, err := s.previewDeckURL(ctx, *input.SourceURL)
+		if err != nil {
+			// Preserve the existing technical/product failure observations even
+			// though D-2.13 now transports this flow failure as a typed error.
+			_, _ = s.finishPreviewDeck(ctx, input, start, deckimport.SourceUnknown, 0,
+				blockedPreview(deckimport.SourceUnknown, "We couldn't fully read that deck."))
+			return nil, err
+		}
+		return s.finishPreviewDeck(ctx, input, start, deckimport.SourceUnknown, 0, preview)
 	}
 
 	// This is the single canonical parse site for the whole codebase.
@@ -249,23 +257,22 @@ var deckProviderFetch = fetchDeckProviderURL
 // genuinely reaches the secure client and, on a successful fetch,
 // genuinely reaches the adapter's normalizer, which hands a real deck off
 // to the same canonical parser the pasted-text path uses.
-func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) *DeckPreview {
+func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) (*DeckPreview, error) {
 	if !s.providerEnabled() {
 		return blockedPreview(deckimport.SourceUnknown,
-			"Deck links aren't available right now. Paste your decklist as text instead.")
+			"Deck links aren't available right now. Paste your decklist as text instead."), nil
 	}
 
 	adapter, ok := deckProviderAdapterFor(rawURL)
 	if !ok {
 		return blockedPreview(deckimport.SourceUnknown,
-			"Deck links aren't available right now. Paste your decklist as text instead.")
+			"Deck links aren't available right now. Paste your decklist as text instead."), nil
 	}
 
 	body, err := deckProviderFetch(ctx, s.deckProviderClient(), s.deckProviderAllowedHosts, rawURL)
 	if err != nil {
 		s.loggerFor(ctx).Warn("deck provider fetch failed", "err", err)
-		return blockedPreview(deckimport.SourceUnknown,
-			"We couldn't load that deck link right now. Paste your decklist as text instead.")
+		return nil, newProviderUnavailableError("We can't reach that deck link right now.", err)
 	}
 
 	// normalizeToDeckText's error never carries provider response
@@ -275,8 +282,7 @@ func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) *Deck
 	text, err := adapter.normalizeToDeckText(body)
 	if err != nil {
 		s.loggerFor(ctx).Warn("deck provider response could not be normalized", "err", err)
-		return blockedPreview(deckimport.SourceUnknown,
-			"We couldn't load that deck link right now. Paste your decklist as text instead.")
+		return nil, newPreviewError("We couldn't fully read a few cards.", err)
 	}
 
 	// This is the real success path archidektAdapter exercises: normalize,
@@ -284,7 +290,7 @@ func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) *Deck
 	// pasted-text path.
 	parsed := deckimport.ParseWithSource(text, adapter.source())
 	preview, _ := s.buildDeckPreview(ctx, parsed)
-	return preview
+	return preview, nil
 }
 
 // deckProviderClient builds task 2's secure fetch client, scoped to this

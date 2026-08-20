@@ -59,7 +59,7 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	}
 
 	// TECHDEBT: enforce uniqueness as a constraint on username in the DB
-	q := `SELECT "uuid", "username", "password" FROM "users" WHERE username=$1;`
+	q := `SELECT "uuid", "username", "password", "is_guest" FROM "users" WHERE username=$1;`
 	rows, err := s.db.Query(q, username)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -71,8 +71,9 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	defer rows.Close()
 	user := &User{}
 	var hash string
+	var isGuest bool
 	for rows.Next() {
-		if err := rows.Scan(&user.ID, &user.Username, &hash); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &hash, &isGuest); err != nil {
 			s.loggerFor(ctx).Error("failed to scan user at login", "err", err, "username", username)
 			return nil, errs.Wrap(err)
 		}
@@ -81,6 +82,12 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	// check password validity, return if invalid
 	valid := checkPasswordHash(password, hash)
 	if !valid {
+		return nil, errs.New("failed to authenticate")
+	}
+	// Defense in depth: GuestSession sets a crypto/rand password no client
+	// ever sees, but explicitly refusing guest rows keeps this endpoint safe
+	// if a future code path ever assigns a guest a known password.
+	if isGuest {
 		return nil, errs.New("failed to authenticate")
 	}
 

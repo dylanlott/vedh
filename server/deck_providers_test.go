@@ -661,17 +661,9 @@ func TestProvider_ArchidektAdapterRoutesToRealNormalizer(t *testing.T) {
 	input := InputDeckImport{SourceURL: &rawURL, SessionID: "archidekt-routing-test"}
 
 	preview, err := s.PreviewDeck(context.Background(), input)
-	if err != nil {
-		t.Fatalf("PreviewDeck() error = %v", err)
-	}
-	if preview.CanContinue {
-		t.Fatal("expected CanContinue = false: the spy's nil body is not valid JSON")
-	}
-	if len(preview.BlockingErrors) != 1 {
-		t.Fatalf("expected exactly one blocking error, got %d: %v", len(preview.BlockingErrors), preview.BlockingErrors)
-	}
-	if !strings.Contains(strings.ToLower(preview.BlockingErrors[0]), "paste") {
-		t.Fatalf("blocking error %q does not mention pasting text as a fallback", preview.BlockingErrors[0])
+	assertActivationCode(t, err, ActivationCodePreviewError)
+	if preview != nil {
+		t.Fatalf("PreviewDeck() preview = %+v, want nil when the provider response cannot be normalized", preview)
 	}
 	if *called != 1 {
 		t.Fatalf("deckProviderFetch was called %d times, want exactly 1 -- the routing gate should genuinely reach the secure client", *called)

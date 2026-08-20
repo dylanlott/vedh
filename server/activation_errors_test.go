@@ -59,3 +59,17 @@ func TestActivationErrors_ClosedVocabulary(t *testing.T) {
 		t.Fatalf("ActivationCodes() = %#v, want exact closed set %#v", got, want)
 	}
 }
+
+func assertActivationCode(t *testing.T, err error, want ActivationCode) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected activation error code %q", want)
+	}
+	var gqlErr *gqlerror.Error
+	if !errors.As(err, &gqlErr) {
+		t.Fatalf("error type = %T, want *gqlerror.Error: %v", err, err)
+	}
+	if got := gqlErr.Extensions["code"]; got != string(want) {
+		t.Fatalf("extensions.code = %#v, want %q", got, want)
+	}
+}

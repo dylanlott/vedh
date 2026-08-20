@@ -843,14 +843,9 @@ func TestDeckImport_ArchidektURLPath(t *testing.T) {
 
 		input := InputDeckImport{SourceURL: &rawURL, SessionID: "archidekt-url-path-not-allowlisted-test"}
 		preview, err := s.PreviewDeck(context.Background(), input)
-		if err != nil {
-			t.Fatalf("PreviewDeck() error = %v", err)
-		}
-		if preview.CanContinue {
-			t.Fatal("expected CanContinue = false for a host absent from the allowlist even with the flag on")
-		}
-		if len(preview.BlockingErrors) != 1 || !strings.Contains(strings.ToLower(preview.BlockingErrors[0]), "paste") {
-			t.Fatalf("BlockingErrors = %v, want exactly one error mentioning pasting text as a fallback", preview.BlockingErrors)
+		assertActivationCode(t, err, ActivationCodeProviderUnavailable)
+		if preview != nil {
+			t.Fatalf("PreviewDeck() preview = %+v, want nil on provider transport failure", preview)
 		}
 	})
 }

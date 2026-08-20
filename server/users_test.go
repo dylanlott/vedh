@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func uniqueUsername(prefix string) string {
@@ -17,10 +18,11 @@ func uniqueUsername(prefix string) string {
 func TestUsers_LoginRejectsGuest(t *testing.T) {
 	s := testAPI(t)
 	password := "correct-password"
-	hash, err := hashPassword(password)
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	if err != nil {
-		t.Fatalf("hashPassword() error = %v", err)
+		t.Fatalf("bcrypt.GenerateFromPassword() error = %v", err)
 	}
+	hash := string(hashBytes)
 
 	guestUsername := uniqueUsername("login_guest")
 	guestID := uniqueUsername("login_guest_id")
