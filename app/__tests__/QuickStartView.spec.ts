@@ -9,6 +9,12 @@ vi.mock('../src/services/apollo', () => ({
   apolloClient: { mutate: vi.fn() },
 }));
 
+const productEvents = vi.hoisted(() => ({
+  getSessionID: vi.fn(() => 'browser-session-02-04'),
+  track: vi.fn(),
+}));
+vi.mock('../src/services/productEvents', () => productEvents);
+
 const pushMock = vi.fn();
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: pushMock }),
@@ -48,12 +54,25 @@ const GUEST_SESSION_RESULT = {
 
 const CREATE_GAME_RESULT = { createGame: { ID: 'game-1' } };
 
+const UNRESOLVED_PREVIEW = {
+  ...READY_PREVIEW,
+  Unresolved: [{
+    SourceLine: 1,
+    RawLine: '1 Sl Ring',
+    Name: 'Sl Ring',
+    Reason: 'not found',
+    Candidates: [{ Name: 'Sol Ring', Score: 0.99, LowConfidence: false }],
+  }],
+};
+
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   setActivePinia(createPinia());
   mutate().mockReset();
   pushMock.mockReset();
+  productEvents.getSessionID.mockClear();
+  productEvents.track.mockReset();
 });
 
 async function chooseCommander(wrapper: ReturnType<typeof mount>) {
@@ -61,7 +80,48 @@ async function chooseCommander(wrapper: ReturnType<typeof mount>) {
   await wrapper.get('[data-testid="commander-candidate"]').trigger('click');
 }
 
+function operationCalls(kind: 'guest' | 'create') {
+  return mutate().mock.calls.filter((call) => {
+    const variables = call[0].variables ?? {};
+    if (kind === 'guest') return 'displayName' in variables && 'sessionID' in variables;
+    return Boolean(variables.input?.Players);
+  });
+}
+
+function expectPreservedActivationState(wrapper: ReturnType<typeof mount>, rawMessage: string) {
+  expect((wrapper.get('[data-testid="deck-text"]').element as HTMLTextAreaElement).value).toBe('1 Sl Ring');
+  expect(wrapper.text()).toContain('Using Sol Ring');
+  expect(wrapper.text()).toContain('Atraxa');
+  expect((wrapper.get('[data-testid="display-name"]').element as HTMLInputElement).value).toBe('Zoë 💫');
+  expect(wrapper.text()).not.toContain(rawMessage);
+  expect(JSON.parse(sessionStorage.getItem('edhgo/quickstart-draft') ?? '{}')).toMatchObject({
+    deckText: '1 Sl Ring',
+    corrections: { 1: 'Sol Ring' },
+    selectedCommanders: [{ ID: 'commander-1', Name: 'Atraxa' }],
+    displayName: 'Zoë 💫',
+  });
+}
+
 describe('QuickStartView', () => {
+  it('emits quick_start_viewed exactly once per mount and never emits an authoritative name', () => {
+    const first = mount(QuickStartView);
+    expect(productEvents.track).toHaveBeenCalledTimes(1);
+    expect(productEvents.track).toHaveBeenLastCalledWith('quick_start_viewed');
+    first.unmount();
+
+    const second = mount(QuickStartView);
+    expect(productEvents.track).toHaveBeenCalledTimes(2);
+    expect(productEvents.track.mock.calls.map(([name]) => name)).toEqual([
+      'quick_start_viewed',
+      'quick_start_viewed',
+    ]);
+    expect(productEvents.track.mock.calls.flat()).not.toEqual(expect.arrayContaining([
+      'game_created',
+      'guest_session_created',
+    ]));
+    second.unmount();
+  });
+
   it('renders the paste surface for a logged-out visitor with no navigation to login/signup', () => {
     const wrapper = mount(QuickStartView);
     expect(wrapper.text()).toContain('Paste your decklist');
@@ -105,8 +165,35 @@ describe('QuickStartView', () => {
     expect(guestCall.variables.sessionID).toBeTruthy();
     const createGameCall = mutate().mock.calls[2][0];
     expect(createGameCall.variables.input.Players[0].User).toBe('Brave Sliver');
+    expect(createGameCall.variables.input).toMatchObject({
+      Handle: 'Commander table',
+      FormatID: 'EDH',
+      SessionID: 'browser-session-02-04',
+    });
 
     expect(pushMock).toHaveBeenCalledWith({ name: 'board', params: { id: 'game-1' } });
+  });
+
+  it('emits exactly the three permitted client events in order across a complete run', async () => {
+    mutate()
+      .mockResolvedValueOnce({ data: { previewDeck: READY_PREVIEW } })
+      .mockResolvedValueOnce({ data: GUEST_SESSION_RESULT })
+      .mockResolvedValueOnce({ data: CREATE_GAME_RESULT });
+
+    const wrapper = mount(QuickStartView);
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
+    expect(productEvents.track.mock.calls.map(([name]) => name)).toEqual(['quick_start_viewed']);
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    await chooseCommander(wrapper);
+    await wrapper.get('[data-testid="start-table"]').trigger('click');
+    await flushPromises();
+
+    const names = productEvents.track.mock.calls.map(([name]) => name);
+    expect(names).toEqual(['quick_start_viewed', 'deck_import_started', 'game_create_started']);
+    expect(new Set(names)).toEqual(new Set(['quick_start_viewed', 'deck_import_started', 'game_create_started']));
+    expect(productEvents.track.mock.invocationCallOrder[2]).toBeLessThan(mutate().mock.invocationCallOrder[2]);
   });
 
   it('with an authenticated auth store: the same path runs and guestSession is never called', async () => {
@@ -129,7 +216,28 @@ describe('QuickStartView', () => {
     expect(mutate()).toHaveBeenCalledTimes(2);
     const createGameCall = mutate().mock.calls[1][0];
     expect(createGameCall.variables.input.Players[0].User).toBe('RealUser');
+    expect(operationCalls('guest')).toHaveLength(0);
     expect(pushMock).toHaveBeenCalledWith({ name: 'board', params: { id: 'game-1' } });
+  });
+
+  it('does not create a guest on mount, paste, or preview and creates one only at the final valid step', async () => {
+    mutate()
+      .mockResolvedValueOnce({ data: { previewDeck: READY_PREVIEW } })
+      .mockResolvedValueOnce({ data: GUEST_SESSION_RESULT })
+      .mockResolvedValueOnce({ data: CREATE_GAME_RESULT });
+    const wrapper = mount(QuickStartView);
+
+    expect(operationCalls('guest')).toHaveLength(0);
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
+    expect(operationCalls('guest')).toHaveLength(0);
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    expect(operationCalls('guest')).toHaveLength(0);
+
+    await chooseCommander(wrapper);
+    await wrapper.get('[data-testid="start-table"]').trigger('click');
+    await flushPromises();
+    expect(operationCalls('guest')).toHaveLength(1);
   });
 
   it('an empty paste leaves the submit control disabled and previewDeck uncalled', async () => {
@@ -168,6 +276,12 @@ describe('QuickStartView', () => {
     const createGameCalls = mutate().mock.calls.filter((call) => call[0].variables?.input?.Players);
     expect(guestSessionCalls).toHaveLength(1);
     expect(createGameCalls).toHaveLength(1);
+    expect(productEvents.track.mock.calls.map(([name]) => name)).toEqual([
+      'quick_start_viewed',
+      'deck_import_started',
+      'deck_import_started',
+      'game_create_started',
+    ]);
   });
 
   it('restores deck text, corrections, commander picks, and display name from a stored draft', async () => {
@@ -189,18 +303,8 @@ describe('QuickStartView', () => {
   });
 
   it('a failed create preserves every field on screen and in the draft', async () => {
-    const unresolvedPreview = {
-      ...READY_PREVIEW,
-      Unresolved: [{
-        SourceLine: 1,
-        RawLine: '1 Sl Ring',
-        Name: 'Sl Ring',
-        Reason: 'not found',
-        Candidates: [{ Name: 'Sol Ring', Score: 0.99, LowConfidence: false }],
-      }],
-    };
     mutate()
-      .mockResolvedValueOnce({ data: { previewDeck: unresolvedPreview } })
+      .mockResolvedValueOnce({ data: { previewDeck: UNRESOLVED_PREVIEW } })
       .mockResolvedValueOnce({ data: GUEST_SESSION_RESULT })
       .mockRejectedValueOnce({
         message: 'raw SQL create failure',
@@ -228,6 +332,148 @@ describe('QuickStartView', () => {
       selectedCommanders: [{ ID: 'commander-1', Name: 'Atraxa' }],
       displayName: 'Zoë 💫',
     });
+  });
+
+  it.each([
+    {
+      code: 'provider_unavailable',
+      title: "We can't reach that deck link right now.",
+      affordance: 'Paste instead',
+      raw: 'raw provider response 503 secret',
+    },
+    {
+      code: 'preview_error',
+      title: "We couldn't fully read a few cards.",
+      affordance: 'Fix these cards',
+      raw: 'raw GraphQL preview resolver trace',
+    },
+  ])('preserves the full draft and safe recovery for $code', async ({ code, title, affordance, raw }) => {
+    mutate()
+      .mockResolvedValueOnce({ data: { previewDeck: UNRESOLVED_PREVIEW } })
+      .mockRejectedValueOnce({
+        message: raw,
+        graphQLErrors: [{ message: raw, extensions: { code } }],
+      });
+
+    const wrapper = mount(QuickStartView);
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sl Ring');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="suggestion-chip"]').trigger('click');
+    await chooseCommander(wrapper);
+    await wrapper.get('[data-testid="display-name"]').setValue('Zoë 💫');
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(title);
+    expect(wrapper.text()).toContain(affordance);
+    expectPreservedActivationState(wrapper, raw);
+  });
+
+  it.each([
+    {
+      stage: 'guest session',
+      code: 'guest_session_error',
+      title: "We couldn't set up your seat at the table.",
+      raw: 'raw guest SQL duplicate-key detail',
+    },
+    {
+      stage: 'game create',
+      code: 'create_error',
+      title: "We couldn't create your table.",
+      raw: 'raw create SQL statement and bind values',
+    },
+  ])('preserves the full draft and safe recovery for a $stage failure', async ({ code, title, raw }) => {
+    mutate().mockResolvedValueOnce({ data: { previewDeck: UNRESOLVED_PREVIEW } });
+    if (code === 'create_error') mutate().mockResolvedValueOnce({ data: GUEST_SESSION_RESULT });
+    mutate().mockRejectedValueOnce({
+      message: raw,
+      graphQLErrors: [{ message: raw, extensions: { code } }],
+    });
+
+    const wrapper = mount(QuickStartView);
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sl Ring');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="suggestion-chip"]').trigger('click');
+    await chooseCommander(wrapper);
+    await wrapper.get('[data-testid="display-name"]').setValue('Zoë 💫');
+    await wrapper.get('[data-testid="start-table"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(title);
+    expect(wrapper.text()).toContain('Try again');
+    expectPreservedActivationState(wrapper, raw);
+  });
+
+  it('retries create with the established guest profile instead of minting another guest', async () => {
+    mutate()
+      .mockResolvedValueOnce({ data: { previewDeck: READY_PREVIEW } })
+      .mockResolvedValueOnce({ data: GUEST_SESSION_RESULT })
+      .mockRejectedValueOnce({ graphQLErrors: [{ extensions: { code: 'create_error' } }] })
+      .mockResolvedValueOnce({ data: CREATE_GAME_RESULT });
+
+    const wrapper = mount(QuickStartView);
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    await chooseCommander(wrapper);
+    await wrapper.get('[data-testid="start-table"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="quick-start-error"] button').trigger('click');
+    await flushPromises();
+
+    expect(operationCalls('guest')).toHaveLength(1);
+    expect(operationCalls('create')).toHaveLength(2);
+    expect(pushMock).toHaveBeenCalledWith({ name: 'board', params: { id: 'game-1' } });
+  });
+
+  it('disables Start my table while createGame is in flight and ignores a double press', async () => {
+    let resolveCreate!: (value: typeof CREATE_GAME_RESULT extends infer T ? { data: T } : never) => void;
+    const pendingCreate = new Promise<{ data: typeof CREATE_GAME_RESULT }>((resolve) => {
+      resolveCreate = resolve;
+    });
+    mutate()
+      .mockResolvedValueOnce({ data: { previewDeck: READY_PREVIEW } })
+      .mockResolvedValueOnce({ data: GUEST_SESSION_RESULT })
+      .mockReturnValueOnce(pendingCreate);
+
+    const wrapper = mount(QuickStartView);
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    await chooseCommander(wrapper);
+
+    const start = wrapper.get('[data-testid="start-table"]');
+    await start.trigger('click');
+    await flushPromises();
+    expect(start.attributes('disabled')).toBeDefined();
+    await start.trigger('click');
+    expect(operationCalls('create')).toHaveLength(1);
+
+    resolveCreate({ data: CREATE_GAME_RESULT });
+    await flushPromises();
+    expect(operationCalls('guest')).toHaveLength(1);
+    expect(operationCalls('create')).toHaveLength(1);
+  });
+
+  it('round-trips astral-plane and combining characters through the restore path unchanged', async () => {
+    const deckText = '1 Yoshimaru, Ever Faithful 𠜎\n99 I\u0301sland';
+    const displayName = 'A\u030Asa 𐐷';
+    sessionStorage.setItem('edhgo/quickstart-draft', JSON.stringify({
+      deckText,
+      sourceURL: '',
+      corrections: {},
+      selectedCommanders: [],
+      displayName,
+    }));
+
+    const wrapper = mount(QuickStartView);
+    await flushPromises();
+    expect((wrapper.get('[data-testid="deck-text"]').element as HTMLTextAreaElement).value).toBe(deckText);
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    expect(JSON.parse(sessionStorage.getItem('edhgo/quickstart-draft') ?? '{}')).toMatchObject({ deckText, displayName });
   });
 
   it('clears the draft before successful navigation and the next mount is empty', async () => {

@@ -60,6 +60,12 @@ describe('FormCreateGame shared deck import', () => {
     });
     expect(payload.Turn).toMatchObject({ Player: 'Host', Phase: 'MAIN', Number: 1, Priority: 'Host' });
     expect(payload.ID).toBe(payload.Players[0].GameID);
+    expect(payload).toMatchObject({
+      Handle: 'Friday pod',
+      FormatID: 'EDH',
+      SessionID: localStorage.getItem('edhgo/session-id'),
+    });
+    expect(payload.SessionID).toBeTruthy();
   });
 });
 
