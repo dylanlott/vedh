@@ -103,6 +103,91 @@ describe('DeckImportPanel', () => {
     expect(wrapper.text()).not.toContain('Commander (EDH)');
   });
 
+  it('marks the active source unmistakably and associates each tab with one exposed panel', async () => {
+    const wrapper = mountPanel();
+    const pasteTab = wrapper.get('[data-testid="paste-tab"]');
+    const urlTab = wrapper.get('[data-testid="source-url-tab"]');
+    const pastePanel = wrapper.get('[data-testid="paste-panel"]');
+    const urlPanel = wrapper.get('[data-testid="source-url-panel"]');
+
+    expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('Deck source');
+    expect(pasteTab.attributes()).toMatchObject({
+      role: 'tab',
+      'aria-selected': 'true',
+      'aria-controls': 'deck-source-paste-panel',
+      tabindex: '0',
+    });
+    expect(pasteTab.classes()).toContain('is-selected');
+    expect(pasteTab.get('.source-tab-marker').text()).toBe('✓');
+    expect(urlTab.attributes()).toMatchObject({
+      role: 'tab',
+      'aria-selected': 'false',
+      'aria-controls': 'deck-source-url-panel',
+      tabindex: '-1',
+    });
+    expect(urlTab.classes()).not.toContain('is-selected');
+    expect(pastePanel.attributes()).toMatchObject({
+      role: 'tabpanel',
+      'aria-labelledby': 'deck-source-paste-tab',
+    });
+    expect(pastePanel.attributes('hidden')).toBeUndefined();
+    expect(urlPanel.attributes('hidden')).toBe('');
+
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
+    await urlTab.trigger('click');
+    await wrapper.get('[data-testid="source-url"]').setValue('https://archidekt.com/decks/123');
+
+    expect(pasteTab.attributes('aria-selected')).toBe('false');
+    expect(pasteTab.attributes('tabindex')).toBe('-1');
+    expect(pasteTab.classes()).not.toContain('is-selected');
+    expect(pastePanel.attributes('hidden')).toBe('');
+    expect(urlTab.attributes('aria-selected')).toBe('true');
+    expect(urlTab.attributes('tabindex')).toBe('0');
+    expect(urlTab.classes()).toContain('is-selected');
+    expect(urlTab.get('.source-tab-marker').text()).toBe('✓');
+    expect(urlPanel.attributes('hidden')).toBeUndefined();
+
+    await pasteTab.trigger('click');
+    expect((wrapper.get('[data-testid="deck-text"]').element as HTMLTextAreaElement).value).toBe('1 Sol Ring');
+    await urlTab.trigger('click');
+    expect((wrapper.get('[data-testid="source-url"]').element as HTMLInputElement).value).toBe(
+      'https://archidekt.com/decks/123',
+    );
+  });
+
+  it('switches and roves focus with tab keyboard controls', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const wrapper = mount(DeckImportPanel, {
+      attachTo: host,
+      props: {
+        sessionId: 'session-1',
+        context: MAGIC_COMMANDER_DECK_CONTEXT,
+      },
+    });
+    const pasteTab = wrapper.get('[data-testid="paste-tab"]');
+    const urlTab = wrapper.get('[data-testid="source-url-tab"]');
+
+    (pasteTab.element as HTMLButtonElement).focus();
+    await pasteTab.trigger('keydown', { key: 'ArrowRight' });
+    await flushPromises();
+    expect(urlTab.attributes('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(urlTab.element);
+
+    await urlTab.trigger('keydown', { key: 'Home' });
+    await flushPromises();
+    expect(pasteTab.attributes('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(pasteTab.element);
+
+    await pasteTab.trigger('keydown', { key: 'End' });
+    await flushPromises();
+    expect(urlTab.attributes('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(urlTab.element);
+
+    wrapper.unmount();
+    host.remove();
+  });
+
   it('describes the canonical paste grammar and only the registered URL provider', async () => {
     const wrapper = mountPanel();
     const pasteGuidance = wrapper.get('[data-testid="paste-format-guidance"]');
@@ -342,6 +427,8 @@ describe('DeckImportPanel', () => {
     expect(wrapper.get('[data-testid="deck-text"]').classes()).toContain('deck-textarea');
     expect(wrapper.get('[data-testid="deck-import-panel"]').classes()).toContain('deck-import-panel');
     expect(panelSource).toContain('grid-template-columns: minmax(0, 1fr)');
+    expect(panelSource).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(panelSource).toContain('.source-panel[hidden]');
     expect(panelSource).toContain('@media (min-width: bp.$breakpoint-tablet)');
     expect(panelSource).toContain('grid-template-columns: minmax(0, 3fr) minmax(0, 2fr)');
     expect(quickStartSource).toContain("'quick-start-deck-import--wide': stage === 'import'");

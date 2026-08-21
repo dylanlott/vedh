@@ -23,60 +23,92 @@
 
       <div class="source-tabs" role="tablist" aria-label="Deck source">
         <button
+          id="deck-source-paste-tab"
+          ref="pasteTabElement"
           type="button"
-          class="secondary"
+          class="secondary source-tab"
+          :class="{ 'is-selected': activeSource === 'paste' }"
           :aria-selected="activeSource === 'paste'"
+          aria-controls="deck-source-paste-panel"
+          :tabindex="activeSource === 'paste' ? 0 : -1"
           role="tab"
           data-testid="paste-tab"
-          @click="activeSource = 'paste'"
+          @click="activateSource('paste')"
+          @keydown="handleSourceTabKeydown($event, 'paste')"
         >
-          Paste
+          <span class="source-tab-marker" aria-hidden="true">{{ activeSource === 'paste' ? '✓' : '' }}</span>
+          <span>Paste</span>
         </button>
         <button
+          id="deck-source-url-tab"
+          ref="urlTabElement"
           type="button"
-          class="secondary"
+          class="secondary source-tab"
+          :class="{ 'is-selected': activeSource === 'url' }"
           :aria-selected="activeSource === 'url'"
+          aria-controls="deck-source-url-panel"
+          :tabindex="activeSource === 'url' ? 0 : -1"
           role="tab"
           data-testid="source-url-tab"
-          @click="activeSource = 'url'"
+          @click="activateSource('url')"
+          @keydown="handleSourceTabKeydown($event, 'url')"
         >
-          Public URL
+          <span class="source-tab-marker" aria-hidden="true">{{ activeSource === 'url' ? '✓' : '' }}</span>
+          <span>Public URL</span>
         </button>
       </div>
 
       <div class="panel-form">
-        <label v-if="activeSource === 'paste'" class="stacked">
-          <span>Decklist</span>
-          <textarea
-            ref="deckTextElement"
-            v-model="deckText"
-            class="deck-textarea"
-            data-testid="deck-text"
-            aria-describedby="deck-text-format-guidance"
-            rows="10"
-            wrap="soft"
-            spellcheck="false"
-          ></textarea>
-          <p id="deck-text-format-guidance" class="input-guidance" data-testid="paste-format-guidance">
-            Paste Moxfield or Archidekt text exports, CSV, or plain text. Accepted lines include
-            <code>1 Sol Ring</code>, <code>1x Sol Ring</code>, <code>1,Sol Ring</code>,
-            <code>1, Sol Ring</code>, quoted CSV names, or a card name without a quantity.
-          </p>
-        </label>
-        <label v-else class="stacked">
-          <span>Public deck URL</span>
-          <input
-            v-model="sourceURL"
-            data-testid="source-url"
-            type="url"
-            aria-describedby="deck-url-site-guidance"
-            placeholder="https://archidekt.com/decks/…"
-            @keydown.enter.prevent="submitPreview"
-          />
-          <p id="deck-url-site-guidance" class="input-guidance" data-testid="url-site-guidance">
-            Public Archidekt deck URLs are supported. URL import may be disabled by the server operator.
-          </p>
-        </label>
+        <div
+          id="deck-source-paste-panel"
+          class="source-panel"
+          role="tabpanel"
+          aria-labelledby="deck-source-paste-tab"
+          data-testid="paste-panel"
+          :hidden="activeSource !== 'paste'"
+        >
+          <label class="stacked">
+            <span>Decklist</span>
+            <textarea
+              ref="deckTextElement"
+              v-model="deckText"
+              class="deck-textarea"
+              data-testid="deck-text"
+              aria-describedby="deck-text-format-guidance"
+              rows="10"
+              wrap="soft"
+              spellcheck="false"
+            ></textarea>
+            <p id="deck-text-format-guidance" class="input-guidance" data-testid="paste-format-guidance">
+              Paste Moxfield or Archidekt text exports, CSV, or plain text. Accepted lines include
+              <code>1 Sol Ring</code>, <code>1x Sol Ring</code>, <code>1,Sol Ring</code>,
+              <code>1, Sol Ring</code>, quoted CSV names, or a card name without a quantity.
+            </p>
+          </label>
+        </div>
+        <div
+          id="deck-source-url-panel"
+          class="source-panel"
+          role="tabpanel"
+          aria-labelledby="deck-source-url-tab"
+          data-testid="source-url-panel"
+          :hidden="activeSource !== 'url'"
+        >
+          <label class="stacked">
+            <span>Public deck URL</span>
+            <input
+              v-model="sourceURL"
+              data-testid="source-url"
+              type="url"
+              aria-describedby="deck-url-site-guidance"
+              placeholder="https://archidekt.com/decks/…"
+              @keydown.enter.prevent="submitPreview"
+            />
+            <p id="deck-url-site-guidance" class="input-guidance" data-testid="url-site-guidance">
+              Public Archidekt deck URLs are supported. URL import may be disabled by the server operator.
+            </p>
+          </label>
+        </div>
 
         <button
           class="primary"
@@ -284,6 +316,8 @@ const previewResult = ref<DeckPreview | null>(null);
 const activationError = ref<ActivationErrorEntry | null>(null);
 const continued = ref(false);
 const deckTextElement = ref<HTMLTextAreaElement | null>(null);
+const pasteTabElement = ref<HTMLButtonElement | null>(null);
+const urlTabElement = ref<HTMLButtonElement | null>(null);
 let requestSequence = 0;
 
 const hasCurrentInput = computed(() => (
@@ -439,8 +473,34 @@ function continueToCommanders(): void {
   emit('continue', previewResult.value);
 }
 
+type DeckSource = 'paste' | 'url';
+
+function activateSource(source: DeckSource, moveFocus = false): void {
+  activeSource.value = source;
+  if (!moveFocus) return;
+  void nextTick(() => {
+    (source === 'paste' ? pasteTabElement.value : urlTabElement.value)?.focus();
+  });
+}
+
+function handleSourceTabKeydown(event: KeyboardEvent, source: DeckSource): void {
+  let nextSource: DeckSource | null = null;
+  if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+    nextSource = source === 'paste' ? 'url' : 'paste';
+  } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+    nextSource = source === 'paste' ? 'url' : 'paste';
+  } else if (event.key === 'Home') {
+    nextSource = 'paste';
+  } else if (event.key === 'End') {
+    nextSource = 'url';
+  }
+  if (!nextSource) return;
+  event.preventDefault();
+  activateSource(nextSource, true);
+}
+
 async function handleErrorAffordance(): Promise<void> {
-  if (activationError.value?.affordance === 'Paste instead') activeSource.value = 'paste';
+  if (activationError.value?.affordance === 'Paste instead') activateSource('paste');
   if (activationError.value?.affordance === 'Try again') {
     await submitPreview();
     return;
@@ -543,7 +603,6 @@ p {
   font-weight: 600;
 }
 
-.source-tabs,
 .chips,
 .row-heading,
 .loading-state {
@@ -551,6 +610,55 @@ p {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.source-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid var(--vedh-border);
+  border-radius: 12px;
+  background: rgba(255, 244, 237, 0.05);
+}
+
+.source-tab {
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 2px solid transparent;
+  background: transparent;
+}
+
+.source-tab.is-selected {
+  border-color: var(--vedh-border-strong);
+  background: var(--vedh-surface-strong);
+  box-shadow: inset 0 -3px 0 var(--vedh-text);
+}
+
+.source-tab-marker {
+  flex: 0 0 16px;
+  width: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.source-tab:focus-visible {
+  outline: 3px solid var(--vedh-primary);
+  outline-offset: 2px;
+}
+
+.source-panel {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.source-panel[hidden] {
+  display: none;
 }
 
 .row-heading {
