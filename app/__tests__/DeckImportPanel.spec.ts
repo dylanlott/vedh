@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 
@@ -52,12 +54,47 @@ describe('DeckImportPanel', () => {
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
 
     expect(wrapper.text()).toContain('Paste your decklist');
-    expect(wrapper.text()).toContain('Paste a list from any format you already use');
+    expect(wrapper.text()).toContain('Paste a deck export or plain-text list');
+    expect(wrapper.text()).not.toContain('any format');
     expect(wrapper.get('[data-testid="deck-preview-submit"]').attributes('disabled')).toBeDefined();
 
     await (wrapper.vm as unknown as { submitPreview: () => Promise<void> }).submitPreview();
     expect(mutate()).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="preview-totals"]').exists()).toBe(false);
+  });
+
+  it('describes the canonical paste grammar and only the registered URL provider', async () => {
+    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
+    const pasteGuidance = wrapper.get('[data-testid="paste-format-guidance"]');
+    const parserSource = readFileSync(resolve(process.cwd(), '../pkg/deckimport/scanner.go'), 'utf8');
+
+    expect(parserSource).toContain('complete canonical decklist grammar: all six required syntaxes');
+    for (const acceptedLine of ['1 Sol Ring', '1x Sol Ring', '1,Sol Ring', '1, Sol Ring']) {
+      expect(parserSource).toContain(`\`${acceptedLine}\``);
+      expect(pasteGuidance.text()).toContain(acceptedLine);
+    }
+    expect(pasteGuidance.text()).toContain('quoted CSV names');
+    expect(pasteGuidance.text()).toContain('card name without a quantity');
+    expect(wrapper.get('[data-testid="deck-text"]').attributes('aria-describedby')).toBe(
+      'deck-text-format-guidance',
+    );
+
+    await wrapper.get('[data-testid="source-url-tab"]').trigger('click');
+    const urlGuidance = wrapper.get('[data-testid="url-site-guidance"]');
+    const providerSource = readFileSync(resolve(process.cwd(), '../server/deck_providers.go'), 'utf8');
+    const registry = providerSource.match(
+      /var deckProviderAdapters = map\[string\]deckProviderAdapter\{([\s\S]*?)\n\}/,
+    )?.[1] ?? '';
+
+    const registeredHosts = Array.from(registry.matchAll(/^[\t ]*(\w+Host):/gm), match => match[1]);
+    expect(registeredHosts).toEqual(['archidektHost']);
+    expect(providerSource).toContain('const archidektHost = "archidekt.com"');
+    expect(urlGuidance.text()).toContain('Public Archidekt deck URLs are supported');
+    expect(urlGuidance.text()).toContain('may be disabled by the server operator');
+    expect(urlGuidance.text()).not.toContain('Moxfield');
+    expect(wrapper.get('[data-testid="source-url"]').attributes('aria-describedby')).toBe(
+      'deck-url-site-guidance',
+    );
   });
 
   it('renders one panel-level loading state and disables submit while previewDeck is pending', async () => {
@@ -259,7 +296,15 @@ describe('DeckImportPanel', () => {
 
   it('uses fixed-height wrapping input and capped overflow surfaces', () => {
     const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
+    const panelSource = readFileSync(resolve(process.cwd(), 'src/components/decks/DeckImportPanel.vue'), 'utf8');
+    const quickStartSource = readFileSync(resolve(process.cwd(), 'src/views/QuickStartView.vue'), 'utf8');
+
     expect(wrapper.get('[data-testid="deck-text"]').classes()).toContain('deck-textarea');
     expect(wrapper.get('[data-testid="deck-import-panel"]').classes()).toContain('deck-import-panel');
+    expect(panelSource).toContain('grid-template-columns: minmax(0, 1fr)');
+    expect(panelSource).toContain('@media (min-width: bp.$breakpoint-tablet)');
+    expect(panelSource).toContain('grid-template-columns: minmax(0, 3fr) minmax(0, 2fr)');
+    expect(quickStartSource).toContain("'quick-start-deck-import--wide': stage === 'import'");
+    expect(quickStartSource).toContain('grid-column: 1 / -1');
   });
 });

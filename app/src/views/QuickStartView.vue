@@ -5,6 +5,7 @@
 
     <div class="quick-start-layout">
       <DeckImportPanel
+        :class="{ 'quick-start-deck-import--wide': stage === 'import' }"
         :initial-text="deckText"
         :initial-source-u-r-l="sourceURL"
         :session-id="sessionID"
@@ -327,6 +328,10 @@ button:disabled {
   .quick-start-layout {
     grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
     gap: 32px;
+  }
+
+  .quick-start-deck-import--wide {
+    grid-column: 1 / -1;
   }
 }
 </style>

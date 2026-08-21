@@ -7,7 +7,7 @@
     <div class="input-pane">
       <header class="panel-heading">
         <h2>Paste your decklist</h2>
-        <p>Paste a list from any format you already use, or drop in a public deck URL below. We'll check every card and get you to commander selection.</p>
+        <p>Paste a deck export or plain-text list, or use a supported public deck URL. We'll check every card and get you to commander selection.</p>
       </header>
 
       <div class="source-tabs" role="tablist" aria-label="Deck source">
@@ -41,10 +41,16 @@
             v-model="deckText"
             class="deck-textarea"
             data-testid="deck-text"
+            aria-describedby="deck-text-format-guidance"
             rows="10"
             wrap="soft"
             spellcheck="false"
           ></textarea>
+          <p id="deck-text-format-guidance" class="input-guidance" data-testid="paste-format-guidance">
+            Paste Moxfield or Archidekt text exports, CSV, or plain text. Accepted lines include
+            <code>1 Sol Ring</code>, <code>1x Sol Ring</code>, <code>1,Sol Ring</code>,
+            <code>1, Sol Ring</code>, quoted CSV names, or a card name without a quantity.
+          </p>
         </label>
         <label v-else class="stacked">
           <span>Public deck URL</span>
@@ -52,9 +58,13 @@
             v-model="sourceURL"
             data-testid="source-url"
             type="url"
+            aria-describedby="deck-url-site-guidance"
             placeholder="https://archidekt.com/decks/…"
             @keydown.enter.prevent="submitPreview"
           />
+          <p id="deck-url-site-guidance" class="input-guidance" data-testid="url-site-guidance">
+            Public Archidekt deck URLs are supported. URL import may be disabled by the server operator.
+          </p>
         </label>
 
         <button
@@ -488,6 +498,16 @@ p {
   line-height: 1.5;
 }
 
+.input-guidance {
+  color: var(--vedh-muted);
+}
+
+.input-guidance code {
+  color: var(--vedh-text);
+  font: inherit;
+  white-space: nowrap;
+}
+
 .source-tabs,
 .chips,
 .row-heading,
@@ -649,7 +669,7 @@ button:disabled {
 
 @media (min-width: bp.$breakpoint-tablet) {
   .deck-import-panel {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     gap: 32px;
   }
 }
