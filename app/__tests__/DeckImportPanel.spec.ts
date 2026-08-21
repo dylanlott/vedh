@@ -48,7 +48,7 @@ function deferred<T>() {
 
 function preview(overrides: Record<string, unknown> = {}) {
   return {
-    SourceType: 'PASTE',
+    SourceType: 'plain_text',
     CardCount: 1,
     Entries: [{ Quantity: 1, Name: 'Sol Ring', Section: 'main', SourceLine: 1, Resolved: true }],
     CommanderCandidates: [],
@@ -237,6 +237,140 @@ describe('DeckImportPanel', () => {
     pending.resolve({ data: { previewDeck: preview() } });
     await flushPromises();
     expect(wrapper.find('[data-testid="preview-spinner"]').exists()).toBe(false);
+  });
+
+  it('acknowledges a ready paste import with useful, accessible success context', async () => {
+    mutate().mockResolvedValueOnce({ data: { previewDeck: preview({ CardCount: 100 }) } });
+    const wrapper = mountPanel({ initialText: '1 Sol Ring' });
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+
+    const acknowledgement = wrapper.get('[data-testid="paste-import-success"]');
+    expect(acknowledgement.attributes()).toMatchObject({
+      role: 'status',
+      'aria-live': 'polite',
+      'aria-atomic': 'true',
+    });
+    expect(acknowledgement.text()).toContain('Deck import successful');
+    expect(acknowledgement.text()).toContain('100 cards are ready');
+    expect(acknowledgement.text()).toContain('Continue to choose your commander');
+    expect(acknowledgement.get('.paste-import-success-icon').text()).toBe('✓');
+    expect(acknowledgement.get('.paste-import-success-icon').attributes('aria-hidden')).toBe('true');
+    expect(wrapper.get('[data-testid="preview-totals"]').attributes('aria-live')).toBe('off');
+  });
+
+  it.each([
+    ['server says the deck cannot continue', preview({ CanContinue: false })],
+    ['blocking errors remain', preview({ BlockingErrors: ['blocked'], CanContinue: true })],
+  ])('does not acknowledge success when %s', async (_case, result) => {
+    mutate().mockResolvedValueOnce({ data: { previewDeck: result } });
+    const wrapper = mountPanel({ initialText: '1 Sol Ring' });
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="paste-import-success"]').exists()).toBe(false);
+  });
+
+  it('does not acknowledge a URL-tab import even when the provider response is actionable', async () => {
+    mutate().mockResolvedValueOnce({
+      data: { previewDeck: preview({ SourceType: 'archidekt' }) },
+    });
+    const wrapper = mountPanel({ initialSourceURL: 'https://archidekt.com/decks/123' });
+
+    expect(wrapper.get('[data-testid="source-url-tab"]').attributes('aria-selected')).toBe('true');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="paste-import-success"]').exists()).toBe(false);
+  });
+
+  it('never acknowledges loading or transport failure states', async () => {
+    const pending = deferred<{ data: { previewDeck: ReturnType<typeof preview> } }>();
+    mutate().mockReturnValueOnce(pending.promise).mockRejectedValueOnce(
+      apolloError('preview_error', 'raw transport failure'),
+    );
+    const wrapper = mountPanel({ initialText: '1 Sol Ring' });
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    expect(wrapper.find('[data-testid="paste-import-success"]').exists()).toBe(false);
+    pending.resolve({ data: { previewDeck: preview() } });
+    await flushPromises();
+    expect(wrapper.find('[data-testid="paste-import-success"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="paste-import-success"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="activation-error"]').exists()).toBe(true);
+  });
+
+  it('acknowledges the transition after every unresolved card receives an explicit correction', async () => {
+    const unresolved = [
+      {
+        SourceLine: 1,
+        RawLine: '1 Sl Ring',
+        Name: 'Sl Ring',
+        Reason: 'not found',
+        Candidates: [{ Name: 'Sol Ring', Score: 0.98, LowConfidence: false }],
+      },
+      {
+        SourceLine: 2,
+        RawLine: '1 Arcane Sign',
+        Name: 'Arcane Sign',
+        Reason: 'not found',
+        Candidates: [{ Name: 'Arcane Signet', Score: 0.96, LowConfidence: false }],
+      },
+    ];
+    mutate().mockResolvedValueOnce({
+      data: { previewDeck: preview({ CardCount: 100, Unresolved: unresolved }) },
+    });
+    const wrapper = mountPanel({ initialText: '1 Sl Ring\n1 Arcane Sign' });
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="paste-import-success"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="preview-totals"]').attributes('aria-live')).toBe('polite');
+    expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('2 cards need a quick look');
+
+    const suggestions = wrapper.findAll('[data-testid="suggestion-chip"]');
+    await suggestions[0].trigger('click');
+    expect(wrapper.find('[data-testid="paste-import-success"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('1 card needs a quick look');
+
+    await suggestions[1].trigger('click');
+    await flushPromises();
+    const acknowledgement = wrapper.get('[data-testid="paste-import-success"]');
+    const acknowledgementElement = acknowledgement.element;
+    expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('100 of 100 cards ready');
+    expect(acknowledgement.text()).toContain('2 corrections applied');
+
+    await suggestions[1].trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="paste-import-success"]').element).toBe(acknowledgementElement);
+  });
+
+  it('resets during a subsequent import and acknowledges the newly ready result once', async () => {
+    const next = deferred<{ data: { previewDeck: ReturnType<typeof preview> } }>();
+    mutate()
+      .mockResolvedValueOnce({ data: { previewDeck: preview({ CardCount: 1 }) } })
+      .mockReturnValueOnce(next.promise);
+    const wrapper = mountPanel({ initialText: '1 Sol Ring' });
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    const firstElement = wrapper.get('[data-testid="paste-import-success"]').element;
+
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring\n1 Arcane Signet');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    expect(wrapper.find('[data-testid="paste-import-success"]').exists()).toBe(false);
+
+    next.resolve({ data: { previewDeck: preview({ CardCount: 2 }) } });
+    await flushPromises();
+    const second = wrapper.get('[data-testid="paste-import-success"]');
+    expect(second.element).not.toBe(firstElement);
+    expect(second.text()).toContain('2 cards are ready');
+    expect(wrapper.findAll('[data-testid="paste-import-success"]')).toHaveLength(1);
   });
 
   it.each([
@@ -429,6 +563,9 @@ describe('DeckImportPanel', () => {
     expect(panelSource).toContain('grid-template-columns: minmax(0, 1fr)');
     expect(panelSource).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
     expect(panelSource).toContain('.source-panel[hidden]');
+    expect(panelSource).toContain('@keyframes paste-import-success-arrive');
+    expect(panelSource).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(panelSource).toMatch(/prefers-reduced-motion: reduce[\s\S]*\.paste-import-success[\s\S]*animation: none/);
     expect(panelSource).toContain('@media (min-width: bp.$breakpoint-tablet)');
     expect(panelSource).toContain('grid-template-columns: minmax(0, 3fr) minmax(0, 2fr)');
     expect(quickStartSource).toContain("'quick-start-deck-import--wide': stage === 'import'");

@@ -141,7 +141,12 @@
     </div>
 
     <div class="preview-pane">
-      <section v-if="previewResult" class="preview-totals" data-testid="preview-totals" aria-live="polite">
+      <section
+        v-if="previewResult"
+        class="preview-totals"
+        data-testid="preview-totals"
+        :aria-live="pasteReady ? 'off' : 'polite'"
+      >
         <p class="ready-line">{{ readyLine }}</p>
         <p>{{ warningLine }}</p>
         <p :class="{ blocking: previewResult.BlockingErrors.length > 0 }">{{ blockingLine }}</p>
@@ -155,6 +160,22 @@
             {{ truncateDisplay(message) }}
           </li>
         </ul>
+      </section>
+
+      <section
+        v-if="pasteSuccessAcknowledgement"
+        :key="pasteSuccessAcknowledgement.revision"
+        class="paste-import-success"
+        data-testid="paste-import-success"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <span class="paste-import-success-icon" aria-hidden="true">✓</span>
+        <div class="paste-import-success-copy">
+          <strong>Deck import successful</strong>
+          <p>{{ pasteSuccessAcknowledgement.detail }}</p>
+        </div>
       </section>
 
       <section v-if="previewResult?.Unresolved.length" class="unresolved-section">
@@ -313,12 +334,21 @@ const manualSearching = reactive(new Set<number>());
 const manualDebounces = new Map<number, number>();
 const loading = ref(false);
 const previewResult = ref<DeckPreview | null>(null);
+const previewInputSource = ref<'paste' | 'url' | null>(null);
 const activationError = ref<ActivationErrorEntry | null>(null);
 const continued = ref(false);
 const deckTextElement = ref<HTMLTextAreaElement | null>(null);
 const pasteTabElement = ref<HTMLButtonElement | null>(null);
 const urlTabElement = ref<HTMLButtonElement | null>(null);
 let requestSequence = 0;
+let previewRevision = 0;
+
+type PasteSuccessAcknowledgement = {
+  revision: number;
+  detail: string;
+};
+
+const pasteSuccessAcknowledgement = ref<PasteSuccessAcknowledgement | null>(null);
 
 const hasCurrentInput = computed(() => (
   activeSource.value === 'url' ? sourceURL.value.trim().length > 0 : deckText.value.length > 0
@@ -328,14 +358,48 @@ const canContinue = computed(() => Boolean(
   previewResult.value?.CanContinue && previewResult.value.BlockingErrors.length === 0,
 ));
 
+function hasExplicitCorrection(sourceLine: number): boolean {
+  return sourceLine in corrections;
+}
+
+const pendingUnresolvedCount = computed(() => {
+  const result = previewResult.value;
+  if (!result) return 0;
+  return result.Unresolved.filter((issue) => !hasExplicitCorrection(issue.SourceLine)).length;
+});
+const correctedUnresolvedCount = computed(() => {
+  const result = previewResult.value;
+  if (!result) return 0;
+  return result.Unresolved.filter((issue) => (
+    hasExplicitCorrection(issue.SourceLine) && corrections[issue.SourceLine].length > 0
+  )).length;
+});
+const removedUnresolvedCount = computed(() => {
+  const result = previewResult.value;
+  if (!result) return 0;
+  return result.Unresolved.filter((issue) => (
+    hasExplicitCorrection(issue.SourceLine) && corrections[issue.SourceLine].length === 0
+  )).length;
+});
+const pasteReady = computed(() => Boolean(
+  !loading.value
+  && !activationError.value
+  && previewInputSource.value === 'paste'
+  && canContinue.value
+  && pendingUnresolvedCount.value === 0,
+));
+
 const readyCount = computed(() => {
   const result = previewResult.value;
   if (!result) return 0;
-  return Math.max(result.CardCount - result.Unresolved.length, 0);
+  return Math.max(
+    result.CardCount - result.Unresolved.length + correctedUnresolvedCount.value,
+    0,
+  );
 });
 const readyLine = computed(() => {
-  const count = previewResult.value?.CardCount ?? 0;
-  const needs = previewResult.value?.Unresolved.length ?? 0;
+  const count = Math.max((previewResult.value?.CardCount ?? 0) - removedUnresolvedCount.value, 0);
+  const needs = pendingUnresolvedCount.value;
   const base = `${readyCount.value} of ${count} ${count === 1 ? 'card' : 'cards'} ready`;
   return needs === 0 ? base : `${base} — ${needs} ${needs === 1 ? 'card needs' : 'cards need'} a quick look`;
 });
@@ -348,9 +412,37 @@ const blockingLine = computed(() => {
   return count === 0 ? 'No blocking errors' : `${count} blocking ${count === 1 ? 'error' : 'errors'}`;
 });
 const unresolvedHeading = computed(() => {
-  const count = previewResult.value?.Unresolved.length ?? 0;
+  const count = pendingUnresolvedCount.value;
+  if (count === 0) {
+    const applied = correctedUnresolvedCount.value + removedUnresolvedCount.value;
+    return `${applied} ${applied === 1 ? 'correction applied' : 'corrections applied'}`;
+  }
   return `${count} ${count === 1 ? 'card needs' : 'cards need'} a quick look`;
 });
+const pasteSuccessDetail = computed(() => {
+  const cardCount = readyCount.value;
+  const correctionCount = correctedUnresolvedCount.value;
+  const removedCount = removedUnresolvedCount.value;
+  const contextParts = [`${cardCount} ${cardCount === 1 ? 'card is' : 'cards are'} ready`];
+  if (correctionCount > 0) {
+    contextParts.push(`${correctionCount} ${correctionCount === 1 ? 'correction' : 'corrections'} applied`);
+  }
+  if (removedCount > 0) {
+    contextParts.push(`${removedCount} ${removedCount === 1 ? 'line' : 'lines'} removed`);
+  }
+  return `${contextParts.join(' · ')}. Continue to choose your commander.`;
+});
+
+watch(pasteReady, (ready) => {
+  if (!ready) {
+    pasteSuccessAcknowledgement.value = null;
+    return;
+  }
+  pasteSuccessAcknowledgement.value = {
+    revision: previewRevision,
+    detail: pasteSuccessDetail.value,
+  };
+}, { flush: 'post' });
 
 function currentChange(): DeckImportChange {
   return {
@@ -391,9 +483,11 @@ async function submitPreview(): Promise<void> {
   loading.value = true;
   activationError.value = null;
   previewResult.value = null;
+  previewInputSource.value = null;
   continued.value = false;
 
-  const input = activeSource.value === 'url'
+  const submittedSource = activeSource.value;
+  const input = submittedSource === 'url'
     ? { sourceURL: sourceURL.value, sessionID: props.sessionId }
     : { text: deckText.value, sessionID: props.sessionId };
 
@@ -405,6 +499,8 @@ async function submitPreview(): Promise<void> {
     if (sequence !== requestSequence) return;
     const result = data?.previewDeck ?? null;
     if (!result) throw new Error('previewDeck returned no result');
+    previewRevision += 1;
+    previewInputSource.value = submittedSource;
     previewResult.value = result;
     emit('preview-resolved', result);
     emit('change', currentChange());
@@ -726,13 +822,52 @@ button:disabled {
 }
 
 .activation-error,
-.preview-totals {
+.preview-totals,
+.paste-import-success {
   display: grid;
   gap: 8px;
   padding: 16px;
   border-radius: 12px;
   background: var(--vedh-surface);
   border: 1px solid var(--vedh-border);
+}
+
+.paste-import-success {
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  border-color: var(--vedh-border-strong);
+  background: var(--vedh-surface-strong);
+  animation: paste-import-success-arrive 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.paste-import-success-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--vedh-border-strong);
+  border-radius: 50%;
+  background: var(--vedh-panel-strong);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  animation: paste-import-success-check 560ms cubic-bezier(0.2, 0.9, 0.2, 1.2) both;
+}
+
+.paste-import-success-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.paste-import-success-copy strong {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.paste-import-success-copy p {
+  color: var(--vedh-muted);
 }
 
 .activation-error,
@@ -808,6 +943,30 @@ button:disabled {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes paste-import-success-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes paste-import-success-check {
+  from { transform: scale(0.72) rotate(-8deg); }
+  65% { transform: scale(1.12) rotate(2deg); }
+  to { transform: scale(1) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paste-import-success,
+  .paste-import-success-icon {
+    animation: none;
+  }
 }
 
 @media (min-width: bp.$breakpoint-tablet) {
