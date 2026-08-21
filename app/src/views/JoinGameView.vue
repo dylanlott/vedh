@@ -30,6 +30,7 @@
       <DeckImportPanel
         :initial-text="decklist"
         :session-id="sessionID"
+        :context="MAGIC_COMMANDER_DECK_CONTEXT"
         @change="handleDeckChange"
         @preview-resolved="deckPreview = $event"
       />
@@ -109,6 +110,7 @@ import { useAuthStore } from '../stores/auth';
 import { apolloClient } from '../services/apollo';
 import { SEARCH_CARDS_QUERY } from '../graphql/queries';
 import DeckImportPanel, { type DeckImportChange } from '../components/decks/DeckImportPanel.vue';
+import { MAGIC_COMMANDER_DECK_CONTEXT } from '../components/decks/deckImportContext';
 import { getSessionID } from '../services/productEvents';
 import type { DeckPreview } from '../types/generated';
 import {

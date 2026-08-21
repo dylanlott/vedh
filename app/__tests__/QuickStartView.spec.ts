@@ -21,6 +21,8 @@ vi.mock('vue-router', () => ({
 }));
 
 import { apolloClient } from '../src/services/apollo';
+import DeckImportPanel from '../src/components/decks/DeckImportPanel.vue';
+import { MAGIC_COMMANDER_DECK_CONTEXT } from '../src/components/decks/deckImportContext';
 import QuickStartView from '../src/views/QuickStartView.vue';
 import { useAuthStore } from '../src/stores/auth';
 
@@ -124,7 +126,19 @@ describe('QuickStartView', () => {
 
   it('renders the paste surface for a logged-out visitor with no navigation to login/signup', () => {
     const wrapper = mount(QuickStartView);
+    const panel = wrapper.getComponent(DeckImportPanel);
+
     expect(wrapper.text()).toContain('Paste your decklist');
+    expect(panel.props('context')).toEqual(MAGIC_COMMANDER_DECK_CONTEXT);
+    const context = wrapper.get('[data-testid="deck-import-context"]');
+    expect(context.findAll('dt').map((term) => term.text())).toEqual(['Game', 'Format']);
+    expect(context.findAll('dd').map((value) => value.text())).toEqual([
+      'Magic: The Gathering',
+      'Commander (EDH)',
+    ]);
+    expect(wrapper.get('[data-testid="deck-import-panel"]').attributes('aria-label')).toBe(
+      'Magic: The Gathering Commander (EDH) deck import',
+    );
     expect(pushMock).not.toHaveBeenCalled();
   });
 

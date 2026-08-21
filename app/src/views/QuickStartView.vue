@@ -9,6 +9,7 @@
         :initial-text="deckText"
         :initial-source-u-r-l="sourceURL"
         :session-id="sessionID"
+        :context="MAGIC_COMMANDER_DECK_CONTEXT"
         persistence-key="edhgo/quickstart-draft"
         @submit="handleDeckImportStarted"
         @change="handleDeckChange"
@@ -62,6 +63,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import CommanderReview from '../components/decks/CommanderReview.vue';
 import DeckImportPanel, { type DeckImportChange } from '../components/decks/DeckImportPanel.vue';
+import { MAGIC_COMMANDER_DECK_CONTEXT } from '../components/decks/deckImportContext';
 import MobileHeadsUpNotice from '../components/decks/MobileHeadsUpNotice.vue';
 import {
   resolveActivationError,

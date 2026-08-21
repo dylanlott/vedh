@@ -9,11 +9,31 @@ vi.mock('../src/services/apollo', () => ({
 
 import { apolloClient } from '../src/services/apollo';
 import DeckImportPanel from '../src/components/decks/DeckImportPanel.vue';
+import {
+  MAGIC_COMMANDER_DECK_CONTEXT,
+  type DeckImportContext,
+} from '../src/components/decks/deckImportContext';
 
 type Mock = ReturnType<typeof vi.fn>;
 
 function mutate(): Mock {
   return apolloClient.mutate as unknown as Mock;
+}
+
+function mountPanel(props: Partial<{
+  sessionId: string;
+  initialText: string;
+  initialSourceURL: string;
+  persistenceKey: string;
+  context: DeckImportContext;
+}> = {}) {
+  return mount(DeckImportPanel, {
+    props: {
+      sessionId: 'session-1',
+      context: MAGIC_COMMANDER_DECK_CONTEXT,
+      ...props,
+    },
+  });
 }
 
 function deferred<T>() {
@@ -51,7 +71,7 @@ beforeEach(() => {
 
 describe('DeckImportPanel', () => {
   it('renders its empty-state copy, disables submit, and never previews empty input', async () => {
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
+    const wrapper = mountPanel();
 
     expect(wrapper.text()).toContain('Paste your decklist');
     expect(wrapper.text()).toContain('Paste a deck export or plain-text list');
@@ -63,8 +83,28 @@ describe('DeckImportPanel', () => {
     expect(wrapper.find('[data-testid="preview-totals"]').exists()).toBe(false);
   });
 
+  it('visibly and accessibly identifies a typed, replaceable game and format context', () => {
+    const futureContext = {
+      gameLabel: 'Future card game',
+      formatLabel: 'Future format',
+    } satisfies DeckImportContext;
+    const wrapper = mountPanel({ context: futureContext });
+    const context = wrapper.get('[data-testid="deck-import-context"]');
+
+    expect(context.findAll('dt').map((term) => term.text())).toEqual(['Game', 'Format']);
+    expect(context.findAll('dd').map((value) => value.text())).toEqual([
+      'Future card game',
+      'Future format',
+    ]);
+    expect(wrapper.get('[data-testid="deck-import-panel"]').attributes('aria-label')).toBe(
+      'Future card game Future format deck import',
+    );
+    expect(wrapper.text()).not.toContain('Magic: The Gathering');
+    expect(wrapper.text()).not.toContain('Commander (EDH)');
+  });
+
   it('describes the canonical paste grammar and only the registered URL provider', async () => {
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
+    const wrapper = mountPanel();
     const pasteGuidance = wrapper.get('[data-testid="paste-format-guidance"]');
     const parserSource = readFileSync(resolve(process.cwd(), '../pkg/deckimport/scanner.go'), 'utf8');
 
@@ -100,7 +140,7 @@ describe('DeckImportPanel', () => {
   it('renders one panel-level loading state and disables submit while previewDeck is pending', async () => {
     const pending = deferred<{ data: { previewDeck: ReturnType<typeof preview> } }>();
     mutate().mockReturnValueOnce(pending.promise);
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
+    const wrapper = mountPanel();
 
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
@@ -120,7 +160,7 @@ describe('DeckImportPanel', () => {
     [3, '3 warnings'],
   ])('pluralizes %i warnings in a resolved totals card', async (count, copy) => {
     mutate().mockResolvedValueOnce({ data: { previewDeck: preview({ Warnings: Array(count).fill('warning') }) } });
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sol Ring' } });
+    const wrapper = mountPanel({ initialText: '1 Sol Ring' });
 
     expect(wrapper.find('[data-testid="preview-totals"]').exists()).toBe(false);
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
@@ -138,7 +178,7 @@ describe('DeckImportPanel', () => {
     mutate().mockResolvedValueOnce({
       data: { previewDeck: preview({ BlockingErrors: Array(count).fill('blocking'), CanContinue: true }) },
     });
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sol Ring' } });
+    const wrapper = mountPanel({ initialText: '1 Sol Ring' });
 
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
@@ -166,7 +206,7 @@ describe('DeckImportPanel', () => {
       .mockResolvedValueOnce({ data: { previewDeck: preview() } })
       .mockResolvedValueOnce({ data: { previewDeck: preview({ Unresolved: [issue(1)] }) } })
       .mockResolvedValueOnce({ data: { previewDeck: preview({ Unresolved: [issue(1), issue(2), issue(3)] }) } });
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Typo Card' } });
+    const wrapper = mountPanel({ initialText: '1 Typo Card' });
 
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
@@ -196,7 +236,7 @@ describe('DeckImportPanel', () => {
     mutate()
       .mockResolvedValueOnce({ data: { previewDeck: preview({ Unresolved: unresolved }) } })
       .mockResolvedValueOnce({ data: { previewDeck: preview({ Unresolved: unresolved }) } });
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sl Ring' } });
+    const wrapper = mountPanel({ initialText: '1 Sl Ring' });
 
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
@@ -217,7 +257,7 @@ describe('DeckImportPanel', () => {
   ])('renders safe %s recovery without row errors or totals', async (code, affordance) => {
     const raw = `GraphQL SQL provider internals for ${code}`;
     mutate().mockRejectedValueOnce(apolloError(code, raw));
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sol Ring' } });
+    const wrapper = mountPanel({ initialText: '1 Sol Ring' });
 
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
@@ -240,7 +280,7 @@ describe('DeckImportPanel', () => {
         Candidates: [{ Name: `💫${'B'.repeat(90)}`, Score: 1, LowConfidence: false }],
       }] }) },
     });
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
+    const wrapper = mountPanel();
 
     await wrapper.get('[data-testid="deck-text"]').setValue(pasted);
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
@@ -256,7 +296,7 @@ describe('DeckImportPanel', () => {
     const first = deferred<{ data: { previewDeck: ReturnType<typeof preview> } }>();
     const second = deferred<{ data: { previewDeck: ReturnType<typeof preview> } }>();
     mutate().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1', initialText: '1 Sol Ring' } });
+    const wrapper = mountPanel({ initialText: '1 Sol Ring' });
 
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     // A disabled button prevents a second user click, while a programmatic
@@ -277,7 +317,7 @@ describe('DeckImportPanel', () => {
     mutate()
       .mockResolvedValueOnce({ data: { previewDeck: preview() } })
       .mockResolvedValueOnce({ data: { previewDeck: preview({ SourceType: 'URL' }) } });
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-123' } });
+    const wrapper = mountPanel({ sessionId: 'session-123' });
 
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring');
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
@@ -295,7 +335,7 @@ describe('DeckImportPanel', () => {
   });
 
   it('uses fixed-height wrapping input and capped overflow surfaces', () => {
-    const wrapper = mount(DeckImportPanel, { props: { sessionId: 'session-1' } });
+    const wrapper = mountPanel();
     const panelSource = readFileSync(resolve(process.cwd(), 'src/components/decks/DeckImportPanel.vue'), 'utf8');
     const quickStartSource = readFileSync(resolve(process.cwd(), 'src/views/QuickStartView.vue'), 'utf8');
 

@@ -3,11 +3,22 @@
     class="deck-import-panel"
     data-testid="deck-import-panel"
     :data-persistence-key="persistenceKey"
+    :aria-label="`${context.gameLabel} ${context.formatLabel} deck import`"
   >
     <div class="input-pane">
       <header class="panel-heading">
         <h2>Paste your decklist</h2>
         <p>Paste a deck export or plain-text list, or use a supported public deck URL. We'll check every card and get you to commander selection.</p>
+        <dl class="deck-context" data-testid="deck-import-context">
+          <div>
+            <dt>Game</dt>
+            <dd>{{ context.gameLabel }}</dd>
+          </div>
+          <div>
+            <dt>Format</dt>
+            <dd>{{ context.formatLabel }}</dd>
+          </div>
+        </dl>
       </header>
 
       <div class="source-tabs" role="tablist" aria-label="Deck source">
@@ -221,6 +232,7 @@ import {
   type ActivationErrorEntry,
 } from '../../services/activationErrors';
 import { QUICK_START_DRAFT_KEY, readDraft } from '../../services/quickStartDraft';
+import type { DeckImportContext } from './deckImportContext';
 import type {
   DeckImportIssue,
   DeckPreview,
@@ -241,6 +253,7 @@ const props = withDefaults(defineProps<{
   initialSourceURL?: string;
   sessionId: string;
   persistenceKey?: string;
+  context: DeckImportContext;
 }>(), {
   initialText: '',
   initialSourceURL: '',
@@ -506,6 +519,28 @@ p {
   color: var(--vedh-text);
   font: inherit;
   white-space: nowrap;
+}
+
+.deck-context,
+.deck-context div {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.deck-context {
+  margin: 8px 0 0;
+  column-gap: 24px;
+}
+
+.deck-context dt {
+  color: var(--vedh-muted);
+}
+
+.deck-context dd {
+  margin: 0;
+  font-weight: 600;
 }
 
 .source-tabs,

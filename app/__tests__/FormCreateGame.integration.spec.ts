@@ -22,6 +22,7 @@ import { apolloClient } from '../src/services/apollo';
 import { SIGNUP_MUTATION } from '../src/graphql/mutations';
 import FormCreateGame from '../src/components/games/FormCreateGame.vue';
 import DeckImportPanel from '../src/components/decks/DeckImportPanel.vue';
+import { MAGIC_COMMANDER_DECK_CONTEXT } from '../src/components/decks/deckImportContext';
 import { useGamesStore } from '../src/stores/games';
 
 beforeEach(() => {
@@ -37,6 +38,16 @@ describe('FormCreateGame shared deck import', () => {
 
     expect(panel.exists()).toBe(true);
     expect(panel.props('persistenceKey')).toBeUndefined();
+    expect(panel.props('context')).toEqual(MAGIC_COMMANDER_DECK_CONTEXT);
+    const context = wrapper.get('[data-testid="deck-import-context"]');
+    expect(context.findAll('dt').map((term) => term.text())).toEqual(['Game', 'Format']);
+    expect(context.findAll('dd').map((value) => value.text())).toEqual([
+      'Magic: The Gathering',
+      'Commander (EDH)',
+    ]);
+    expect(wrapper.get('[data-testid="deck-import-panel"]').attributes('aria-label')).toBe(
+      'Magic: The Gathering Commander (EDH) deck import',
+    );
     expect(wrapper.text()).not.toContain('quantity,name per line');
   });
 
