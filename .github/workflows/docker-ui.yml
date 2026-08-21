@@ -10,6 +10,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: build docker ui
-      run: make docker-ui
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm
+        cache-dependency-path: app/package-lock.json
+    - name: Install frontend dependencies
+      working-directory: app
+      run: npm ci
+    - name: Compile production frontend
+      working-directory: app
+      run: npm run build
