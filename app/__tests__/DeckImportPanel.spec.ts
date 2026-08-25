@@ -65,6 +65,7 @@ function apolloError(code: string, raw: string) {
 }
 
 beforeEach(() => {
+  sessionStorage.clear();
   mutate().mockReset();
   (apolloClient.query as unknown as Mock).mockReset();
 });
@@ -323,7 +324,14 @@ describe('DeckImportPanel', () => {
       },
     ];
     mutate().mockResolvedValueOnce({
-      data: { previewDeck: preview({ CardCount: 100, Unresolved: unresolved }) },
+      data: { previewDeck: preview({
+        CardCount: 98,
+        Entries: [
+          { Quantity: 1, Name: 'Sl Ring', Section: 'main', SourceLine: 1, Resolved: false },
+          { Quantity: 1, Name: 'Arcane Sign', Section: 'main', SourceLine: 2, Resolved: false },
+        ],
+        Unresolved: unresolved,
+      }) },
     });
     const wrapper = mountPanel({ initialText: '1 Sl Ring\n1 Arcane Sign' });
 
@@ -333,19 +341,20 @@ describe('DeckImportPanel', () => {
     expect(wrapper.get('[data-testid="preview-totals"]').attributes('aria-live')).toBe('polite');
     expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('2 cards need a quick look');
 
-    const suggestions = wrapper.findAll('[data-testid="suggestion-chip"]');
-    await suggestions[0].trigger('click');
+    expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('98 of 100 cards ready');
+    const suggestions = wrapper.findAll('[data-testid="suggestion-control"]');
+    await suggestions[0].setValue(true);
     expect(wrapper.find('[data-testid="paste-import-success"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('1 card needs a quick look');
 
-    await suggestions[1].trigger('click');
+    await suggestions[1].setValue(true);
     await flushPromises();
     const acknowledgement = wrapper.get('[data-testid="paste-import-success"]');
     const acknowledgementElement = acknowledgement.element;
     expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('100 of 100 cards ready');
     expect(acknowledgement.text()).toContain('2 corrections applied');
 
-    await suggestions[1].trigger('click');
+    await suggestions[1].setValue(true);
     await flushPromises();
     expect(wrapper.get('[data-testid="paste-import-success"]').element).toBe(acknowledgementElement);
   });
@@ -434,7 +443,7 @@ describe('DeckImportPanel', () => {
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
     expect(wrapper.text()).toContain('1 card needs a quick look');
-    expect(wrapper.findAll('[data-testid="suggestion-chip"]')).toHaveLength(3);
+    expect(wrapper.findAll('[data-testid="suggestion-control"]')).toHaveLength(3);
     expect(wrapper.find('[data-testid="manual-card-name"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="remove-unresolved-line"]').exists()).toBe(true);
 
@@ -444,7 +453,7 @@ describe('DeckImportPanel', () => {
     expect(wrapper.get('[data-testid="unresolved-list"]').classes()).toContain('typeahead');
   });
 
-  it('applies a suggestion only on click and preserves the correction across a re-preview', async () => {
+  it('applies a suggestion only on selection and preserves the correction across a re-preview', async () => {
     const unresolved = [{
       SourceLine: 1,
       RawLine: '1 Sl Ring',
@@ -461,7 +470,7 @@ describe('DeckImportPanel', () => {
     await flushPromises();
     expect(wrapper.emitted('change')?.at(-1)?.[0]).toMatchObject({ corrections: {} });
 
-    await wrapper.get('[data-testid="suggestion-chip"]').trigger('click');
+    await wrapper.get('[data-testid="suggestion-control"]').setValue(true);
     expect(wrapper.emitted('change')?.at(-1)?.[0]).toMatchObject({ corrections: { 1: 'Sol Ring' } });
 
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
@@ -506,9 +515,145 @@ describe('DeckImportPanel', () => {
     await flushPromises();
 
     expect(mutate().mock.calls[0][0].variables.input.text).toBe(pasted);
-    const chip = wrapper.get('[data-testid="suggestion-chip"]');
-    expect(chip.attributes('title')).toContain('💫');
-    expect(chip.text()).not.toContain('\uFFFD');
+    const option = wrapper.get('[data-testid="suggestion-option"]');
+    expect(option.attributes('title')).toContain('💫');
+    expect(option.text()).not.toContain('\uFFFD');
+  });
+
+  it('makes a real Kykar replacement explicit, reversible, and canonical without changing other lines', async () => {
+    const originalDeck = readFileSync(resolve(process.cwd(), '../test/decklists/kykar.csv'), 'utf8')
+      .replace(/^1,Sol Ring$/m, '1,Sol Rign')
+      .trimEnd();
+    const originalLines = originalDeck.split('\n');
+    const sourceLine = originalLines.findIndex((line) => line === '1,Sol Rign') + 1;
+    const issue = {
+      SourceLine: sourceLine,
+      RawLine: '1,Sol Rign',
+      Name: 'Sol Rign',
+      Reason: 'Card not found.',
+      Candidates: [
+        { Name: 'Sol Ring', Score: 0.5, LowConfidence: false },
+        { Name: 'Sol Ring // Sol Ring', Score: 0.5, LowConfidence: false },
+        { Name: 'Sol Grail', Score: 0.26, LowConfidence: true },
+      ],
+    };
+    mutate().mockResolvedValueOnce({
+      data: { previewDeck: preview({
+        CardCount: 99,
+        Entries: [{
+          Quantity: 1,
+          Name: 'Sol Rign',
+          Section: 'main',
+          SourceLine: sourceLine,
+          Resolved: false,
+        }],
+        Unresolved: [issue],
+      }) },
+    });
+    const host = document.createElement('div');
+    document.body.append(host);
+    const wrapper = mount(DeckImportPanel, {
+      attachTo: host,
+      props: {
+        sessionId: 'session-1',
+        context: MAGIC_COMMANDER_DECK_CONTEXT,
+        initialText: originalDeck,
+      },
+    });
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="unresolved-guidance"]').text()).toContain(
+      'Choose a replacement to include each unresolved card',
+    );
+    expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('99 of 100 cards ready');
+    expect(wrapper.get('[data-testid="continue-to-commanders"]').attributes('disabled')).toBeUndefined();
+    expect(wrapper.get('[data-testid="continue-to-commanders"]').text()).toBe('Continue without 1 card');
+
+    const controls = wrapper.findAll('[data-testid="suggestion-control"]');
+    expect(controls).toHaveLength(3);
+    expect(controls.map((control) => control.attributes('type'))).toEqual(['radio', 'radio', 'radio']);
+    expect(new Set(controls.map((control) => control.attributes('name')))).toEqual(
+      new Set([`replacement-${sourceLine}`]),
+    );
+    expect(controls[0].attributes('aria-label')).toBe('Replace Sol Rign with Sol Ring');
+    expect(wrapper.findAll('[data-testid="suggestion-option"]')[0].text()).toBe('Replace with Sol Ring');
+    expect(controls[2].attributes('aria-label')).toBe(
+      'Replace Sol Rign with Sol Grail, closest available match',
+    );
+    expect(wrapper.findAll('[data-testid="suggestion-option"]')[2].text()).toContain('Closest available match');
+
+    await controls[0].setValue(true);
+    await flushPromises();
+
+    const confirmation = wrapper.get('[data-testid="correction-confirmation"]');
+    expect(confirmation.attributes()).toMatchObject({
+      role: 'status',
+      'aria-live': 'polite',
+      'aria-atomic': 'true',
+    });
+    expect(confirmation.text()).toContain('Sol Rign→Sol Ring');
+    expect(confirmation.get('.correction-route').attributes('aria-label')).toBe(
+      'Sol Rign is replaced by Sol Ring',
+    );
+    expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('100 of 100 cards ready');
+    expect(wrapper.get('[data-testid="continue-to-commanders"]').text()).toBe('Continue to commanders');
+    expect(wrapper.get('[data-testid="paste-import-success"]').text()).toContain('1 correction applied');
+
+    const canonical = wrapper.emitted('change')?.at(-1)?.[0] as { decklist: string; corrections: Record<number, string> };
+    expect(canonical.corrections).toEqual({ [sourceLine]: 'Sol Ring' });
+    const canonicalLines = canonical.decklist.split('\n');
+    expect(canonicalLines[sourceLine - 1]).toBe('1,Sol Ring');
+    expect(canonicalLines.filter((_, index) => index !== sourceLine - 1)).toEqual(
+      originalLines.filter((_, index) => index !== sourceLine - 1),
+    );
+
+    await confirmation.get('button[aria-label="Change replacement for Sol Rign"]').trigger('click');
+    expect(document.activeElement).toBe(controls[0].element);
+
+    await wrapper.get('[data-testid="undo-correction"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="correction-confirmation"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="preview-totals"]').text()).toContain('99 of 100 cards ready');
+    expect(wrapper.get('[data-testid="continue-to-commanders"]').text()).toBe('Continue without 1 card');
+    const undone = wrapper.emitted('change')?.at(-1)?.[0] as { decklist: string; corrections: Record<number, string> };
+    expect(undone).toMatchObject({ decklist: originalDeck, corrections: {} });
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="suggestion-control"]').element);
+
+    wrapper.unmount();
+    host.remove();
+  });
+
+  it('applies URL-source corrections to the same canonical prepared decklist', async () => {
+    const issue = {
+      SourceLine: 2,
+      RawLine: '1 Sol Rign',
+      Name: 'Sol Rign',
+      Reason: 'Card not found.',
+      Candidates: [{ Name: 'Sol Ring', Score: 0.5, LowConfidence: false }],
+    };
+    mutate().mockResolvedValueOnce({
+      data: { previewDeck: preview({
+        SourceType: 'archidekt',
+        CardCount: 1,
+        Entries: [
+          { Quantity: 1, Name: 'Island', Section: 'main', SourceLine: 1, Resolved: true },
+          { Quantity: 1, Name: 'Sol Rign', Section: 'main', SourceLine: 2, Resolved: false },
+        ],
+        Unresolved: [issue],
+      }) },
+    });
+    const wrapper = mountPanel({ initialSourceURL: 'https://archidekt.com/decks/123' });
+
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="suggestion-control"]').setValue(true);
+
+    expect(wrapper.emitted('change')?.at(-1)?.[0]).toMatchObject({
+      corrections: { 2: 'Sol Ring' },
+      decklist: '1 Island\n1 Sol Ring',
+    });
   });
 
   it('discards an older response when two requests resolve out of order', async () => {

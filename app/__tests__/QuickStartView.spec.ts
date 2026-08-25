@@ -58,6 +58,8 @@ const CREATE_GAME_RESULT = { createGame: { ID: 'game-1' } };
 
 const UNRESOLVED_PREVIEW = {
   ...READY_PREVIEW,
+  CardCount: 99,
+  Entries: [{ Quantity: 1, Name: 'Sl Ring', Section: 'main', SourceLine: 1, Resolved: false }],
   Unresolved: [{
     SourceLine: 1,
     RawLine: '1 Sl Ring',
@@ -92,7 +94,7 @@ function operationCalls(kind: 'guest' | 'create') {
 
 function expectPreservedActivationState(wrapper: ReturnType<typeof mount>, rawMessage: string) {
   expect((wrapper.get('[data-testid="deck-text"]').element as HTMLTextAreaElement).value).toBe('1 Sl Ring');
-  expect(wrapper.text()).toContain('Using Sol Ring');
+  expect(wrapper.text()).toMatch(/(?:Sl Ring→Sol Ring|Line 1: Using Sol Ring)/);
   expect(wrapper.text()).toContain('Atraxa');
   expect((wrapper.get('[data-testid="display-name"]').element as HTMLInputElement).value).toBe('Zoë 💫');
   expect(wrapper.text()).not.toContain(rawMessage);
@@ -184,6 +186,7 @@ describe('QuickStartView', () => {
       FormatID: 'EDH',
       SessionID: 'browser-session-02-04',
     });
+    expect(createGameCall.variables.input.Players[0].Decklist).toBe('1, Sol Ring');
 
     expect(pushMock).toHaveBeenCalledWith({ name: 'board', params: { id: 'game-1' } });
   });
@@ -254,6 +257,26 @@ describe('QuickStartView', () => {
     expect(operationCalls('guest')).toHaveLength(1);
   });
 
+  it('submits the panel canonical deck after replacement without mutating adjacent pasted lines', async () => {
+    mutate()
+      .mockResolvedValueOnce({ data: { previewDeck: UNRESOLVED_PREVIEW } })
+      .mockResolvedValueOnce({ data: GUEST_SESSION_RESULT })
+      .mockResolvedValueOnce({ data: CREATE_GAME_RESULT });
+    const wrapper = mount(QuickStartView);
+
+    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sl Ring\n1 Island');
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="suggestion-control"]').setValue(true);
+    await chooseCommander(wrapper);
+    await wrapper.get('[data-testid="start-table"]').trigger('click');
+    await flushPromises();
+
+    const createCall = operationCalls('create')[0][0];
+    expect(createCall.variables.input.Players[0].Decklist).toBe('1 Sol Ring\n1 Island');
+    expect(createCall.variables.input.Players[0].Decklist).not.toContain('Sl Ring');
+  });
+
   it('an empty paste leaves the submit control disabled and previewDeck uncalled', async () => {
     const wrapper = mount(QuickStartView);
     const submit = wrapper.find('[data-testid="deck-preview-submit"]');
@@ -313,7 +336,13 @@ describe('QuickStartView', () => {
     expect((wrapper.get('[data-testid="deck-text"]').element as HTMLTextAreaElement).value).toBe('1 Sl Ring');
     expect((wrapper.get('[data-testid="display-name"]').element as HTMLInputElement).value).toBe('Zoë 💫');
     expect(wrapper.text()).toContain('Atraxa');
-    expect(wrapper.text()).toContain('Using Sol Ring');
+    expect(wrapper.text()).toContain('Line 1: Using Sol Ring');
+
+    mutate().mockResolvedValueOnce({ data: { previewDeck: UNRESOLVED_PREVIEW } });
+    await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="suggestion-control"]').attributes('checked')).toBeDefined();
+    expect(wrapper.get('[data-testid="correction-confirmation"]').text()).toContain('Sl Ring→Sol Ring');
   });
 
   it('a failed create preserves every field on screen and in the draft', async () => {
@@ -329,7 +358,7 @@ describe('QuickStartView', () => {
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sl Ring');
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
-    await wrapper.get('[data-testid="suggestion-chip"]').trigger('click');
+    await wrapper.get('[data-testid="suggestion-control"]').setValue(true);
     await chooseCommander(wrapper);
     await wrapper.get('[data-testid="display-name"]').setValue('Zoë 💫');
     await wrapper.get('[data-testid="start-table"]').trigger('click');
@@ -373,7 +402,7 @@ describe('QuickStartView', () => {
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sl Ring');
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
-    await wrapper.get('[data-testid="suggestion-chip"]').trigger('click');
+    await wrapper.get('[data-testid="suggestion-control"]').setValue(true);
     await chooseCommander(wrapper);
     await wrapper.get('[data-testid="display-name"]').setValue('Zoë 💫');
 
@@ -410,7 +439,7 @@ describe('QuickStartView', () => {
     await wrapper.get('[data-testid="deck-text"]').setValue('1 Sl Ring');
     await wrapper.get('[data-testid="deck-preview-submit"]').trigger('click');
     await flushPromises();
-    await wrapper.get('[data-testid="suggestion-chip"]').trigger('click');
+    await wrapper.get('[data-testid="suggestion-control"]').setValue(true);
     await chooseCommander(wrapper);
     await wrapper.get('[data-testid="display-name"]').setValue('Zoë 💫');
     await wrapper.get('[data-testid="start-table"]').trigger('click');

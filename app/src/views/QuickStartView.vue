@@ -90,6 +90,7 @@ const storedDraft = readDraft();
 const deckText = ref(storedDraft?.deckText ?? '');
 const sourceURL = ref(storedDraft?.sourceURL ?? '');
 const corrections = ref<Record<number, string>>({ ...(storedDraft?.corrections ?? {}) });
+const preparedDecklist = ref('');
 const selectedCommanders = ref<CommanderPick[]>([...(storedDraft?.selectedCommanders ?? [])]);
 const displayName = ref(storedDraft?.displayName ?? '');
 const previewResult = ref<DeckPreview | null>(null);
@@ -138,6 +139,7 @@ function handleDeckChange(change: DeckImportChange): void {
   deckText.value = change.text;
   sourceURL.value = change.sourceURL;
   corrections.value = { ...change.corrections };
+  preparedDecklist.value = change.decklist;
   persistDraft();
 }
 
@@ -159,24 +161,6 @@ function handlePanelError(_error: ActivationErrorEntry): void {
 function handleCommanderChange(selected: CommanderPick[]): void {
   selectedCommanders.value = [...selected];
   persistDraft();
-}
-
-function correctedDeckText(): string {
-  if (sourceURL.value && previewResult.value) {
-    return previewResult.value.Entries.map((entry) => `${entry.Quantity} ${entry.Name}`).join('\n');
-  }
-  const lines = deckText.value.split(/\r?\n/);
-  for (const [sourceLine, correctedName] of Object.entries(corrections.value)) {
-    const index = Number(sourceLine) - 1;
-    if (index < 0 || index >= lines.length) continue;
-    if (!correctedName) {
-      lines[index] = '';
-      continue;
-    }
-    const quantityPrefix = lines[index].match(/^\s*\d+\s*(?:x|×)?\s*[,;:\-]?\s*/i)?.[0] ?? '';
-    lines[index] = `${quantityPrefix}${correctedName}`;
-  }
-  return lines.filter((line) => line.length > 0).join('\n');
 }
 
 async function handleStartTable(): Promise<void> {
@@ -207,7 +191,7 @@ async function handleStartTable(): Promise<void> {
         User: profile.Username,
         GameID: gameID,
         Life: 40,
-        Decklist: correctedDeckText(),
+        Decklist: preparedDecklist.value,
         Commander: selectedCommanders.value.map(({ ID, Name }) => ({ ID, Name })),
         Library: [],
         Graveyard: [],

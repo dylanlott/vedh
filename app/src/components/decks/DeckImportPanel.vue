@@ -1,5 +1,6 @@
 <template>
   <section
+    ref="panelElement"
     class="deck-import-panel"
     data-testid="deck-import-panel"
     :data-persistence-key="persistenceKey"
@@ -180,51 +181,105 @@
 
       <section v-if="previewResult?.Unresolved.length" class="unresolved-section">
         <h3>{{ unresolvedHeading }}</h3>
+        <p class="unresolved-guidance" data-testid="unresolved-guidance">
+          Choose a replacement to include each unresolved card. You can continue without one,
+          but that line will be left out of your deck.
+        </p>
         <ul class="typeahead unresolved-list" data-testid="unresolved-list">
           <li
             v-for="issue in previewResult.Unresolved"
             :key="issue.SourceLine"
             class="unresolved-row"
+            :class="{ 'is-reviewed': hasExplicitCorrection(issue.SourceLine) }"
             data-testid="unresolved-row"
           >
             <div class="row-heading">
-              <span class="truncated" :title="issue.RawLine">{{ truncateDisplay(issue.RawLine) }}</span>
+              <div class="original-card">
+                <span class="row-label">Original</span>
+                <strong class="truncated" :title="issue.RawLine">{{ truncateDisplay(issue.RawLine) }}</strong>
+              </div>
               <button
                 type="button"
-                class="icon-control"
+                class="secondary row-remove"
                 data-testid="remove-unresolved-line"
-                :aria-label="`Remove ${issue.RawLine} from decklist`"
+                :aria-label="`Leave ${issue.Name} out of the deck`"
                 @click="removeIssue(issue)"
               >
-                ×
+                Leave line out
               </button>
             </div>
 
-            <div class="chips">
-              <button
+            <div
+              v-if="hasExplicitCorrection(issue.SourceLine)"
+              class="correction-confirmation"
+              data-testid="correction-confirmation"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <span class="row-label">{{ corrections[issue.SourceLine] ? 'Replacement selected' : 'Line reviewed' }}</span>
+              <p
+                class="correction-route"
+                :aria-label="correctionAnnouncement(issue)"
+              >
+                <span class="truncated" :title="issue.Name" aria-hidden="true">{{ truncateDisplay(issue.Name) }}</span>
+                <span aria-hidden="true">→</span>
+                <strong class="truncated" :title="corrections[issue.SourceLine] || 'Left out of deck'" aria-hidden="true">
+                  {{ corrections[issue.SourceLine] || 'Left out of deck' }}
+                </strong>
+              </p>
+              <div class="correction-actions">
+                <button
+                  v-if="corrections[issue.SourceLine]"
+                  type="button"
+                  class="secondary compact-control"
+                  :aria-label="`Change replacement for ${issue.Name}`"
+                  @click="focusReplacementOptions(issue.SourceLine)"
+                >
+                  Change
+                </button>
+                <button
+                  type="button"
+                  class="secondary compact-control"
+                  :aria-label="`Undo review choice for ${issue.Name}`"
+                  data-testid="undo-correction"
+                  @click="undoCorrection(issue.SourceLine)"
+                >
+                  Undo
+                </button>
+              </div>
+            </div>
+
+            <fieldset class="replacement-group">
+              <legend>Suggested replacements</legend>
+              <div class="replacement-options">
+                <label
                 v-for="candidate in issue.Candidates.slice(0, 3)"
                 :key="candidate.Name"
-                type="button"
-                class="suggestion-chip truncated"
-                data-testid="suggestion-chip"
-                :title="candidate.Name"
-                @click="applyCorrection(issue.SourceLine, candidate.Name)"
-              >
-                {{ truncateDisplay(candidate.Name) }}
-              </button>
-              <button
-                v-if="corrections[issue.SourceLine] !== undefined"
-                type="button"
-                class="icon-control"
-                :aria-label="`Remove correction for ${issue.RawLine}`"
-                @click="clearCorrection(issue.SourceLine)"
-              >
-                ×
-              </button>
-            </div>
+                  class="replacement-option"
+                  :class="{ 'is-selected': corrections[issue.SourceLine] === candidate.Name }"
+                  :title="candidate.Name"
+                  data-testid="suggestion-option"
+                >
+                  <input
+                    type="radio"
+                    :name="`replacement-${issue.SourceLine}`"
+                    :value="candidate.Name"
+                    :checked="corrections[issue.SourceLine] === candidate.Name"
+                    :aria-label="`Replace ${issue.Name} with ${candidate.Name}${candidate.LowConfidence ? ', closest available match' : ''}`"
+                    data-testid="suggestion-control"
+                    @change="applyCorrection(issue.SourceLine, candidate.Name)"
+                  />
+                  <span class="replacement-option-copy">
+                    <span class="truncated">Replace with <strong>{{ truncateDisplay(candidate.Name) }}</strong></span>
+                    <small v-if="candidate.LowConfidence">Closest available match</small>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
 
             <label class="stacked manual-search">
-              <span>Type card name</span>
+              <span>Search for a different card</span>
               <input
                 data-testid="manual-card-name"
                 type="text"
@@ -254,9 +309,6 @@
                 </li>
               </ul>
             </label>
-            <p v-if="corrections[issue.SourceLine] !== undefined" class="correction">
-              Using {{ corrections[issue.SourceLine] || 'removed line' }}
-            </p>
           </li>
         </ul>
       </section>
@@ -269,7 +321,7 @@
         :disabled="!canContinue"
         @click="continueToCommanders"
       >
-        Continue to commanders
+        {{ continueLabel }}
       </button>
     </div>
   </section>
@@ -338,6 +390,7 @@ const previewInputSource = ref<'paste' | 'url' | null>(null);
 const activationError = ref<ActivationErrorEntry | null>(null);
 const continued = ref(false);
 const deckTextElement = ref<HTMLTextAreaElement | null>(null);
+const panelElement = ref<HTMLElement | null>(null);
 const pasteTabElement = ref<HTMLButtonElement | null>(null);
 const urlTabElement = ref<HTMLButtonElement | null>(null);
 let requestSequence = 0;
@@ -367,12 +420,33 @@ const pendingUnresolvedCount = computed(() => {
   if (!result) return 0;
   return result.Unresolved.filter((issue) => !hasExplicitCorrection(issue.SourceLine)).length;
 });
+function unresolvedQuantity(issue: DeckImportIssue): number {
+  return previewResult.value?.Entries.find((entry) => entry.SourceLine === issue.SourceLine)?.Quantity ?? 1;
+}
+const pendingUnresolvedQuantity = computed(() => {
+  const result = previewResult.value;
+  if (!result) return 0;
+  return result.Unresolved.reduce((count, issue) => (
+    count + (hasExplicitCorrection(issue.SourceLine) ? 0 : unresolvedQuantity(issue))
+  ), 0);
+});
 const correctedUnresolvedCount = computed(() => {
   const result = previewResult.value;
   if (!result) return 0;
   return result.Unresolved.filter((issue) => (
     hasExplicitCorrection(issue.SourceLine) && corrections[issue.SourceLine].length > 0
   )).length;
+});
+const correctedUnresolvedQuantity = computed(() => {
+  const result = previewResult.value;
+  if (!result) return 0;
+  return result.Unresolved.reduce((count, issue) => (
+    count + (
+      hasExplicitCorrection(issue.SourceLine) && corrections[issue.SourceLine].length > 0
+        ? unresolvedQuantity(issue)
+        : 0
+    )
+  ), 0);
 });
 const removedUnresolvedCount = computed(() => {
   const result = previewResult.value;
@@ -392,14 +466,11 @@ const pasteReady = computed(() => Boolean(
 const readyCount = computed(() => {
   const result = previewResult.value;
   if (!result) return 0;
-  return Math.max(
-    result.CardCount - result.Unresolved.length + correctedUnresolvedCount.value,
-    0,
-  );
+  return Math.max(result.CardCount + correctedUnresolvedQuantity.value, 0);
 });
 const readyLine = computed(() => {
-  const count = Math.max((previewResult.value?.CardCount ?? 0) - removedUnresolvedCount.value, 0);
-  const needs = pendingUnresolvedCount.value;
+  const count = Math.max(readyCount.value + pendingUnresolvedQuantity.value, 0);
+  const needs = pendingUnresolvedQuantity.value;
   const base = `${readyCount.value} of ${count} ${count === 1 ? 'card' : 'cards'} ready`;
   return needs === 0 ? base : `${base} — ${needs} ${needs === 1 ? 'card needs' : 'cards need'} a quick look`;
 });
@@ -414,10 +485,14 @@ const blockingLine = computed(() => {
 const unresolvedHeading = computed(() => {
   const count = pendingUnresolvedCount.value;
   if (count === 0) {
-    const applied = correctedUnresolvedCount.value + removedUnresolvedCount.value;
-    return `${applied} ${applied === 1 ? 'correction applied' : 'corrections applied'}`;
+    return 'All unresolved lines reviewed';
   }
-  return `${count} ${count === 1 ? 'card needs' : 'cards need'} a quick look`;
+  return `Choose ${count} ${count === 1 ? 'replacement' : 'replacements'}`;
+});
+const continueLabel = computed(() => {
+  const count = pendingUnresolvedQuantity.value;
+  if (count === 0) return 'Continue to commanders';
+  return `Continue without ${count} ${count === 1 ? 'card' : 'cards'}`;
 });
 const pasteSuccessDetail = computed(() => {
   const cardCount = readyCount.value;
@@ -455,7 +530,11 @@ function currentChange(): DeckImportChange {
 
 function preparedDecklist(): string {
   if (activeSource.value === 'url' && previewResult.value) {
-    return previewResult.value.Entries.map((entry) => `${entry.Quantity} ${entry.Name}`).join('\n');
+    return previewResult.value.Entries.flatMap((entry) => {
+      if (!(entry.SourceLine in corrections)) return [`${entry.Quantity} ${entry.Name}`];
+      const correctedName = corrections[entry.SourceLine];
+      return correctedName ? [`${entry.Quantity} ${correctedName}`] : [];
+    }).join('\n');
   }
   const lines = deckText.value.split(/\r?\n/);
   for (const [sourceLine, correctedName] of Object.entries(corrections)) {
@@ -521,6 +600,29 @@ function applyCorrection(sourceLine: number, name: string): void {
 
 function clearCorrection(sourceLine: number): void {
   delete corrections[sourceLine];
+}
+
+function correctionAnnouncement(issue: DeckImportIssue): string {
+  const correction = corrections[issue.SourceLine];
+  return correction
+    ? `${issue.Name} is replaced by ${correction}`
+    : `${issue.Name} will be left out of the deck`;
+}
+
+function focusReplacementOptions(sourceLine: number): void {
+  const selected = panelElement.value?.querySelector<HTMLInputElement>(
+    `input[name="replacement-${sourceLine}"]:checked`,
+  );
+  const first = panelElement.value?.querySelector<HTMLInputElement>(
+    `input[name="replacement-${sourceLine}"]`,
+  );
+  (selected ?? first)?.focus();
+}
+
+async function undoCorrection(sourceLine: number): Promise<void> {
+  clearCorrection(sourceLine);
+  await nextTick();
+  focusReplacementOptions(sourceLine);
 }
 
 function removeIssue(issue: DeckImportIssue): void {
@@ -699,9 +801,10 @@ p {
   font-weight: 600;
 }
 
-.chips,
 .row-heading,
-.loading-state {
+.loading-state,
+.replacement-options,
+.correction-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -762,6 +865,22 @@ p {
   flex-wrap: nowrap;
 }
 
+.original-card {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.row-label,
+.unresolved-guidance {
+  color: var(--vedh-muted);
+}
+
+.row-label {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 textarea,
 input {
   box-sizing: border-box;
@@ -801,7 +920,7 @@ button.primary {
 }
 
 button.secondary,
-.suggestion-chip {
+.replacement-option {
   border: 1px solid var(--vedh-border);
   background: rgba(255, 244, 237, 0.05);
   color: var(--vedh-text);
@@ -895,14 +1014,89 @@ button:disabled {
   border-bottom: 1px solid var(--vedh-border);
 }
 
+.unresolved-row.is-reviewed {
+  background: rgba(255, 244, 237, 0.03);
+}
+
 .unresolved-row:last-child {
   border-bottom: 0;
 }
 
-.suggestion-chip {
+.replacement-group {
   min-width: 0;
-  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.replacement-group legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: 600;
+}
+
+.replacement-options {
+  align-items: stretch;
+}
+
+.replacement-option {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   color: var(--vedh-primary);
+  cursor: pointer;
+}
+
+.replacement-option.is-selected {
+  border-color: var(--vedh-primary);
+  background: var(--vedh-surface-strong);
+}
+
+.replacement-option input {
+  flex: 0 0 auto;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--vedh-primary);
+}
+
+.replacement-option input:focus-visible {
+  outline: 3px solid var(--vedh-primary);
+  outline-offset: 4px;
+}
+
+.replacement-option-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.replacement-option-copy small {
+  color: var(--vedh-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.row-remove,
+.compact-control {
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.correction-actions {
+  flex-wrap: nowrap;
+}
+
+.compact-control {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .manual-results {
@@ -937,8 +1131,26 @@ button:disabled {
   color: var(--vedh-text);
 }
 
-.correction {
-  color: var(--vedh-muted);
+.correction-confirmation {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--vedh-border-strong);
+  border-radius: 10px;
+  background: var(--vedh-surface-strong);
+}
+
+.correction-route {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.correction-route strong {
+  color: var(--vedh-text);
 }
 
 @keyframes spin {
