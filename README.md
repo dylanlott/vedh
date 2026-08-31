@@ -19,7 +19,7 @@
 Prerequisites:
 
 - Make
-- Go v1.17
+- Go v1.27.0
 - PostgreSQL 14.15.0
 - Node 16
 
@@ -75,7 +75,7 @@ This will boot up Postgres database.
 
 Then run the server with our Makefile by running `make run`
 
-The server will attempt to run all migrations and then start up.  If it can't run migrations, it will rollback the database and noisily fail.
+The server will attempt to run all migrations and then start up. If it can't run migrations, it will rollback the database and noisily fail.
 
 You can run the server as if it's in prod with this same config, so you can switch between local and prod as long as you've configured your environment variables correctly.
 
