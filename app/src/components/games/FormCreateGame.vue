@@ -305,6 +305,8 @@ async function handleSubmit() {
 
 .modal {
   width: min(90vw, 420px);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   background: var(--vedh-panel-strong);
   border-radius: 18px;
   border: 1px solid var(--vedh-border);

@@ -1,13 +1,11 @@
-.PHONY: build dev persistence clean test test-api test-smoke-rust monitoring-up monitoring-down deploy-ui deploy-server docker-server docker-ui docker
+.PHONY: build dev persistence clean test test-api test-unit test-persistence test-frontend test-smoke-rust prepare-test-db monitoring-up monitoring-down
 
 GOCMD=go
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
-GOGET=$(GOCMD) get
 BINARY_NAME=edhgo
 BINARY_UNIX=$(BINARY_NAME)_unix
-BUILD_TAG=latest #tag releases as latest by default
 
 all: test build
 
@@ -15,15 +13,24 @@ build:
 	$(GOBUILD) -o $(BINARY_NAME) -v
 
 test-api:
-	$(GOTEST) -v ./server/... -race
+	$(GOTEST) -v ./server/... -race -count=1
 
-test: test-api
+test: test-unit test-persistence test-api test-frontend
 
 test-smoke-rust:
-	cargo run --manifest-path tools/smoke/Cargo.toml -- --graphql-url $${VEDH_GRAPHQL_URL:-http://127.0.0.1:8080/graphql}
+	cargo run --locked --manifest-path tools/smoke/Cargo.toml -- --graphql-url $${VEDH_GRAPHQL_URL:-http://127.0.0.1:8080/graphql}
 
 test-unit:
-	$(GOTEST) -v ./pkg/... -race
+	$(GOTEST) -v ./pkg/... -race -count=1
+
+test-persistence:
+	$(GOTEST) -v ./persistence/... -race -count=1
+
+test-frontend:
+	cd app && npm test && npm run build
+
+prepare-test-db:
+	$(GOCMD) run ./tools/testdb
 
 clean:
 	$(GOCLEAN)
@@ -32,6 +39,16 @@ clean:
 
 run:
 	$(GOCMD) run ./
+
+# Run the local API and Vite application together. The API configuration lives
+# in the ignored .vedh.env file; Vite proxies /graphql to that API on :8080.
+dev:
+	@set -eu; \
+	set -a; . ./.vedh.env; set +a; \
+	$(GOCMD) run ./ & api_pid=$$!; \
+	(cd app && npm run dev -- --host 127.0.0.1) & web_pid=$$!; \
+	trap 'kill $$api_pid $$web_pid 2>/dev/null || true' EXIT INT TERM; \
+	wait $$api_pid
 
 generate:
 	$(GOCMD) run github.com/99designs/gqlgen

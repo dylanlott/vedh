@@ -106,10 +106,14 @@ The current frontend lives in `app/`.
 Use the smallest layer that proves the change you made:
 
 - **Frontend unit/helper tests** (`cd app && npm test`): proves Vue components, stores, and small browser helpers behave correctly in isolation. Runs once and exits cleanly. Requires Node and frontend deps installed; no server or database.
-- **Backend integration tests** (`make test-api`): proves the Go API works against its real persistence and GraphQL paths. Requires local Postgres on `localhost:5432` and any test fixture/config expected by the current Go tests.
-- **API smoke (Rust, preferred)** (`make test-smoke-rust` or `cargo run --manifest-path tools/smoke/Cargo.toml --`): proves a create/join flow works against a running GraphQL API with minimal end-to-end setup. Defaults to `http://127.0.0.1:8080/graphql` and respects `VEDH_GRAPHQL_URL` / `VEDH_SMOKE_TIMEOUT_MS`. For production, point it at `https://api.vedh.xyz/graphql`.
+- **Backend integration tests** (`make test-api`): proves the Go API works against its real persistence and GraphQL paths. Requires a Postgres role with `CREATE DATABASE` permission. The harness creates and drops a unique `edhgo_test_*` scratch database and uses the committed minimal card fixture; it never resets the database named by `DATABASE_URL`.
+- **API smoke (Rust, preferred)** (`make test-smoke-rust` or `cargo run --locked --manifest-path tools/smoke/Cargo.toml --`): proves a create/join flow works against a running GraphQL API with minimal end-to-end setup. Defaults to `http://127.0.0.1:8080/graphql` and respects `VEDH_GRAPHQL_URL` / `VEDH_SMOKE_TIMEOUT_MS`. For production, point it at `https://api.vedh.xyz/graphql`.
 - **API smoke (legacy JS)** (`cd app && npm run test:smoke`): older create/join smoke runner against a running API. Keep only as fallback while the Rust path settles.
 - **Browser E2E** (`cd app && npm run test:e2e` or `npm run test:e2e:headed`): proves the browser experience works through real UI flows. Requires frontend deps, a running app/API target for Playwright, and browser binaries installed.
+
+CI prepares its isolated browser-test database with `make prepare-test-db`.
+That target applies the committed test migrations to `DATABASE_URL`; only use it
+with a disposable database.
 
 If you only need fast feedback, start with unit/helper tests. Reach for backend integration, the Rust smoke runner, or browser E2E when you need confidence across process boundaries.
 
@@ -228,6 +232,17 @@ make monitoring-down
 
 The current production deploys use Dokku on `dokku@192.241.142.53`.
 
+Every successful `CI` run for a push to `main` triggers the `Deploy to Dokku`
+workflow. That workflow deploys the tested revision to both Dokku apps and then
+checks the frontend and API routes. Configure these GitHub production-environment
+values before enabling automatic deployment:
+
+- Repository variables: `DOKKU_HOST`, `DOKKU_API_APP`, `DOKKU_WEB_APP`
+- Environment secrets: `DOKKU_SSH_PRIVATE_KEY`, `DOKKU_KNOWN_HOSTS`
+
+`DOKKU_KNOWN_HOSTS` must contain a host key verified independently by the
+operator; the workflow deliberately does not trust a runtime `ssh-keyscan`.
+
 Production is split across two Dokku apps:
 
 - `app` serves the frontend SPA on `https://vedh.xyz` (also `www.vedh.xyz` / `app.vedh.xyz`)
@@ -298,15 +313,14 @@ Even then, prefer to keep the route behind ingress/network restriction instead o
 
 ## Lightweight server smoke verification
 
-Full `./server` tests currently expect:
-
-- local Postgres on `localhost:5432`
-- the card import fixture path (`../All Printings.json` by default)
+Full `./server` tests require a reachable Postgres role that can create a
+temporary database. Test migrations seed the small committed card fixture, so
+the multi-hundred-megabyte `All Printings.json` file is not required.
 
 For a fast listener/origin/metrics smoke check that does **not** go through `server/main_test.go`, run:
 
 ```sh
-cd /root/.openclaw/workspace/vedh
+cd /path/to/vedh
 /usr/local/go/bin/go test $(find server -maxdepth 1 -name '*.go' ! -name '*_test.go' | sort) server/graphql_metrics_test.go server/graphql_origin_test.go -run 'TestGraphQLServer_|TestParseAllowedOrigins' -v
 ```
 

@@ -2,15 +2,11 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"io"
 	"log/slog"
-	"net"
-	"net/url"
 	"os"
 	"testing"
-	"time"
-
-	"github.com/openmtg/edh-go/persistence"
 )
 
 // testAPIDefaultDSN is the local fallback DSN used when DATABASE_URL is
@@ -60,35 +56,27 @@ func testAPI(t *testing.T) *graphQLServer {
 		// it back to false to exercise the switch itself.
 		GuestCreationEnabled: true,
 	}
-	// WR-02 fix (code review, phase 01): only "Postgres is not reachable at
-	// all" (a plain TCP dial to the configured host:port fails) is treated
-	// as a legitimate environment-dependent skip -- this package's own
-	// tests are documented as NOT part of the CI-gated target
-	// (.github/workflows/test.yml's "Test" job runs only `make test-unit`,
-	// i.e. `go test ./pkg/... -race`; `make test-api` / `go test
-	// ./server/...` requires a local Postgres and is a deliberately
-	// separate, not-CI-gated target per README.md's "Backend integration
-	// tests" section), so a developer machine with no Postgres running at
-	// all is a supported, unremarkable state.
-	//
-	// Once that reachability check has passed, Postgres IS present and
-	// listening -- a subsequent failure to reset migrations or open a
-	// connection pool indicates something is actually broken (bad
-	// credentials, a corrupted migration set, a permissions problem), not
-	// an absent dependency, and silently downgrading that to a skip is
-	// exactly the failure mode this fix closes: it previously let three
-	// real regressions during this phase pass as skipped rather than
-	// failed. t.Fatalf stops this test immediately with a failure so it
-	// cannot be mistaken for "environment not set up".
-	if err := ensurePostgresReachable(cfg.PostgresURL); err != nil {
-		t.Skipf("postgres unavailable: %s", err)
-	}
-	if err := persistence.ForceCleanMigrations("../persistence/migrations_test/", cfg.PostgresURL); err != nil {
-		t.Fatalf("postgres is reachable but resetting test migrations failed (likely a real regression, not an absent dependency): %s", err)
-	}
-	appDB, err := persistence.NewPostgres("../persistence/migrations_test/", cfg.PostgresURL)
+	// TestMain has already migrated and seeded this run's scratch database.
+	// Opening it directly here avoids re-running the migration machinery for
+	// every test case.
+	appDB, err := sql.Open("postgres", cfg.PostgresURL)
 	if err != nil {
 		t.Fatalf("postgres is reachable but opening the connection pool failed (likely a real regression, not an absent dependency): %s", err)
+	}
+	if err := appDB.Ping(); err != nil {
+		_ = appDB.Close()
+		t.Fatalf("ping scratch test database: %s", err)
+	}
+	// The server suite historically reused one database without clearing rows,
+	// so fixed game IDs and usernames leaked between otherwise independent
+	// tests. Keep the immutable card fixture, but reset application-owned rows
+	// before constructing each test server. No server tests run in parallel.
+	if _, err := appDB.Exec(`
+		TRUNCATE TABLE product_events, gamelog, games, users
+		RESTART IDENTITY CASCADE
+	`); err != nil {
+		_ = appDB.Close()
+		t.Fatalf("reset scratch test data: %s", err)
 	}
 	// fix(01-05): every testAPI call opens a brand-new *sql.DB connection
 	// pool that nothing ever closed. That was survivable while the
@@ -111,28 +99,6 @@ func testAPI(t *testing.T) *graphQLServer {
 		t.Errorf("failed to create new test server: %+v", err)
 	}
 	return s
-}
-
-func ensurePostgresReachable(dbURL string) error {
-	parsed, err := url.Parse(dbURL)
-	if err != nil {
-		return err
-	}
-	host := parsed.Hostname()
-	if host == "" {
-		host = "localhost"
-	}
-	port := parsed.Port()
-	if port == "" {
-		port = "5432"
-	}
-	addr := net.JoinHostPort(host, port)
-	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
-	if err != nil {
-		return err
-	}
-	_ = conn.Close()
-	return nil
 }
 
 func authCtx(username string) context.Context {

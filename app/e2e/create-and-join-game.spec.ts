@@ -11,6 +11,15 @@ async function signUp(page: Page, user: TestUser) {
   await expect(page).toHaveURL(/\/games$/);
 }
 
+async function importDeck(page: Page, decklist: string) {
+  const panel = page.getByTestId('deck-import-panel');
+  await panel.getByLabel('Decklist').fill(decklist);
+  await panel.getByTestId('deck-preview-submit').click();
+  const continueButton = panel.getByTestId('continue-to-commanders');
+  await expect(continueButton).toBeEnabled();
+  await continueButton.click();
+}
+
 test('user can create a game and another user can join it', async ({ browser, baseURL }) => {
   test.skip(!baseURL, 'VEDH_APP_BASE_URL or Playwright baseURL is required');
 
@@ -22,7 +31,7 @@ test('user can create a game and another user can join it', async ({ browser, ba
 
   await signUp(creatorPage, userA);
   await creatorPage.getByRole('button', { name: 'Create game' }).click();
-  await creatorPage.getByLabel(/Decklist \(CSV: quantity,name per line\)/).fill(CREATOR_DECKLIST);
+  await importDeck(creatorPage, CREATOR_DECKLIST);
   await creatorPage.locator('form').getByRole('button', { name: 'Create game' }).click();
   await expect(creatorPage).toHaveURL(/\/games\/[^/]+$/);
 
@@ -35,7 +44,7 @@ test('user can create a game and another user can join it', async ({ browser, ba
   await signUp(joinerPage, userB);
   await joinerPage.goto(`/join/${gameID}`);
   await expect(joinerPage.getByText(`You are about to join game ${gameID}.`)).toBeVisible();
-  await joinerPage.getByLabel(/Decklist \(CSV: quantity,name per line\)/).fill(JOINER_DECKLIST);
+  await importDeck(joinerPage, JOINER_DECKLIST);
   await joinerPage.getByRole('button', { name: 'Join game' }).click();
   await expect(joinerPage).toHaveURL(new RegExp(`/games/${gameID}$`));
 

@@ -113,7 +113,7 @@
 
         <button
           class="primary"
-          type="submit"
+          type="button"
           data-testid="deck-preview-submit"
           :disabled="!canSubmit"
           @click="submitPreview"

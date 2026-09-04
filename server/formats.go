@@ -17,14 +17,14 @@ type LayoutDefinition struct {
 }
 
 type GameFormat struct {
-	ID               string           `json:"ID"`
-	Name             string           `json:"Name"`
-	StartingLife     int              `json:"StartingLife"`
-	DefaultDeckSize  int              `json:"DefaultDeckSize"`
+	ID               string            `json:"ID"`
+	Name             string            `json:"Name"`
+	StartingLife     int               `json:"StartingLife"`
+	DefaultDeckSize  int               `json:"DefaultDeckSize"`
 	Zones            []*GameFormatZone `json:"Zones"`
-	PhaseSequence    []string         `json:"PhaseSequence"`
+	PhaseSequence    []string          `json:"PhaseSequence"`
 	Layout           *LayoutDefinition `json:"Layout,omitempty"`
-	CommanderEnabled bool             `json:"CommanderEnabled"`
+	CommanderEnabled bool              `json:"CommanderEnabled"`
 }
 
 var formatRegistry = map[string]*GameFormat{
