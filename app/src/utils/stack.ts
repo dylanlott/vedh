@@ -10,7 +10,7 @@ export type MoveHandToStackResult = {
   hand: StackCard[];
   stack: StackCard[];
   movedCard?: StackCard;
-  skippedReason?: 'not_found' | 'duplicate';
+  skippedReason?: 'not_found';
 };
 
 export function isLandCard(card: StackCard | null | undefined): boolean {
@@ -28,16 +28,16 @@ export function moveHandCardToStackState(
   const nextHand = [...hand];
   const nextStack = [...stack];
   const id = card?.ID;
-  if (id && nextStack.some(c => c.ID === id)) {
-    return { hand: nextHand, stack: nextStack, skippedReason: 'duplicate' };
-  }
 
   let removeIndex = -1;
-  if (id) {
-    removeIndex = nextHand.findIndex(c => c.ID === id);
-  }
-  if (removeIndex === -1 && typeof fromIndex === 'number') {
+  // A printing ID is not a physical-card ID: a deck can contain several
+  // copies of the same printing. Prefer the rendered card's index so moving
+  // a duplicate never selects or suppresses a different copy.
+  if (typeof fromIndex === 'number') {
     removeIndex = fromIndex;
+  }
+  if (removeIndex === -1 && id) {
+    removeIndex = nextHand.findIndex(c => c.ID === id);
   }
   if (removeIndex < 0 || removeIndex >= nextHand.length) {
     return { hand: nextHand, stack: nextStack, skippedReason: 'not_found' };

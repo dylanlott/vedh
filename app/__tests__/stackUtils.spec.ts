@@ -8,20 +8,22 @@ describe('stack utils', () => {
     expect(isLandCard(undefined)).toBe(false);
   });
 
-  it('moves a hand card to stack with owner and prevents duplicates', () => {
+  it('moves duplicate printings to the stack as separate physical cards', () => {
     const hand = [
       { ID: 'a', Name: 'Shock', Types: 'Instant' },
-      { ID: 'b', Name: 'Island', Types: 'Basic Land — Island' },
+      { ID: 'a', Name: 'Shock', Types: 'Instant' },
     ];
-    const stack = [{ ID: 'x', Name: 'Opt' }];
+    const stack: typeof hand = [];
     const moved = moveHandCardToStackState(hand, stack, hand[0], 'alice', 0);
     expect(moved.hand).toHaveLength(1);
-    expect(moved.stack).toHaveLength(2);
+    expect(moved.stack).toHaveLength(1);
     expect(moved.movedCard?.CurrentZone).toBe('alice');
     expect(moved.movedCard?.Tapped).toBe(false);
 
-    const dup = moveHandCardToStackState(moved.hand, moved.stack, hand[0], 'alice', 0);
-    expect(dup.skippedReason).toBe('duplicate');
+    const second = moveHandCardToStackState(moved.hand, moved.stack, moved.hand[0], 'alice', 0);
+    expect(second.hand).toHaveLength(0);
+    expect(second.stack).toHaveLength(2);
+    expect(second.stack.map(card => card.ID)).toEqual(['a', 'a']);
   });
 
   it('resolves stack card into graveyard by index', () => {

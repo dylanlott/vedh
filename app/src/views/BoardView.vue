@@ -82,7 +82,7 @@
               </h3>
               <template v-if="!isStacked(player.Username, 'Commander')">
                 <ul class="cards tiles">
-                  <li v-for="card in player.Boardstate?.Commander ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <li v-for="(card, idx) in player.Boardstate?.Commander ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                     <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                     <span class="label">{{ card.Name }}</span>
                   </li>
@@ -90,7 +90,7 @@
             </template>
             <template v-else>
               <ul class="cards art">
-                <li v-for="card in player.Boardstate?.Commander ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Commander ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
@@ -105,7 +105,7 @@
               </h3>
               <template v-if="!isStacked(player.Username, 'Battlefield')">
                 <ul class="cards tiles">
-                  <li v-for="card in player.Boardstate?.Battlefield ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                  <li v-for="(card, idx) in player.Boardstate?.Battlefield ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                     <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                     <span class="label">{{ card.Name }}</span>
                   </li>
@@ -113,7 +113,7 @@
             </template>
             <template v-else>
               <ul class="cards art">
-                <li v-for="card in player.Boardstate?.Battlefield ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Battlefield ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
@@ -134,7 +134,7 @@
             </h3>
             <template v-if="!isStacked(player.Username, 'Graveyard')">
               <ul class="cards tiles">
-                <li v-for="card in player.Boardstate?.Graveyard ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Graveyard ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                   <span class="label">{{ card.Name }}</span>
                 </li>
@@ -142,7 +142,7 @@
             </template>
             <template v-else>
               <ul class="cards art">
-                <li v-for="card in player.Boardstate?.Graveyard ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Graveyard ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
@@ -157,7 +157,7 @@
             </h3>
             <template v-if="!isStacked(player.Username, 'Exiled')">
               <ul class="cards tiles">
-                <li v-for="card in player.Boardstate?.Exiled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Exiled ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                   <span class="label">{{ card.Name }}</span>
                 </li>
@@ -165,7 +165,7 @@
             </template>
             <template v-else>
               <ul class="cards art">
-                <li v-for="card in player.Boardstate?.Exiled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Exiled ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
@@ -180,7 +180,7 @@
             </h3>
             <template v-if="!isStacked(player.Username, 'Revealed')">
               <ul class="cards tiles">
-                <li v-for="card in player.Boardstate?.Revealed ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Revealed ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                   <span class="label">{{ card.Name }}</span>
                 </li>
@@ -188,7 +188,7 @@
             </template>
             <template v-else>
               <ul class="cards art">
-                <li v-for="card in player.Boardstate?.Revealed ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Revealed ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
@@ -203,7 +203,7 @@
             </h3>
             <template v-if="!isStacked(player.Username, 'Controlled')">
               <ul class="cards tiles">
-                <li v-for="card in player.Boardstate?.Controlled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Controlled ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                   <span class="label">{{ card.Name }}</span>
                 </li>
@@ -211,7 +211,7 @@
             </template>
             <template v-else>
               <ul class="cards art">
-                <li v-for="card in player.Boardstate?.Controlled ?? []" :key="card.ID" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
+                <li v-for="(card, idx) in player.Boardstate?.Controlled ?? []" :key="`${card.ID}-${idx}`" :class="['card-tile', { dragging: currentDraggedId === card.ID }]">
                   <img :src="getImage(card.Name)" :alt="card.Name" @error="onImgError(card.Name)" />
                 </li>
               </ul>
@@ -311,7 +311,7 @@
               <ul class="cards tiles">
                 <Card
                   v-for="(card, idx) in selfPlayer.Boardstate?.Commander ?? []"
-                  :key="card.ID || `${card.Name}-${idx}`"
+                  :key="`${card.ID || card.Name}-${idx}`"
                   :id="card.ID"
                   :name="card.Name"
                   :image-src="getImage(card.Name)"
@@ -329,7 +329,7 @@
               <ul class="cards art">
                 <Card
                   v-for="(card, idx) in selfPlayer.Boardstate?.Commander ?? []"
-                  :key="card.ID || `${card.Name}-${idx}`"
+                  :key="`${card.ID || card.Name}-${idx}`"
                   :id="card.ID"
                   :name="card.Name"
                   :image-src="getImage(card.Name)"
@@ -359,7 +359,7 @@
             <ul class="cards tiles">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Battlefield ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -377,7 +377,7 @@
             <ul class="cards art">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Battlefield ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -405,7 +405,7 @@
             <ul class="cards tiles">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Hand ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -423,7 +423,7 @@
             <ul class="cards art">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Hand ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -451,7 +451,7 @@
             <ul class="cards tiles">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Graveyard ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -469,7 +469,7 @@
             <ul class="cards art">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Graveyard ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -497,7 +497,7 @@
             <ul class="cards tiles">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Exiled ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -515,7 +515,7 @@
             <ul class="cards art">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Exiled ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -543,7 +543,7 @@
             <ul class="cards tiles">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Revealed ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -561,7 +561,7 @@
             <ul class="cards art">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Revealed ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -589,7 +589,7 @@
             <ul class="cards tiles">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Controlled ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -607,7 +607,7 @@
             <ul class="cards art">
               <Card
                 v-for="(card, idx) in selfPlayer.Boardstate?.Controlled ?? []"
-                :key="card.ID || `${card.Name}-${idx}`"
+                :key="`${card.ID || card.Name}-${idx}`"
                 :id="card.ID"
                 :name="card.Name"
                 :image-src="getImage(card.Name)"
@@ -686,9 +686,6 @@ import { fetchScryfallImageByName } from '../services/scryfall';
 import { displayNameOf } from '../services/displayName';
 import Card from '../components/Card.vue';
 import { isLandCard, moveHandCardToStackState, resolveStackCardToGraveyardState } from '../utils/stack';
-// Dev logging helper: use console.log so messages appear without enabling Verbose level
-function dbg(...args: any[]) { console.log(...args); }
-
 const games = useGamesStore();
 const auth = useAuthStore();
 const route = useRoute();
@@ -1100,7 +1097,6 @@ async function ensureImage(name: string) {
   imageCache.value[name] = null;
   const url = await fetchScryfallImageByName(name);
   imageCache.value[name] = url;
-  dbg('[display] ensureImage', { name, url });
 }
 function uniqueNamesFrom(list: { Name: string }[]) {
   return Array.from(new Set(list.map(c => c.Name)));
@@ -1118,7 +1114,6 @@ function prefetchVisibleImages() {
   // Include the global stack
   (g.Stack ?? []).forEach((c: any) => names.add(c.Name));
   const list = Array.from(names).slice(0, 150);
-  dbg('[display] prefetchVisibleImages', { count: list.length, sample: list.slice(0, 5) });
   list.forEach(n => ensureImage(n));
 }
 watch(() => game.value?.ID, () => {
@@ -1201,7 +1196,6 @@ function buildGameInputFromGame(
 
 onMounted(async () => {
   const gameID = route.params.id as string;
-  dbg('[display] mounted');
   await games.loadGame(gameID, auth.profile?.ID);
   prefetchVisibleImages();
 });
@@ -1223,7 +1217,6 @@ watch([
   () => route.params.id,
 ], ([userID, gameID]) => {
   if (typeof gameID === 'string' && gameID && typeof userID === 'string' && userID) {
-    dbg('[display] ensure subscription', { gameID, userID });
     games.subscribeToGame(gameID, userID);
   }
 });
@@ -1347,11 +1340,11 @@ async function moveCard(args: MoveCardArgs) {
     for (const z of zones) {
       const list = (sourcePlayer.Boardstate as any)[z] ?? [];
       let found: any | null = null;
-      if (args.cardID) {
-        found = list.find((c: any) => c.ID === args.cardID);
-      }
-      if (!found && typeof args.fromIndex === 'number' && z === args.fromZone) {
+      if (typeof args.fromIndex === 'number' && z === args.fromZone) {
         found = list[args.fromIndex];
+      }
+      if (!found && args.cardID) {
+        found = list.find((c: any) => c.ID === args.cardID);
       }
       if (found) { movedCard = { ...found }; break; }
     }
@@ -1361,11 +1354,11 @@ async function moveCard(args: MoveCardArgs) {
   if (args.fromUser === args.user) {
     const sourceList = current[args.fromZone as Zone] ?? [];
     let removeIndex = -1;
-    if (args.cardID) {
-      removeIndex = sourceList.findIndex(c => c.ID === args.cardID);
-    }
-    if (removeIndex === -1 && typeof args.fromIndex === 'number') {
+    if (typeof args.fromIndex === 'number') {
       removeIndex = args.fromIndex;
+    }
+    if (removeIndex === -1 && args.cardID) {
+      removeIndex = sourceList.findIndex(c => c.ID === args.cardID);
     }
     if (removeIndex === -1 && args.fromZone === 'Library' && sourceList.length > 0) {
       removeIndex = 0;
@@ -1376,22 +1369,19 @@ async function moveCard(args: MoveCardArgs) {
         movedCard = { ...sourceList[removeIndex] };
       }
     } else if (args.cardID) {
-      current[args.fromZone as Zone] = sourceList.filter(c => c.ID !== args.cardID);
+      const matchingIndex = sourceList.findIndex(c => c.ID === args.cardID);
+      if (matchingIndex !== -1) {
+        current[args.fromZone as Zone] = sourceList.filter((_, idx) => idx !== matchingIndex);
+      }
     }
   }
   const isEphemeral = !(movedCard?.ID || args.cardID) && !PERSISTED_ZONES.includes(args.fromZone);
-  if (args.cardID) {
-    // Ensure uniqueness across zones for real cards
-    for (const z of zones) {
-      if (!current[z]) continue;
-      current[z] = (current[z] ?? []).filter((c: any) => c.ID !== args.cardID);
-    }
-  }
-  // Add to destination zone (dedupe by ID when available); tokens/clones vanish in persisted zones.
+  // Add to destination zone. Card IDs identify a printing, not a physical
+  // copy, so distinct copies must be allowed in the same zone.
   const destList = current[args.toZone as Zone] ?? [];
   if (isEphemeral && PERSISTED_ZONES.includes(args.toZone)) {
     // token/clone leaves play and doesn't persist
-  } else if (!args.cardID || !destList.some((c: any) => c.ID === args.cardID)) {
+  } else {
     const nextCard = movedCard ?? { ID: args.cardID ?? '', Name: '' };
     if (args.toZone !== 'Battlefield' && nextCard && 'Tapped' in nextCard) {
       nextCard.Tapped = false;
@@ -1418,10 +1408,14 @@ async function moveCard(args: MoveCardArgs) {
     }));
     if (args.fromUser !== args.user) {
       // Remove card from source player locally (cross-player moves)
-      applyLocalBoardstatePatch(args.fromUser, (draft: any) => ({
-        ...draft,
-        [args.fromZone]: (draft[args.fromZone] ?? []).filter((c: { ID: string }) => c.ID !== args.cardID),
-      }));
+      applyLocalBoardstatePatch(args.fromUser, (draft: any) => {
+        const source = [...(draft[args.fromZone] ?? [])];
+        const index = typeof args.fromIndex === 'number'
+          ? args.fromIndex
+          : source.findIndex((c: { ID: string }) => c.ID === args.cardID);
+        if (index >= 0 && index < source.length) source.splice(index, 1);
+        return { ...draft, [args.fromZone]: source };
+      });
     }
     if (args.user === auth.profile?.Username) {
       pulseZone(args.toZone);
@@ -1502,10 +1496,6 @@ async function moveHandCardToStack(card: any, user: string, fromIndex?: number) 
     user,
     fromIndex,
   );
-  if (moved.skippedReason === 'duplicate') {
-    addToast('Card is already on the stack');
-    return;
-  }
   if (moved.skippedReason === 'not_found' || !moved.movedCard) {
     addToast('Unable to move card to stack');
     return;
