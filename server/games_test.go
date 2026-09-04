@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"strconv"
 	"testing"
@@ -29,6 +28,30 @@ func Test_graphQLServer_Games(t *testing.T) {
 	})
 }
 
+func TestGames_AppliesMembershipFilterBeforePagination(t *testing.T) {
+	s := testAPI(t)
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	ownerID, ownerUsername := "page-owner-"+suffix, "Page Owner "+suffix
+	otherID, otherUsername := "page-other-"+suffix, "Page Other "+suffix
+
+	// Put a non-participant game in the table before the owner's games. A
+	// LIMIT performed before the membership filter would be allowed to leave
+	// the owner's first page short or empty.
+	_, err := s.CreateGame(authCtxWithID(otherID, otherUsername), displayNameCreateGameInput("page-other-game-"+suffix, otherID, otherUsername))
+	assert.NoError(t, err)
+	firstID, secondID := "page-owner-first-"+suffix, "page-owner-second-"+suffix
+	_, err = s.CreateGame(authCtxWithID(ownerID, ownerUsername), displayNameCreateGameInput(firstID, ownerID, ownerUsername))
+	assert.NoError(t, err)
+	_, err = s.CreateGame(authCtxWithID(ownerID, ownerUsername), displayNameCreateGameInput(secondID, ownerID, ownerUsername))
+	assert.NoError(t, err)
+
+	page, err := s.Games(authCtxWithID(ownerID, ownerUsername), 0, 2)
+	assert.NoError(t, err)
+	if assert.Len(t, page, 2) {
+		assert.ElementsMatch(t, []string{firstID, secondID}, []string{page[0].ID, page[1].ID})
+	}
+}
+
 func TestGameGetSet(t *testing.T) {
 	api := testAPI(t)
 	ctx := authCtx(mastershake)
@@ -43,6 +66,33 @@ func TestGameGetSet(t *testing.T) {
 	got, err := api.GetGame(ctx, seedInputGame.ID)
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
+}
+
+func TestCreateGame_ExistingIDCannotBeOverwritten(t *testing.T) {
+	s := testAPI(t)
+	original, err := s.CreateGame(authCtx(mastershake), *seedInputGame)
+	assert.NoError(t, err)
+
+	attackerID := "create-overwrite-attacker"
+	attempt, err := s.CreateGame(authCtxWithID(attackerID, "attacker"), InputCreateGame{
+		ID: original.ID,
+		Players: []*InputBoardState{{
+			GameID:   original.ID,
+			UserID:   attackerID,
+			User:     "attacker",
+			Life:     1,
+			Decklist: decklist(),
+		}},
+		Turn: &InputTurn{Player: "attacker", Phase: "pregame", Priority: "attacker"},
+	})
+	assert.Error(t, err)
+	assert.Nil(t, attempt)
+
+	persisted, err := s.GetGame(authCtx(mastershake), original.ID)
+	assert.NoError(t, err)
+	assert.Len(t, persisted.Players, 1)
+	assert.Equal(t, mastershake, persisted.Players[0].Username)
+	assert.Equal(t, 40, persisted.Players[0].Boardstate.Life)
 }
 
 func TestCreateGame_GenericDuelFormatRoundTrips(t *testing.T) {
@@ -797,131 +847,70 @@ func TestJoinGame_DefaultsLifeWhenOmitted(t *testing.T) {
 	}
 }
 
-func TestUpdateGame(t *testing.T) {
-	userID := string("deadbeef")
-	userID2 := string("deadbeef2")
+func TestUpdateGame_OnlyUpdatesCallerBoardstate(t *testing.T) {
+	s := testAPI(t)
+	created, err := s.CreateGame(authCtx(mastershake), *seedInputGame)
+	assert.NoError(t, err)
 
-	type args struct {
-		ctx context.Context
-		new InputGame
+	gameChannel, err := s.GameUpdated(authCtx(mastershake), created.ID, mastershake)
+	assert.NoError(t, err)
+
+	masterID := mastershake
+	updated, err := s.UpdateGame(authCtx(mastershake), InputGame{
+		ID: created.ID,
+		Players: []*InputUser{{
+			ID:       &masterID,
+			Username: mastershake,
+			Boardstate: &InputBoardState{
+				GameID: created.ID,
+				UserID: mastershake,
+				User:   mastershake,
+				Life:   33,
+			},
+		}},
+		// These used to replace the complete persisted game. They are now
+		// deliberately ignored by this compatibility mutation.
+		Rules: []*InputRule{{Name: "format", Value: "not-a-real-format"}},
+		Turn:  &InputTurn{Player: carl, Priority: carl, Phase: "forged", Number: 99},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 33, updated.Players[0].Boardstate.Life)
+	assert.Equal(t, created.Rules, updated.Rules)
+	assert.Equal(t, created.Turn, updated.Turn)
+
+	select {
+	case emitted := <-gameChannel:
+		assert.Equal(t, updated, emitted)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for game update")
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *Game
-		wantErr bool
-	}{
-		{
-			name: "should update game and alert gameChannels",
-			args: args{
-				ctx: authCtx(mastershake),
-				new: InputGame{
-					ID:        seedGameID,
-					CreatedAt: &time.Time{},
-					Players: []*InputUser{
-						{
-							Username: "shakezula",
-						},
-						{
-							Username: "meatwad",
-						},
-					},
-					Rules: []*InputRule{
-						{Name: "format", Value: "EDH"},
-						{Name: "deck_size", Value: "99"},
-					},
-					Turn: &InputTurn{
-						Number:   3,
-						Phase:    "the after party",
-						Player:   "meatwad",
-						Priority: "meatwad",
-					},
-				},
-			},
-			wantErr: false,
-			want: &Game{
-				ID: seedGameID,
-				Players: []*User{
-					{
-						Username: "shakezula",
-						ID:       userID,
-					},
-					{
-						Username: "meatwad",
-						ID:       userID2,
-					},
-				},
-				Rules: []*Rule{
-					{Name: "format", Value: "EDH"},
-					{Name: "deck_size", Value: "99"},
-				},
-				Turn: &Turn{
-					Number:   3,
-					Phase:    "the after party",
-					Player:   "meatwad",
-					Priority: "meatwad",
-				},
-				Status: GameStatusInProgress,
-			},
+}
+
+func TestUpdateGame_CannotReplaceAnotherPlayersBoardstate(t *testing.T) {
+	s := testAPI(t)
+	created, err := s.CreateGame(authCtx(mastershake), *seedInputGame)
+	assert.NoError(t, err)
+
+	deck := decklist()
+	_, err = s.JoinGame(authCtxWithID(carl, carl), &InputJoinGame{
+		ID:         created.ID,
+		Decklist:   deck,
+		BoardState: &InputBoardState{GameID: created.ID, UserID: carl, User: carl, Life: 40},
+	})
+	assert.NoError(t, err)
+
+	masterID, carlID := mastershake, carl
+	updated, err := s.UpdateGame(authCtx(mastershake), InputGame{
+		ID: created.ID,
+		Players: []*InputUser{
+			{ID: &masterID, Username: mastershake, Boardstate: &InputBoardState{GameID: created.ID, UserID: mastershake, User: mastershake, Life: 33}},
+			{ID: &carlID, Username: carl, Boardstate: &InputBoardState{GameID: created.ID, UserID: carl, User: carl, Life: 1}},
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := testAPI(t)
-			g, err := s.CreateGame(tt.args.ctx, *seedInputGame)
-			if err != nil {
-				t.Errorf("failed to create test host")
-			}
+	})
+	assert.NoError(t, err)
 
-			// register the channel for our tests
-			gameChannel, err := s.GameUpdated(tt.args.ctx, g.ID, g.Players[0].ID)
-			if err != nil {
-				t.Errorf("failed to get game subscription: %s", err)
-			}
-			log.Printf("gameChannel: %+v", gameChannel)
-
-			// fire off our UpdateGame function
-			got, err := s.UpdateGame(tt.args.ctx, tt.args.new)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("graphQLServer.UpdateGame() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			t.Logf("update Game got: %+v", got)
-
-			// assert on the returns
-			diff := cmp.Diff(got, tt.want, cmpopts.IgnoreFields(
-				Game{},
-				"CreatedAt",
-				"Stack",
-			), cmpopts.IgnoreFields(
-				Turn{},
-				"Priority",
-			))
-			if diff != "" {
-				log.Printf("diff: %s", diff)
-				t.Errorf("UpdateGame wanted: %+v - got %+v", tt.want, got)
-			}
-
-			// assert on the game that was emitted from our subscription
-			select {
-			case emitted := <-gameChannel:
-				t.Logf("emitted game: %+v", emitted)
-				diff2 := cmp.Diff(emitted, tt.want, cmpopts.IgnoreFields(
-					Game{},
-					"CreatedAt",
-					"Stack",
-				), cmpopts.IgnoreFields(
-					Turn{},
-					"Priority",
-				))
-				if diff2 != "" {
-					t.Errorf("failed to emit game on channels correctly: diff %+v", diff2)
-				}
-			case <-time.After(time.Second):
-				t.Errorf("timed out waiting for game update")
-			}
-		})
-	}
+	assert.Equal(t, 33, updated.Players[0].Boardstate.Life)
+	assert.Equal(t, 40, updated.Players[1].Boardstate.Life, "a participant cannot replace another player's boardstate")
 }
 
 func TestMultipleSubscriptions(t *testing.T) {
@@ -1282,6 +1271,17 @@ func TestCreateLibraryFromDecklist_RemovesSelectedCommanders(t *testing.T) {
 	})
 	is.NoErr(err)
 	is.Equal(len(got), 0)
+}
+
+func TestAddXCreatesIndependentPhysicalCopies(t *testing.T) {
+	card := &Card{ID: "same-printing", Name: "Island"}
+	copies := addX(2, nil, card)
+	if assert.Len(t, copies, 2) {
+		assert.NotSame(t, copies[0], copies[1])
+		copies[0].Name = "Changed only one copy"
+		assert.Equal(t, "Island", copies[1].Name)
+		assert.Equal(t, "Island", card.Name)
+	}
 }
 
 func decklist() *string {

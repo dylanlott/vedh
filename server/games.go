@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,8 +24,6 @@ type GameObserver struct {
 // FullGame wraps a Game with Observers and Players so that we can
 // access players boardstates with only a game and a player ID
 type FullGame struct {
-	sync.Mutex
-
 	GameID    string
 	Observers map[string]*GameObserver
 	EventLog  EventLog
@@ -38,9 +36,26 @@ func (s *graphQLServer) Games(ctx context.Context, offset int, limit int) ([]*Ga
 	if err != nil {
 		return nil, err
 	}
-	// Basic pagination: order by id for stability and apply limit/offset.
-	// If you add created_at to the table, prefer ordering by that.
-	rows, err := s.db.Query("SELECT id, payload FROM games ORDER BY id DESC LIMIT $1 OFFSET $2", limit, offset)
+	if limit <= 0 {
+		return []*Game{}, nil
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Filter in PostgreSQL before applying pagination. Applying LIMIT/OFFSET to
+	// every game's payload and filtering participants afterwards made a user
+	// see empty pages whenever other users' games occupied that page.
+	rows, err := s.db.Query(`
+		SELECT id, payload
+		FROM games
+		WHERE EXISTS (
+			SELECT 1
+			FROM jsonb_array_elements(COALESCE(payload->'Players', '[]'::jsonb)) AS player
+			WHERE player->>'ID' = $1 OR player->>'Username' = $2
+		)
+		ORDER BY (payload->>'CreatedAt')::timestamptz DESC NULLS LAST, id DESC
+		LIMIT $3 OFFSET $4`, authUser.ID, authUser.Username, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query games: %w", err)
 	}
@@ -58,10 +73,10 @@ func (s *graphQLServer) Games(ctx context.Context, offset int, limit int) ([]*Ga
 			return nil, fmt.Errorf("failed to unmarshal game %s: %w", id, err)
 		}
 		ensureGameDefaults(game)
-		if !isUserInGame(game, authUser) {
-			continue
-		}
 		games = append(games, game)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate games: %w", err)
 	}
 	return games, nil
 }
@@ -113,135 +128,228 @@ func (s *graphQLServer) GameUpdated(ctx context.Context, gameID string, userID s
 	if !isUserInGame(game, authUser) {
 		return nil, errors.New("forbidden: not a participant in this game")
 	}
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	s.loggerFor(ctx).Info("registering game observer", "user_id", userID, "game_id", gameID)
 
+	// Observer maps are always accessed under s.mutex. In particular, do not
+	// mix a per-game lock for cleanup with this lock for publication: Go maps
+	// panic when an unsubscribe deletes while publication iterates.
+	s.mutex.Lock()
+	if s.games == nil {
+		s.games = make(map[string]*FullGame)
+	}
 	g, ok := s.games[gameID]
 	if !ok {
-		game := &FullGame{
+		g = &FullGame{
 			GameID:    gameID,
 			Observers: make(map[string]*GameObserver),
 		}
-
-		// add observer to the FullGame
-		obs := &GameObserver{
-			UserID:  userID,
-			Channel: make(chan *Game, 10), // buffered to avoid head-of-line blocking
-		}
-
-		// clean up the observers channel when we're done with it
-		go func() {
-			<-ctx.Done()
-			game.Mutex.Lock()
-			s.loggerFor(ctx).Info("cleaning up game observer", "user_id", userID, "game_id", game.GameID)
-			delete(game.Observers, userID)
-			game.Mutex.Unlock()
-		}()
-
-		// game observers are keyed by userID.
-		// only one connection per userID is allowed.
-		game.Mutex.Lock()
-		game.Observers[userID] = obs
-		game.Mutex.Unlock()
-
-		// register the game in the main server directory
-		s.games[gameID] = game
-		return obs.Channel, nil
+		s.games[gameID] = g
 	}
 
-	// game exists, so just push user into observers and return their channel
+	// A browser may have multiple tabs for the same player. Use an internal
+	// subscription ID rather than the user ID so one tab cannot evict another.
+	observerID := uuid.NewString()
 	obs := &GameObserver{
 		UserID:  userID,
 		Channel: make(chan *Game, 10), // buffered to avoid head-of-line blocking
 	}
-	g.Mutex.Lock()
-	g.Observers[userID] = obs
-	g.Mutex.Unlock()
+	g.Observers[observerID] = obs
+	s.mutex.Unlock()
+
+	go func() {
+		<-ctx.Done()
+		s.mutex.Lock()
+		defer s.mutex.Unlock()
+		if s.games[gameID] != g || g.Observers[observerID] != obs {
+			return
+		}
+		delete(g.Observers, observerID)
+		if len(g.Observers) == 0 {
+			delete(s.games, gameID)
+		}
+		s.loggerFor(ctx).Info("cleaned up game observer", "user_id", userID, "game_id", gameID)
+	}()
 
 	return obs.Channel, nil
 }
 
-// UpdateGame is what's used to change the name of the game, format, insert
-// or remove players, or change other meta informatin about a game.
+// UpdateGame is retained for the stack interaction used by the current UI.
+// It intentionally does not accept a client-authored replacement Game: turn,
+// rules, membership, and every other player's boardstate are server-owned.
 func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, error) {
 	authUser, err := requireAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	game := &Game{}
+	if new.ID == "" {
+		return nil, errors.New("game ID is required")
+	}
+	requested := &Game{}
 	b, err := json.Marshal(new)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal input game: %s", err)
 	}
-	err = json.Unmarshal(b, &game)
+	err = json.Unmarshal(b, requested)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal game: %s", err)
 	}
-	if game.Turn != nil && game.Turn.Priority == "" {
-		game.Turn.Priority = game.Turn.Player
-	}
 
-	// Ensure players have stable IDs even when input omits them. Tests expect
-	// deterministic placeholders for anonymous users; we generate `deadbeef`
-	// for the first player and `deadbeef2` for the second, etc.
-	for i, p := range game.Players {
-		if p != nil && p.ID == "" {
-			switch i {
-			case 0:
-				p.ID = "deadbeef"
-			case 1:
-				p.ID = "deadbeef2"
-			default:
-				p.ID = fmt.Sprintf("deadbeef%d", i+1)
-			}
-		}
-	}
-
-	// Ensure the caller is a participant in the existing game or the new input.
-	existing, err := s.GetGame(ctx, game.ID)
-	if err == nil {
-		ensureGameDefaults(existing)
+	var previous *Game
+	updated, err := s.mutateGame(ctx, new.ID, func(existing *Game) (*Game, error) {
 		if existing.Status == GameStatusFinished {
 			return nil, errors.New("game already finished")
 		}
 		if !isUserInGame(existing, authUser) {
 			return nil, errors.New("forbidden: not a participant in this game")
 		}
-	} else if err == sql.ErrNoRows {
-		if !isUserInGame(game, authUser) {
-			return nil, errors.New("forbidden: caller must be a participant in new game")
+		previous = cloneGame(existing)
+		changed := false
+
+		for _, playerInput := range new.Players {
+			if playerInput == nil || playerInput.Boardstate == nil {
+				continue
+			}
+			index := playerIndex(existing, playerInput.ID, playerInput.Username)
+			if index == -1 {
+				return nil, errors.New("invalid player in game update")
+			}
+			player := existing.Players[index]
+			if player == nil || !matchesAuthUser(player, authUser) {
+				// The client sends a full player list for backwards compatibility,
+				// but only the caller's own boardstate is mutable on this path.
+				continue
+			}
+			boardstate, err := boardStateFromInput(*playerInput.Boardstate)
+			if err != nil {
+				return nil, fmt.Errorf("invalid boardstate: %w", err)
+			}
+			boardstate.UserID = player.ID
+			boardstate.User = player.Username
+			boardstate.GameID = existing.ID
+			existing.Players[index].Boardstate = boardstate
+			changed = true
 		}
-	} else {
-		return nil, fmt.Errorf("failed to load game for authorization: %w", err)
-	}
 
-	if existing != nil {
-		game.Status = existing.Status
-		game.Result = existing.Result
-		game.WinnerIDs = existing.WinnerIDs
-		game.WinCondition = existing.WinCondition
-		game.PendingWinClaim = existing.PendingWinClaim
-		if err := enforceStackPriority(existing, game); err != nil {
-			return nil, err
+		if new.Stack != nil {
+			if existing.Turn == nil || existing.Turn.Priority != authUser.Username {
+				return nil, errors.New("forbidden: only priority player can update the stack")
+			}
+			switch {
+			case len(requested.Stack) < len(existing.Stack):
+				removed, ok := removedStackCard(existing.Stack, requested.Stack)
+				if !ok {
+					return nil, errors.New("stack updates may resolve only one unchanged card")
+				}
+				if removed.CurrentZone == nil || *removed.CurrentZone == "" {
+					return nil, errors.New("cannot resolve a stack card without an owner")
+				}
+				owner := playerIndex(existing, nil, *removed.CurrentZone)
+				if owner == -1 || existing.Players[owner] == nil || existing.Players[owner].Boardstate == nil {
+					return nil, errors.New("cannot resolve a stack card for an unknown owner")
+				}
+				existing.Stack = requested.Stack
+				existing.Players[owner].Boardstate.Graveyard = append(
+					existing.Players[owner].Boardstate.Graveyard,
+					cloneCard(removed),
+				)
+				changed = true
+			case len(requested.Stack) > len(existing.Stack):
+				if !stackHasPrefix(requested.Stack, existing.Stack) {
+					return nil, errors.New("existing stack cards cannot be modified")
+				}
+				proposal := cloneGame(existing)
+				proposal.Stack = requested.Stack
+				if err := enforceStackPriority(existing, proposal); err != nil {
+					return nil, err
+				}
+				existing.Stack = requested.Stack
+				changed = true
+			case !reflect.DeepEqual(existing.Stack, requested.Stack):
+				return nil, errors.New("existing stack cards cannot be modified")
+			}
+		}
+
+		if changed && existing.PendingWinClaim != nil {
+			s.cancelPendingWinClaim(ctx, existing, authUser.Username, "game updated")
+		}
+		return existing, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	go s.publishGame(updated.ID, updated)
+	if previous != nil {
+		s.logGameChanges(ctx, updated.ID, authUser.Username, previous, updated)
+	}
+	return updated, nil
+}
+
+func playerIndex(game *Game, id *string, username string) int {
+	if game == nil {
+		return -1
+	}
+	for index, player := range game.Players {
+		if player == nil {
+			continue
+		}
+		if id != nil && *id != "" && player.ID == *id {
+			return index
+		}
+		if username != "" && player.Username == username {
+			return index
 		}
 	}
+	return -1
+}
 
-	if game.PendingWinClaim != nil {
-		s.cancelPendingWinClaim(ctx, game, authUser.Username, "game updated")
+func matchesAuthUser(player *User, authUser *AuthUser) bool {
+	return player != nil && authUser != nil &&
+		((authUser.ID != "" && player.ID == authUser.ID) ||
+			(authUser.Username != "" && player.Username == authUser.Username))
+}
+
+func stackHasPrefix(next, current []*Card) bool {
+	if len(next) < len(current) {
+		return false
 	}
-
-	go s.publishGame(game.ID, game)
-
-	if err := s.upsertGame(game); err != nil {
-		return game, err
+	for index, card := range current {
+		if !reflect.DeepEqual(next[index], card) {
+			return false
+		}
 	}
+	return true
+}
 
-	if existing != nil {
-		s.logGameChanges(ctx, game.ID, authUser.Username, existing, game)
+// removedStackCard validates that next is current with exactly one card
+// removed, preserving the order and content of every remaining card.
+func removedStackCard(current, next []*Card) (*Card, bool) {
+	if len(next) != len(current)-1 {
+		return nil, false
 	}
-	return game, nil
+	for removedIndex := range current {
+		candidate := make([]*Card, 0, len(next))
+		candidate = append(candidate, current[:removedIndex]...)
+		candidate = append(candidate, current[removedIndex+1:]...)
+		if reflect.DeepEqual(candidate, next) {
+			return current[removedIndex], true
+		}
+	}
+	return nil, false
+}
+
+func cloneGame(game *Game) *Game {
+	if game == nil {
+		return nil
+	}
+	payload, err := json.Marshal(game)
+	if err != nil {
+		return nil
+	}
+	clone := &Game{}
+	if err := json.Unmarshal(payload, clone); err != nil {
+		return nil
+	}
+	return clone
 }
 
 func enforceStackPriority(current *Game, next *Game) error {
@@ -285,63 +393,61 @@ func (s *graphQLServer) PassPriority(ctx context.Context, gameID string, toPlaye
 	if err != nil {
 		return nil, err
 	}
-	game, err := s.GetGame(ctx, gameID)
+	updated, err := s.mutateGame(ctx, gameID, func(game *Game) (*Game, error) {
+		if game.Status == GameStatusFinished {
+			return nil, errors.New("game already finished")
+		}
+		if !isUserInGame(game, authUser) {
+			return nil, errors.New("forbidden: not a participant in this game")
+		}
+		if game.Turn == nil {
+			return nil, errors.New("game has no turn state")
+		}
+		if game.Turn.Priority != authUser.Username {
+			return nil, errors.New("forbidden: only priority player can pass priority")
+		}
+		if !playerExists(game, toPlayer) {
+			return nil, errors.New("target player not in game")
+		}
+		if game.PendingWinClaim != nil {
+			if !claimMatchesPrioritySequence(game.PendingWinClaim, toPlayer) {
+				s.cancelPendingWinClaim(ctx, game, authUser.Username, "priority passed out of sequence")
+			} else {
+				claimer := game.PendingWinClaim.ClaimedBy
+				condition := game.PendingWinClaim.Condition
+				game.PendingWinClaim.Remaining = game.PendingWinClaim.Remaining[1:]
+				if toPlayer == claimer && len(game.PendingWinClaim.Remaining) == 0 {
+					finalizeGame(game, GameResultWin, []string{claimer}, condition)
+					s.logEvent(ctx, Event{
+						GameID: game.ID,
+						Type:   EventTypeGameFinished,
+						Actor:  authUser.Username,
+						Payload: map[string]interface{}{
+							"result":      GameResultWin,
+							"winnerNames": []string{claimer},
+							"condition":   condition,
+						},
+					})
+				}
+			}
+		}
+		game.Turn.Priority = toPlayer
+		s.logEvent(ctx, Event{
+			GameID: game.ID,
+			Type:   EventTypePriorityPassed,
+			Actor:  authUser.Username,
+			Payload: map[string]interface{}{
+				"from": authUser.Username,
+				"to":   toPlayer,
+			},
+		})
+		return game, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	ensureGameDefaults(game)
-	if game.Status == GameStatusFinished {
-		return nil, errors.New("game already finished")
-	}
-	if !isUserInGame(game, authUser) {
-		return nil, errors.New("forbidden: not a participant in this game")
-	}
-	if game.Turn == nil {
-		return nil, errors.New("game has no turn state")
-	}
-	if game.Turn.Priority != authUser.Username {
-		return nil, errors.New("forbidden: only priority player can pass priority")
-	}
-	if !playerExists(game, toPlayer) {
-		return nil, errors.New("target player not in game")
-	}
-	if game.PendingWinClaim != nil {
-		if !claimMatchesPrioritySequence(game.PendingWinClaim, toPlayer) {
-			s.cancelPendingWinClaim(ctx, game, authUser.Username, "priority passed out of sequence")
-		} else {
-			claimer := game.PendingWinClaim.ClaimedBy
-			condition := game.PendingWinClaim.Condition
-			game.PendingWinClaim.Remaining = game.PendingWinClaim.Remaining[1:]
-			if toPlayer == claimer && len(game.PendingWinClaim.Remaining) == 0 {
-				finalizeGame(game, GameResultWin, []string{claimer}, condition)
-				s.logEvent(ctx, Event{
-					GameID: game.ID,
-					Type:   EventTypeGameFinished,
-					Actor:  authUser.Username,
-					Payload: map[string]interface{}{
-						"result":      GameResultWin,
-						"winnerNames": []string{claimer},
-						"condition":   condition,
-					},
-				})
-			}
-		}
-	}
-	game.Turn.Priority = toPlayer
-	s.logEvent(ctx, Event{
-		GameID: game.ID,
-		Type:   EventTypePriorityPassed,
-		Actor:  authUser.Username,
-		Payload: map[string]interface{}{
-			"from": authUser.Username,
-			"to":   toPlayer,
-		},
-	})
-	go s.publishGame(game.ID, game)
-	if err := s.upsertGame(game); err != nil {
-		return game, err
-	}
-	return game, nil
+	go s.publishGame(updated.ID, updated)
+	return updated, nil
 }
 
 func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase string, number *int) (*Game, error) {
@@ -349,71 +455,69 @@ func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase s
 	if err != nil {
 		return nil, err
 	}
-	game, err := s.GetGame(ctx, gameID)
+	updated, err := s.mutateGame(ctx, gameID, func(game *Game) (*Game, error) {
+		if game.Status == GameStatusFinished {
+			return nil, errors.New("game already finished")
+		}
+		if !isUserInGame(game, authUser) {
+			return nil, errors.New("forbidden: not a participant in this game")
+		}
+		if game.Turn == nil {
+			return nil, errors.New("game has no turn state")
+		}
+		if game.Turn.Player != authUser.Username {
+			return nil, errors.New("forbidden: only the turn player can advance the phase")
+		}
+		prevTurn := *game.Turn
+		// Deliberately no normalizeTurnPhase call here (fix(01-05), see
+		// SUMMARY "Assigned Test Fix"): this tracker does not enforce turn
+		// structure (PROJECT.md: "Full Magic rules enforcement...not what a
+		// tracker is for"), and coercing any caller-supplied phase name that
+		// is not a literal member of the current format's PhaseSequence back
+		// to PhaseSequence[0] silently discarded whatever phase name the
+		// player actually advanced to. normalizeTurnPhase's real job --
+		// picking a sane initial phase for a brand-new game -- still runs
+		// once, in CreateGame.
+
+		nextTurnNumber := game.Turn.Number
+		if number != nil {
+			nextTurnNumber = *number
+		} else if shouldIncrementTurnNumber(prevTurn.Phase, phase) {
+			nextTurnNumber = prevTurn.Number + 1
+		}
+
+		game.Turn.Phase = phase
+		game.Turn.Number = nextTurnNumber
+		if game.Turn.Priority == "" {
+			game.Turn.Priority = game.Turn.Player
+		}
+		if game.PendingWinClaim != nil {
+			s.cancelPendingWinClaim(ctx, game, authUser.Username, "turn advanced")
+		}
+		s.logEvent(ctx, Event{
+			GameID: game.ID,
+			Type:   EventTypeTurnAdvanced,
+			Actor:  authUser.Username,
+			Payload: map[string]interface{}{
+				"from": map[string]interface{}{
+					"player": prevTurn.Player,
+					"phase":  prevTurn.Phase,
+					"number": prevTurn.Number,
+				},
+				"to": map[string]interface{}{
+					"player": game.Turn.Player,
+					"phase":  game.Turn.Phase,
+					"number": game.Turn.Number,
+				},
+			},
+		})
+		return game, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	ensureGameDefaults(game)
-	if game.Status == GameStatusFinished {
-		return nil, errors.New("game already finished")
-	}
-	if !isUserInGame(game, authUser) {
-		return nil, errors.New("forbidden: not a participant in this game")
-	}
-	if game.Turn == nil {
-		return nil, errors.New("game has no turn state")
-	}
-	if game.Turn.Player != authUser.Username {
-		return nil, errors.New("forbidden: only the turn player can advance the phase")
-	}
-	prevTurn := *game.Turn
-	// Deliberately no normalizeTurnPhase call here (fix(01-05), see
-	// SUMMARY "Assigned Test Fix"): this tracker does not enforce turn
-	// structure (PROJECT.md: "Full Magic rules enforcement...not what a
-	// tracker is for"), and coercing any caller-supplied phase name that
-	// is not a literal member of the current format's PhaseSequence back
-	// to PhaseSequence[0] silently discarded whatever phase name the
-	// player actually advanced to. normalizeTurnPhase's real job --
-	// picking a sane initial phase for a brand-new game -- still runs
-	// once, in CreateGame.
-
-	nextTurnNumber := game.Turn.Number
-	if number != nil {
-		nextTurnNumber = *number
-	} else if shouldIncrementTurnNumber(prevTurn.Phase, phase) {
-		nextTurnNumber = prevTurn.Number + 1
-	}
-
-	game.Turn.Phase = phase
-	game.Turn.Number = nextTurnNumber
-	if game.Turn.Priority == "" {
-		game.Turn.Priority = game.Turn.Player
-	}
-	if game.PendingWinClaim != nil {
-		s.cancelPendingWinClaim(ctx, game, authUser.Username, "turn advanced")
-	}
-	s.logEvent(ctx, Event{
-		GameID: game.ID,
-		Type:   EventTypeTurnAdvanced,
-		Actor:  authUser.Username,
-		Payload: map[string]interface{}{
-			"from": map[string]interface{}{
-				"player": prevTurn.Player,
-				"phase":  prevTurn.Phase,
-				"number": prevTurn.Number,
-			},
-			"to": map[string]interface{}{
-				"player": game.Turn.Player,
-				"phase":  game.Turn.Phase,
-				"number": game.Turn.Number,
-			},
-		},
-	})
-	go s.publishGame(game.ID, game)
-	if err := s.upsertGame(game); err != nil {
-		return game, err
-	}
-	return game, nil
+	go s.publishGame(updated.ID, updated)
+	return updated, nil
 }
 
 func normalizePhaseKey(phase string) string {
@@ -526,106 +630,106 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	if input.Decklist == nil {
 		return nil, errors.New("must provide a decklist to join")
 	}
+	if input.BoardState.GameID != input.ID {
+		return nil, errors.New("boardstate game ID must match the game being joined")
+	}
 
-	// get the game and verify itself
-	game, err := s.loadGameByID(input.ID)
+	updated, err := s.mutateGame(ctx, input.ID, func(game *Game) (*Game, error) {
+		if game.Status == GameStatusFinished {
+			return nil, errors.New("game already finished")
+		}
+
+		if len(game.Players) >= 4 {
+			return nil, errors.New("game is full")
+		}
+		if isUserInGame(game, authUser) {
+			return nil, errors.New("user already in game")
+		}
+
+		// CR-01 fix: InputBoardState.Life is a required, non-pointer Int!
+		// (server/schema.graphql), so there is no wire-level way to distinguish
+		// "the caller didn't set a life total" from "the caller explicitly
+		// wants 0" -- both arrive as the Go zero value. CreateGame resolves this
+		// ambiguity with defaultLifeForAll, a heuristic that looks across every
+		// player in a single call. JoinGame adds exactly one player per call, so
+		// that heuristic doesn't apply directly; instead we treat a
+		// non-positive Life on a JOINING player as "unspecified," since a
+		// player cannot join a game already dead/eliminated. Without this, an
+		// omitted (zero-value) Life leaves the new player at Boardstate.Life ==
+		// 0, and game_finish.go's alivePlayerNames treats Life <= 0 as already
+		// eliminated -- the very next UpdateBoardState call from anyone would
+		// end the game as a win for the other side before the joining player
+		// ever acted. See CreateGame's defaultLifeForAll comment for the
+		// matching rationale on the multi-player path.
+		life := input.BoardState.Life
+		if life <= 0 {
+			life = formatFromRules(game.Rules).StartingLife
+		}
+		user := &User{
+			Username:    input.BoardState.User,
+			ID:          input.BoardState.UserID,
+			DisplayName: joiningDisplayNameValue,
+			Boardstate: &BoardState{
+				UserID:      input.BoardState.UserID,
+				User:        input.BoardState.User,
+				GameID:      game.ID,
+				Life:        life,
+				Exiled:      getBareCard(input.BoardState.Exiled),
+				Revealed:    getBareCard(input.BoardState.Revealed),
+				Battlefield: getBareCard(input.BoardState.Battlefield),
+				Controlled:  getBareCard(input.BoardState.Controlled),
+				Hand:        make([]*Card, 0),
+				Graveyard:   make([]*Card, 0),
+			},
+		}
+
+		// hydrate and validate the library from the provided decklist. This is
+		// the single canonical parse site for the join path — see PreviewDeck
+		// for createGame's / previewDeck's own canonical site — so the join
+		// preview (if one is ever added) and the join-time library would
+		// consume the same normalized result.
+		parsedDeck := deckimport.Parse(*input.Decklist)
+		library, err := s.createLibraryFromDecklist(ctx, &parsedDeck, input.BoardState.Commander)
+		if err != nil {
+			return nil, fmt.Errorf("invalid decklist: %w", err)
+		}
+		user.Boardstate.Library = library
+
+		// NB: Commented out while we figure out how to handle Commander selection.
+		if len(input.BoardState.Commander) > 0 {
+			for _, card := range input.BoardState.Commander {
+				commander, err := s.Card(ctx, card.Name, nil)
+				if err != nil {
+					s.loggerFor(ctx).Warn("error getting commander for deck", "err", err, "card_name", card.Name, "game_id", input.ID, "user_id", input.BoardState.UserID)
+					continue
+				}
+				user.Boardstate.Commander = append(user.Boardstate.Commander, commander)
+			}
+		}
+
+		// shuffle their library for the start of the game
+		shuff, err := Shuffle(user.Boardstate.Library)
+		if err != nil {
+			s.loggerFor(ctx).Error("error shuffling library", "err", err, "game_id", input.ID, "user_id", input.BoardState.UserID)
+			return nil, err
+		}
+		user.Boardstate.Library = shuff
+
+		// add them to the game's list of players
+		game.Players = append(game.Players, user)
+		return game, nil
+	})
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("game does not exist: %w", err)
 		}
-		return nil, fmt.Errorf("failed to find game: %w", err)
-	}
-	ensureGameDefaults(game)
-	if game.Status == GameStatusFinished {
-		return nil, errors.New("game already finished")
-	}
-
-	if len(game.Players) >= 4 {
-		return nil, errors.New("game is full")
-	}
-	if isUserInGame(game, authUser) {
-		return nil, errors.New("user already in game")
-	}
-
-	// CR-01 fix: InputBoardState.Life is a required, non-pointer Int!
-	// (server/schema.graphql), so there is no wire-level way to distinguish
-	// "the caller didn't set a life total" from "the caller explicitly
-	// wants 0" -- both arrive as the Go zero value. CreateGame resolves this
-	// ambiguity with defaultLifeForAll, a heuristic that looks across every
-	// player in a single call. JoinGame adds exactly one player per call, so
-	// that heuristic doesn't apply directly; instead we treat a
-	// non-positive Life on a JOINING player as "unspecified," since a
-	// player cannot join a game already dead/eliminated. Without this, an
-	// omitted (zero-value) Life leaves the new player at Boardstate.Life ==
-	// 0, and game_finish.go's alivePlayerNames treats Life <= 0 as already
-	// eliminated -- the very next UpdateBoardState call from anyone would
-	// end the game as a win for the other side before the joining player
-	// ever acted. See CreateGame's defaultLifeForAll comment for the
-	// matching rationale on the multi-player path.
-	life := input.BoardState.Life
-	if life <= 0 {
-		life = formatFromRules(game.Rules).StartingLife
-	}
-	user := &User{
-		Username:    input.BoardState.User,
-		ID:          input.BoardState.UserID,
-		DisplayName: joiningDisplayNameValue,
-		Boardstate: &BoardState{
-			User:        input.BoardState.User,
-			Life:        life,
-			Exiled:      getBareCard(input.BoardState.Exiled),
-			Revealed:    getBareCard(input.BoardState.Revealed),
-			Battlefield: getBareCard(input.BoardState.Battlefield),
-			Controlled:  getBareCard(input.BoardState.Controlled),
-			Hand:        make([]*Card, 0),
-			Graveyard:   make([]*Card, 0),
-		},
-	}
-
-	// hydrate and validate the library from the provided decklist. This is
-	// the single canonical parse site for the join path — see PreviewDeck
-	// for createGame's / previewDeck's own canonical site — so the join
-	// preview (if one is ever added) and the join-time library would
-	// consume the same normalized result.
-	parsedDeck := deckimport.Parse(*input.Decklist)
-	library, err := s.createLibraryFromDecklist(ctx, &parsedDeck, input.BoardState.Commander)
-	if err != nil {
-		return nil, fmt.Errorf("invalid decklist: %w", err)
-	}
-	user.Boardstate.Library = library
-
-	// NB: Commented out while we figure out how to handle Commander selection.
-	if len(input.BoardState.Commander) > 0 {
-		for _, card := range input.BoardState.Commander {
-			commander, err := s.Card(ctx, card.Name, nil)
-			if err != nil {
-				s.loggerFor(ctx).Warn("error getting commander for deck", "err", err, "card_name", card.Name, "game_id", input.ID, "user_id", input.BoardState.UserID)
-				continue
-			}
-			user.Boardstate.Commander = append(user.Boardstate.Commander, commander)
-		}
-	}
-
-	// shuffle their library for the start of the game
-	shuff, err := Shuffle(user.Boardstate.Library)
-	if err != nil {
-		s.loggerFor(ctx).Error("error shuffling library", "err", err, "game_id", input.ID, "user_id", input.BoardState.UserID)
 		return nil, err
 	}
-	user.Boardstate.Library = shuff
 
-	// add them to the game's list of players
-	game.Players = append(game.Players, user)
-
-	go s.publishGame(game.ID, game)
-
-	// update game in postgrse
-	if err := s.upsertGame(game); err != nil {
-		return nil, fmt.Errorf("failed to update game: %w", err)
-	}
+	go s.publishGame(updated.ID, updated)
 
 	s.logEvent(ctx, Event{
-		GameID: game.ID,
+		GameID: updated.ID,
 		Type:   EventTypePlayerJoined,
 		Actor:  authUser.Username,
 		Payload: map[string]interface{}{
@@ -633,7 +737,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		},
 	})
 
-	return game, nil
+	return updated, nil
 }
 
 const (
@@ -663,12 +767,6 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	if creatingDisplayName.Valid {
 		creatingDisplayNameValue = &creatingDisplayName.String
 	}
-	// don't allow a game to be created with an existing name
-	// TECHDEBT replace this with a proper cache
-	if _, exists := s.games[inputGame.ID]; exists {
-		return nil, fmt.Errorf("game already exists with ID %s", inputGame.ID)
-	}
-
 	// assign an ID if none is provided
 	if inputGame.ID == "" {
 		inputGame.ID = uuid.New().String()
@@ -798,8 +896,15 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		return nil, errors.New("forbidden: caller must be included as a player")
 	}
 
-	if err := s.upsertGame(g); err != nil {
-		return nil, fmt.Errorf("failed to update game: %w", err)
+	persisted, created, err := s.createOrLoadGame(ctx, g, authUser)
+	if err != nil {
+		return nil, err
+	}
+	if !created {
+		// A caller retrying its own create must receive the original game, not
+		// replace it with a second client-authored payload.
+		outcome = gameCreateOutcomeSuccess
+		return persisted, nil
 	}
 
 	// DEC-L: the conversion belongs strictly after persistence. Existing
@@ -808,7 +913,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	if inputGame.SessionID != nil {
 		if sessionID := strings.TrimSpace(*inputGame.SessionID); sessionID != "" {
 			userID := authUser.ID
-			gameID := g.ID
+			gameID := persisted.ID
 			s.recordProductEvent(ctx, ProductEvent{
 				Name:      "game_created",
 				SessionID: sessionID,
@@ -819,7 +924,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	}
 
 	var players []map[string]interface{}
-	for _, p := range g.Players {
+	for _, p := range persisted.Players {
 		if p == nil || p.Boardstate == nil {
 			continue
 		}
@@ -830,7 +935,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		})
 	}
 	s.logEvent(ctx, Event{
-		GameID: g.ID,
+		GameID: persisted.ID,
 		Type:   EventTypeGameCreated,
 		Actor:  authUser.Username,
 		Payload: map[string]interface{}{
@@ -839,28 +944,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	})
 
 	outcome = gameCreateOutcomeSuccess
-	return g, nil
-}
-
-// upsert inserts or updates a Game in the games table. It detects conflicts
-// by checking game IDs.
-func (s *graphQLServer) upsertGame(g *Game) error {
-	if g.ID == "" {
-		return fmt.Errorf("ErrInvalidGameID: game ID must be set: %+v", g)
-	}
-	query := `INSERT INTO games (id, payload) 
-	VALUES ($1, $2::jsonb)
-	ON CONFLICT (id) DO UPDATE SET payload = $2::jsonb;
-	`
-	gbz, err := json.Marshal(g)
-	if err != nil {
-		return err
-	}
-	_, err = s.db.Exec(query, g.ID, string(gbz))
-	if err != nil {
-		return err
-	}
-	return nil
+	return persisted, nil
 }
 
 // getBareCard returns a card type that hasn't been hydrated with
@@ -1004,13 +1088,25 @@ func (s *graphQLServer) createLibraryFromDecklist(ctx context.Context, parsed *d
 
 // addX adds a card to a slice of cards x number of times.
 func addX(qty int64, cards []*Card, card *Card) []*Card {
-	sum := int64(1)
 	for i := int64(1); i <= qty; i++ {
-		cards = append(cards, card)
-		sum += i
+		// Each library slot is a distinct physical copy, even when the card
+		// metadata has the same printing ID. Sharing one pointer made later
+		// in-memory mutations affect every copy at once.
+		cards = append(cards, cloneCard(card))
 	}
 
 	return cards
+}
+
+func cloneCard(card *Card) *Card {
+	if card == nil {
+		return nil
+	}
+	clone := *card
+	if card.Counters != nil {
+		clone.Counters = append([]*Counter(nil), card.Counters...)
+	}
+	return &clone
 }
 
 // GameKey formats the keys for Games in our Directory
@@ -1021,36 +1117,23 @@ func GameKey(gameID string) string {
 // publish a game update to each Observer of the game
 func (s *graphQLServer) publishGame(gameID string, g *Game) {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	fullgame := s.games[gameID]
+	observers := make([]*GameObserver, 0)
+	if fullgame != nil {
+		observers = make([]*GameObserver, 0, len(fullgame.Observers))
+		for _, observer := range fullgame.Observers {
+			observers = append(observers, observer)
+		}
+	}
+	s.mutex.Unlock()
 
 	logger := s.loggerFor(context.Background()).With("game_id", gameID)
-
-	fullgame, ok := s.games[gameID]
-	if ok {
-		// alert observers
-		// Log current observers for debugging subscription delivery issues
-		if len(fullgame.Observers) == 0 {
-			logger.Debug("publishGame: no observers")
-		} else {
-			var ids []string
-			for k := range fullgame.Observers {
-				ids = append(ids, k)
-			}
-			logger.Debug("publishGame: sending update", "observer_ids", ids)
-		}
-		for _, gameObs := range fullgame.Observers {
-			select {
-			case gameObs.Channel <- g:
-			default:
-				// drop if subscriber isn't reading to avoid blocking others
-				logger.Warn("publishGame: drop update (channel full)", "observer_user_id", gameObs.UserID)
-			}
-		}
-	} else {
-		// create one if we haven't seen this game before.
-		s.games[gameID] = &FullGame{
-			GameID:    gameID,
-			Observers: make(map[string]*GameObserver),
+	for _, gameObs := range observers {
+		select {
+		case gameObs.Channel <- g:
+		default:
+			// Drop a stale subscriber's update rather than stalling everyone.
+			logger.Warn("publishGame: drop update (channel full)", "observer_user_id", gameObs.UserID)
 		}
 	}
 }

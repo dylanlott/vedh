@@ -110,6 +110,20 @@ func TestUpdateBoardState(t *testing.T) {
 	}
 }
 
+func TestBoardstateObserverCleanupRemovesCancelledSubscription(t *testing.T) {
+	s := &graphQLServer{boards: make(map[string]*FullBoardstate)}
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := s.registerObserver(ctx, "observer-1", "user-1")
+	assert.NoError(t, err)
+
+	cancel()
+	assert.Eventually(t, func() bool {
+		s.mutex.RLock()
+		defer s.mutex.RUnlock()
+		return len(s.boards) == 0
+	}, time.Second, 10*time.Millisecond, "cancelled board subscriptions must be removed")
+}
+
 func TestUpdateBoardState_AutoFinishRules(t *testing.T) {
 	t.Run("single-player game does not auto-finish when one player is alive", func(t *testing.T) {
 		s := testAPI(t)

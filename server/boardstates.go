@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 )
 
 // BoardObserver wraps a UserID to a BoardState channel emiter.
@@ -17,7 +16,6 @@ type BoardObserver struct {
 
 // FullBoardstate binds a set of observers to a game ID and user ID
 type FullBoardstate struct {
-	sync.Mutex
 	// Game ID of the Boardstate in play
 	GameID string
 	// User ID of the Boardstate being observed
@@ -59,34 +57,36 @@ func (s *graphQLServer) UpdateBoardState(
 	}
 	s.logger.Debug("parsed boardstate for update", "user", bs.User, "game_id", bs.GameID)
 
-	game, err := s.GetGame(ctx, bs.GameID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get game from the database: %w", err)
-	}
-	s.logger.Debug("fetched game for boardstate update", "game_id", game.ID)
-	ensureGameDefaults(game)
-	if game.Status == GameStatusFinished {
-		return nil, fmt.Errorf("game already finished")
-	}
-
-	if game.PendingWinClaim != nil {
-		s.cancelPendingWinClaim(ctx, game, authUser.Username, "boardstate updated")
-	}
-
-	// update matching username's boardstate
 	var prevBoardstate *BoardState
-	for index, player := range game.Players {
-		if player.Username == bs.User {
-			prevBoardstate = cloneBoardState(player.Boardstate)
-			game.Players[index].Boardstate = bs
-			s.logger.Debug("updated boardstate", "user", bs.User, "game_id", bs.GameID)
-			// break early
-			break
+	updatedGame, err := s.mutateGame(ctx, bs.GameID, func(game *Game) (*Game, error) {
+		if game.Status == GameStatusFinished {
+			return nil, fmt.Errorf("game already finished")
 		}
-	}
-	s.logger.Debug("updated boardstate for user", "user", bs.User, "game_id", bs.GameID)
+		if !isUserInGame(game, authUser) {
+			return nil, fmt.Errorf("forbidden: not a participant in this game")
+		}
 
-	if game.Status != GameStatusFinished {
+		playerID := authUser.ID
+		index := playerIndex(game, &playerID, authUser.Username)
+		if index == -1 || game.Players[index] == nil {
+			return nil, fmt.Errorf("authenticated player is not in this game")
+		}
+
+		// The persisted player identity and game ID are authoritative. The
+		// caller may only replace their own boardstate, never target a peer by
+		// shaping input fields.
+		player := game.Players[index]
+		bs.UserID = player.ID
+		bs.User = player.Username
+		bs.GameID = game.ID
+		prevBoardstate = cloneBoardState(player.Boardstate)
+		player.Boardstate = bs
+		s.logger.Debug("updated boardstate", "user", bs.User, "game_id", bs.GameID)
+
+		if game.PendingWinClaim != nil {
+			s.cancelPendingWinClaim(ctx, game, authUser.Username, "boardstate updated")
+		}
+
 		alive := alivePlayerNames(game)
 		totalPlayers := len(game.Players)
 		switch len(alive) {
@@ -97,12 +97,10 @@ func (s *graphQLServer) UpdateBoardState(
 				finalizeGame(game, GameResultWin, []string{alive[0]}, nil)
 			}
 		}
-	}
-
-	// Persist the updated game first to ensure all consumers eventually see
-	// the same state in case they refetch after subscription delivery.
-	if err := s.upsertGame(game); err != nil {
-		return nil, fmt.Errorf("failed to update player %s boardstate %w", bs.User, err)
+		return game, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update player %s boardstate: %w", bs.User, err)
 	}
 
 	// Notify any boardstate observers for this specific user
@@ -110,22 +108,22 @@ func (s *graphQLServer) UpdateBoardState(
 
 	// Also publish the full game so clients subscribed at the game level
 	// receive the updated snapshot.
-	go s.publishGame(game.ID, game)
+	go s.publishGame(updatedGame.ID, updatedGame)
 	if prevBoardstate != nil {
-		s.logBoardstateChanges(ctx, game.ID, authUser.Username, prevBoardstate, bs)
+		s.logBoardstateChanges(ctx, updatedGame.ID, authUser.Username, prevBoardstate, bs)
 	}
-	if game.Status == GameStatusFinished {
+	if updatedGame.Status == GameStatusFinished {
 		result := GameResultDraw
-		if game.Result != nil {
-			result = *game.Result
+		if updatedGame.Result != nil {
+			result = *updatedGame.Result
 		}
 		s.logEvent(ctx, Event{
-			GameID: game.ID,
+			GameID: updatedGame.ID,
 			Type:   EventTypeGameFinished,
 			Actor:  authUser.Username,
 			Payload: map[string]interface{}{
 				"result":    result,
-				"winnerIDs": game.WinnerIDs,
+				"winnerIDs": updatedGame.WinnerIDs,
 			},
 		})
 	}
@@ -176,8 +174,7 @@ func boardStateFromInput(bs InputBoardState) (*BoardState, error) {
 // * if the userID is not found, it logs an error and returns immediately.
 // * if a boardstate for a given userID doesnt' exist, it logs an error and
 // returns.
-// * it acquires a lock on the *FullBoardState and this must be respected
-// or else we'll run into race conditions as well.
+// * observer membership is protected by the server's shared mutex.
 func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 	s.loggerFor(context.Background()).Debug("boardstate published", "user", bs.User, "user_id", bs.UserID, "game_id", bs.GameID)
 	s.mutex.Lock()
@@ -191,18 +188,19 @@ func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 		s.mutex.Unlock()
 		return
 	}
-	obs := fbs.Observers
+	observers := make([]*BoardObserver, 0, len(fbs.Observers))
+	for _, observer := range fbs.Observers {
+		observers = append(observers, observer)
+	}
 	s.mutex.Unlock()
 
-	fbs.Mutex.Lock()
-	for _, v := range obs {
+	for _, v := range observers {
 		select {
 		case v.Channel <- bs:
 		default:
 			s.loggerFor(context.Background()).Warn("publishBoardstate: drop update (channel full)", "observer_id", v.UserID, "user", bs.User, "user_id", bs.UserID)
 		}
 	}
-	fbs.Mutex.Unlock()
 }
 
 // registerObserver will add an observer with ID obsID to the map of observers
@@ -210,9 +208,10 @@ func (s *graphQLServer) publishBoardstate(bs *BoardState) {
 // error.
 func (s *graphQLServer) registerObserver(ctx context.Context, obsID string, userID string) (chan *BoardState, error) {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	logger := s.loggerFor(ctx).With("observer_id", obsID, "user_id", userID)
+	if s.boards == nil {
+		s.boards = make(map[string]*FullBoardstate)
+	}
 
 	// locate if a boardstate exists for that userID already
 	fbs, ok := s.boards[userID]
@@ -234,15 +233,8 @@ func (s *graphQLServer) registerObserver(ctx context.Context, obsID string, user
 		// map the fullboardstate by observed boardstate's userID
 		s.boards[userID] = full
 
-		// clean up after ourselves
-		go func() {
-			<-ctx.Done()
-			full.Mutex.Lock()
-			logger.Info("cleaning up boardstate observer")
-			delete(full.Observers, obsID)
-			full.Mutex.Unlock()
-		}()
-
+		s.mutex.Unlock()
+		go s.cleanupBoardstateObserver(ctx, logger, userID, obsID, full, obs)
 		logger.Info("registered boardstate observer")
 		return obs.Channel, nil
 	}
@@ -257,6 +249,25 @@ func (s *graphQLServer) registerObserver(ctx context.Context, obsID string, user
 		fbs.Observers = make(map[string]*BoardObserver)
 	}
 	fbs.Observers[obsID] = obs
+	s.mutex.Unlock()
+	go s.cleanupBoardstateObserver(ctx, logger, userID, obsID, fbs, obs)
 	logger.Info("registered boardstate observer")
 	return obs.Channel, nil
+}
+
+// cleanupBoardstateObserver removes only the channel that registered this
+// goroutine. A reconnect with the same client-provided obsID must not let the
+// old connection delete the new observer.
+func (s *graphQLServer) cleanupBoardstateObserver(ctx context.Context, logger interface{ Info(string, ...any) }, userID, obsID string, fbs *FullBoardstate, obs *BoardObserver) {
+	<-ctx.Done()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.boards[userID] != fbs || fbs.Observers[obsID] != obs {
+		return
+	}
+	delete(fbs.Observers, obsID)
+	if len(fbs.Observers) == 0 {
+		delete(s.boards, userID)
+	}
+	logger.Info("cleaned up boardstate observer")
 }

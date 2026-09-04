@@ -1,7 +1,11 @@
 package server
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -32,5 +36,24 @@ func TestNewHTTPServer_SetsSecurityTimeoutsAndLimits(t *testing.T) {
 	}
 	if srv.MaxHeaderBytes != maxHeaderBytes {
 		t.Fatalf("unexpected MaxHeaderBytes: got %d want %d", srv.MaxHeaderBytes, maxHeaderBytes)
+	}
+}
+
+func TestWithMaxGraphQLBody_RejectsOversizedPOSTBeforeDecode(t *testing.T) {
+	s := &graphQLServer{}
+	handler := s.withMaxGraphQLBody(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.ReadAll(r.Body)
+		var tooLarge *http.MaxBytesError
+		if !errors.As(err, &tooLarge) {
+			t.Fatalf("expected MaxBytesError, got %v", err)
+		}
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/query", bytes.NewReader(bytes.Repeat([]byte("x"), int(maxGraphQLBodyBytes)+1)))
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+	if res.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("unexpected status: got %d want %d", res.Code, http.StatusRequestEntityTooLarge)
 	}
 }
