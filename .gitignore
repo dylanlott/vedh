@@ -18,6 +18,7 @@ tools/smoke/target/
 # Import script and temp data
 scripts/*
 allprintings.csv.zip
+AllPrintingsCSVFiles/
 .vscode/configurationCache.log
 .vscode/dryrun.log
 .vscode/settings.json

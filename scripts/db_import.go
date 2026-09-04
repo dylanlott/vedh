@@ -114,8 +114,10 @@ func main() {
 		updateAndUnzip(logger)
 	}
 
-	// open up the file for reading
-	f, err := os.Open("./cards.csv")
+	// MTGJSON's current CSV archive stores its data below this directory.
+	// Keep the import path aligned with the archive layout so -refresh works
+	// without a manual move after extraction.
+	f, err := os.Open("./AllPrintingsCSVFiles/cards.csv")
 	if err != nil {
 		logger.Error("failed to open file", "err", err)
 		os.Exit(1)
@@ -128,6 +130,14 @@ func main() {
 	if err != nil {
 		logger.Error("failed to unmarshal csv", "err", err)
 		os.Exit(1)
+	}
+	for _, card := range cards {
+		// MTGJSON v5 removed the separate `id` column. Its uuid is the stable
+		// printing identifier, and this legacy schema stores that same value in
+		// both ID (the primary key) and UUID (a unique compatibility column).
+		if card.ID == "" {
+			card.ID = card.UUID
+		}
 	}
 
 	logger.Info("attempting to import cards", "count", len(cards), "db_host", strings.TrimSpace(parsed.Host))
@@ -252,6 +262,9 @@ func UnzipFile(path string) error {
 		} else {
 			// Extract regular file since not a directory
 			slog.Default().Debug("extracting file", "name", file.Name)
+			if err := os.MkdirAll(filepath.Dir(extractedFilePath), 0o755); err != nil {
+				return err
+			}
 
 			// Open an output file for writing
 			outputFile, err := os.OpenFile(
