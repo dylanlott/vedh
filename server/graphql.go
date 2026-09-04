@@ -27,11 +27,12 @@ import (
 )
 
 const (
-	readHeaderTimeout = 5 * time.Second
-	readTimeout       = 15 * time.Second
-	writeTimeout      = 30 * time.Second
-	idleTimeout       = 60 * time.Second
-	maxHeaderBytes    = 1 << 20 // 1 MiB
+	readHeaderTimeout         = 5 * time.Second
+	readTimeout               = 15 * time.Second
+	writeTimeout              = 30 * time.Second
+	idleTimeout               = 60 * time.Second
+	maxHeaderBytes            = 1 << 20 // 1 MiB
+	maxGraphQLBodyBytes int64 = 1 << 20 // 1 MiB
 )
 
 // Conf takes configuration values and loads them from the environment into our struct.
@@ -406,10 +407,7 @@ func (s *graphQLServer) Serve(route string, port int) error {
 		}),
 		handler.WebsocketKeepAliveDuration(time.Second*10),
 	)
-	mux.Handle(
-		route,
-		gqlHandler,
-	)
+	mux.Handle(route, s.withMaxGraphQLBody(gqlHandler))
 	corsMiddleware := cors.New(cors.Options{
 		AllowOriginFunc:  s.isAllowedOrigin,
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodOptions},
@@ -433,6 +431,19 @@ func (s *graphQLServer) Serve(route string, port int) error {
 	s.logger.Info("serving graphiql", "url", fmt.Sprintf("http://localhost:%d/playground", port))
 	server := newHTTPServer(port, h)
 	return server.ListenAndServe()
+}
+
+// withMaxGraphQLBody limits request allocation before gqlgen decodes a JSON
+// operation. gqlgen's POST transport reads the full request body itself, so
+// resolver-level rate limits are too late to protect the process from an
+// oversized public request.
+func (s *graphQLServer) withMaxGraphQLBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.Body != nil {
+			r.Body = http.MaxBytesReader(w, r.Body, maxGraphQLBodyBytes)
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func newHTTPServer(port int, handler http.Handler) *http.Server {
