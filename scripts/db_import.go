@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"flag"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -231,35 +232,36 @@ func UnzipFile(path string) error {
 
 	// Iterate through each file/dir found in
 	for _, file := range zipReader.Reader.File {
-		// Open the file inside the zip archive
-		// like a normal file
-		zippedFile, err := file.Open()
-		if err != nil {
-			return err
+		cleanName := filepath.Clean(file.Name)
+		if cleanName == "." || filepath.IsAbs(cleanName) || cleanName == ".." || strings.HasPrefix(cleanName, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("refusing unsafe archive path %q", file.Name)
 		}
-		defer zippedFile.Close()
-
 		// Specify what the extracted file name should be.
 		// You can specify a full path or a prefix
 		// to move it to a different directory.
 		// In this case, we will extract the file from
 		// the zip to a file of the same name.
 		targetDir := "./"
-		extractedFilePath := filepath.Join(
-			targetDir,
-			file.Name,
-		)
-
-		// Extract the item (or create directory)
-		if file.FileInfo().IsDir() {
-			// Create directories to recreate directory
-			// structure inside the zip archive. Also
-			// preserves permissions
-			slog.Default().Debug("creating directory", "path", extractedFilePath)
-			if err := os.MkdirAll(extractedFilePath, file.Mode()); err != nil {
+		extractedFilePath := filepath.Join(targetDir, cleanName)
+		if err := func() error {
+			// Open the file inside the zip archive like a normal file and close
+			// it before processing the next entry so large archives do not
+			// exhaust the process file-descriptor limit.
+			zippedFile, err := file.Open()
+			if err != nil {
 				return err
 			}
-		} else {
+			defer zippedFile.Close()
+
+			// Extract the item (or create directory)
+			if file.FileInfo().IsDir() {
+				// Create directories to recreate directory
+				// structure inside the zip archive. Also
+				// preserves permissions
+				slog.Default().Debug("creating directory", "path", extractedFilePath)
+				return os.MkdirAll(extractedFilePath, file.Mode())
+			}
+
 			// Extract regular file since not a directory
 			slog.Default().Debug("extracting file", "name", file.Name)
 			if err := os.MkdirAll(filepath.Dir(extractedFilePath), 0o755); err != nil {
@@ -275,14 +277,16 @@ func UnzipFile(path string) error {
 			if err != nil {
 				return err
 			}
-			defer outputFile.Close()
-
 			// "Extract" the file by copying zipped file
 			// contents to the output file
 			_, err = io.Copy(outputFile, zippedFile)
 			if err != nil {
+				_ = outputFile.Close()
 				return err
 			}
+			return outputFile.Close()
+		}(); err != nil {
+			return err
 		}
 	}
 
