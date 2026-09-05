@@ -51,20 +51,26 @@ type PGCard struct {
 	Uuid                   string
 }
 
-// Card returns a single most-recently entered card by ID from the database that
-// exactly matches the provided `name`.
-// ! This does not currently respect the `id` parameter when passed.
+// Card returns a single card by ID when supplied, otherwise selecting the
+// deterministic lowest-ID printing matching the provided name.
 func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Card, error) {
 	// This will grab the single most recently inserted card that matches the name provided.
 	qname := strings.TrimSpace(name)
 	// Use canonical cards table for precise single-card lookup (has stable ID column)
-	row := s.db.QueryRow(`SELECT name, id, colors, convertedmanacost, types,
+	lookupID := id != nil && strings.TrimSpace(*id) != ""
+	query := `SELECT name, id, colors, convertedmanacost, types,
 		power, toughness, text, subtypes, supertypes, uuid 
 		FROM cards 
-		WHERE name = $1 
-		OR facename = $1
-		ORDER BY id ASC 
-		LIMIT 1;`, qname)
+		WHERE name = $1 OR facename = $1
+		ORDER BY id ASC LIMIT 1;`
+	queryArg := any(qname)
+	if lookupID {
+		query = `SELECT name, id, colors, convertedmanacost, types,
+			power, toughness, text, subtypes, supertypes, uuid
+			FROM cards WHERE id = $1 LIMIT 1;`
+		queryArg = strings.TrimSpace(*id)
+	}
+	row := s.db.QueryRow(query, queryArg)
 	if row.Err() != nil {
 		return nil, fmt.Errorf("failed to query card %s: %w", name, row.Err())
 	}
@@ -85,6 +91,9 @@ func (s *graphQLServer) Card(ctx context.Context, name string, id *string) (*Car
 		&power, &toughness, &text, &subtypes, &supertypes,
 		&uuid)
 	if err != nil {
+		if lookupID {
+			return nil, fmt.Errorf("failed to find card %s: %w", strings.TrimSpace(*id), err)
+		}
 		// Fallback 1: If no exact row, retry a case-insensitive search with wildcard pattern
 		if err == sql.ErrNoRows {
 			pattern := qname
