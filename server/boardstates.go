@@ -58,7 +58,7 @@ func (s *graphQLServer) UpdateBoardState(
 	s.logger.Debug("parsed boardstate for update", "user", bs.User, "game_id", bs.GameID)
 
 	var prevBoardstate *BoardState
-	updatedGame, err := s.mutateGame(ctx, bs.GameID, func(game *Game) (*Game, error) {
+	updatedGame, err := s.mutateGame(ctx, bs.GameID, func(mutationCtx context.Context, game *Game) (*Game, error) {
 		if game.Status == GameStatusFinished {
 			return nil, fmt.Errorf("game already finished")
 		}
@@ -84,7 +84,7 @@ func (s *graphQLServer) UpdateBoardState(
 		s.logger.Debug("updated boardstate", "user", bs.User, "game_id", bs.GameID)
 
 		if game.PendingWinClaim != nil {
-			s.cancelPendingWinClaim(ctx, game, authUser.Username, "boardstate updated")
+			s.cancelPendingWinClaim(mutationCtx, game, authUser.Username, "boardstate updated")
 		}
 
 		alive := alivePlayerNames(game)
@@ -138,9 +138,11 @@ func (s *graphQLServer) Boardstates(ctx context.Context, gameID string, username
 	if err != nil {
 		return nil, err
 	}
+	viewer, _ := requireAuth(ctx)
+	view := redactGameForUser(game, viewer)
 	// send only given users boardstate
 	if username != nil {
-		for _, u := range game.Players {
+		for _, u := range view.Players {
 			if u.Username == *username {
 				return []*BoardState{u.Boardstate}, nil
 			}
@@ -148,10 +150,66 @@ func (s *graphQLServer) Boardstates(ctx context.Context, gameID string, username
 	}
 	// if username is not provided, send all boardstates
 	var list []*BoardState
-	for _, u := range game.Players {
+	for _, u := range view.Players {
 		list = append(list, u.Boardstate)
 	}
 	return list, nil
+}
+
+// redactGameForUser returns a deep copy of game whose private zones are only
+// visible to the authenticated player. Public zones remain intact; Hand and
+// Library are represented by opaque placeholders so clients can still show
+// counts without learning card identities.
+func redactGameForUser(game *Game, viewer *AuthUser) *Game {
+	if game == nil {
+		return nil
+	}
+	redacted := cloneGame(game)
+	if redacted == nil {
+		return nil
+	}
+	for _, player := range redacted.Players {
+		if player == nil || player.Boardstate == nil || viewerOwnsPlayer(player, viewer) {
+			continue
+		}
+		player.Boardstate.Hand = hiddenCards(len(player.Boardstate.Hand))
+		player.Boardstate.Library = hiddenCards(len(player.Boardstate.Library))
+	}
+	return redacted
+}
+
+// viewerOwnsPlayer prefers the stable authenticated ID. Username fallback is
+// only used for legacy auth contexts that have no ID; otherwise a duplicate or
+// client-authored username must not make another player's private zones visible.
+func viewerOwnsPlayer(player *User, viewer *AuthUser) bool {
+	if player == nil || viewer == nil {
+		return false
+	}
+	if viewer.ID != "" {
+		return player.ID == viewer.ID
+	}
+	return viewer.Username != "" && player.Username == viewer.Username
+}
+
+// redactGameForIdentity is used by subscriptions, which retain the validated
+// user ID supplied when the subscription was registered rather than an
+// AuthUser value.
+func redactGameForIdentity(game *Game, identity string) *Game {
+	if game == nil {
+		return nil
+	}
+	return redactGameForUser(game, &AuthUser{ID: identity, Username: identity})
+}
+
+func hiddenCards(count int) []*Card {
+	if count <= 0 {
+		return []*Card{}
+	}
+	hidden := make([]*Card, count)
+	for i := range hidden {
+		hidden[i] = &Card{ID: fmt.Sprintf("hidden-%d", i), Name: "Hidden"}
+	}
+	return hidden
 }
 
 // converts an InputBoardState to a native BoardState type or returns an error

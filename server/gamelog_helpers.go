@@ -5,6 +5,16 @@ import (
 	"encoding/json"
 )
 
+type mutationEventCollector struct {
+	events []Event
+}
+
+type mutationEventCollectorKey struct{}
+
+func withMutationEventCollector(ctx context.Context, collector *mutationEventCollector) context.Context {
+	return context.WithValue(ctx, mutationEventCollectorKey{}, collector)
+}
+
 const (
 	EventTypeGameCreated        = "GAME_CREATED"
 	EventTypePlayerJoined       = "PLAYER_JOINED"
@@ -26,8 +36,12 @@ func (s *graphQLServer) logEvent(ctx context.Context, event Event) {
 	if s == nil || s.db == nil {
 		return
 	}
-	g := &pgLogger{db: s.db}
-	if err := g.Add(ctx, event); err != nil {
+	if collector, ok := ctx.Value(mutationEventCollectorKey{}).(*mutationEventCollector); ok && collector != nil {
+		collector.events = append(collector.events, event)
+		return
+	}
+	err := (&pgLogger{db: s.db}).Add(ctx, event)
+	if err != nil {
 		s.loggerFor(ctx).Warn("failed to write gamelog event", "err", err, "game_id", event.GameID, "type", event.Type)
 	}
 }

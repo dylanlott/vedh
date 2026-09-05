@@ -12,7 +12,7 @@ import (
 // process.  Reading the JSON payload and later writing a replacement payload
 // must happen under the same row lock; otherwise concurrent board, turn, and
 // join mutations silently discard one another's work.
-func (s *graphQLServer) mutateGame(ctx context.Context, gameID string, mutate func(*Game) (*Game, error)) (*Game, error) {
+func (s *graphQLServer) mutateGame(ctx context.Context, gameID string, mutate func(context.Context, *Game) (*Game, error)) (*Game, error) {
 	if gameID == "" {
 		return nil, errors.New("game ID is required")
 	}
@@ -27,7 +27,8 @@ func (s *graphQLServer) mutateGame(ctx context.Context, gameID string, mutate fu
 	if err != nil {
 		return nil, err
 	}
-	next, err := mutate(current)
+	collector := &mutationEventCollector{}
+	next, err := mutate(withMutationEventCollector(ctx, collector), current)
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +40,13 @@ func (s *graphQLServer) mutateGame(ctx context.Context, gameID string, mutate fu
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit game mutation: %w", err)
+	}
+	// Emit events only after the game row has committed. If the mutation or
+	// commit fails, the collector is discarded and no event can describe state
+	// that was never persisted. Event-write failures remain non-fatal to the
+	// already-committed game, matching logEvent's best-effort contract.
+	for _, event := range collector.events {
+		s.logEvent(ctx, event)
 	}
 	return next, nil
 }

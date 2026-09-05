@@ -19,6 +19,10 @@ type pgLogger struct {
 	db *sql.DB
 }
 
+type eventExecer interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
 // EventLog declares an interface for an append-only Event log.
 type EventLog interface {
 	Add(ctx context.Context, event Event) error
@@ -60,6 +64,10 @@ func (e *Event) Scan(value interface{}) error {
 // * Add can be called asynchronously.
 // * We always maintain a server-centric view of events in the gamelog.
 func (g *pgLogger) Add(ctx context.Context, event Event) error {
+	return addEvent(ctx, g.db, event)
+}
+
+func addEvent(ctx context.Context, execer eventExecer, event Event) error {
 	if event.Payload == nil {
 		return ErrEmpty
 	}
@@ -70,7 +78,7 @@ func (g *pgLogger) Add(ctx context.Context, event Event) error {
 		event.Type = "UNKNOWN"
 	}
 	query := `INSERT INTO gamelog (game_id, payload) VALUES($1, $2);`
-	_, err := g.db.Exec(query, event.GameID, event)
+	_, err := execer.ExecContext(ctx, query, event.GameID, event)
 	if err != nil {
 		return fmt.Errorf("failed to add event to gamelog: %w", err)
 	}

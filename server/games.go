@@ -73,7 +73,7 @@ func (s *graphQLServer) Games(ctx context.Context, offset int, limit int) ([]*Ga
 			return nil, fmt.Errorf("failed to unmarshal game %s: %w", id, err)
 		}
 		ensureGameDefaults(game)
-		games = append(games, game)
+		games = append(games, redactGameForUser(game, authUser))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate games: %w", err)
@@ -112,7 +112,7 @@ func (s *graphQLServer) GetGame(ctx context.Context, gameID string) (*Game, erro
 	if !isUserInGame(game, authUser) {
 		return nil, errors.New("forbidden: not a participant in this game")
 	}
-	return game, nil
+	return redactGameForUser(game, authUser), nil
 }
 
 // GameUpdated returns a channel for a game or an error.
@@ -195,7 +195,7 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 	}
 
 	var previous *Game
-	updated, err := s.mutateGame(ctx, new.ID, func(existing *Game) (*Game, error) {
+	updated, err := s.mutateGame(ctx, new.ID, func(mutationCtx context.Context, existing *Game) (*Game, error) {
 		if existing.Status == GameStatusFinished {
 			return nil, errors.New("game already finished")
 		}
@@ -270,7 +270,7 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 		}
 
 		if changed && existing.PendingWinClaim != nil {
-			s.cancelPendingWinClaim(ctx, existing, authUser.Username, "game updated")
+			s.cancelPendingWinClaim(mutationCtx, existing, authUser.Username, "game updated")
 		}
 		return existing, nil
 	})
@@ -281,7 +281,7 @@ func (s *graphQLServer) UpdateGame(ctx context.Context, new InputGame) (*Game, e
 	if previous != nil {
 		s.logGameChanges(ctx, updated.ID, authUser.Username, previous, updated)
 	}
-	return updated, nil
+	return redactGameForUser(updated, authUser), nil
 }
 
 func playerIndex(game *Game, id *string, username string) int {
@@ -393,7 +393,7 @@ func (s *graphQLServer) PassPriority(ctx context.Context, gameID string, toPlaye
 	if err != nil {
 		return nil, err
 	}
-	updated, err := s.mutateGame(ctx, gameID, func(game *Game) (*Game, error) {
+	updated, err := s.mutateGame(ctx, gameID, func(mutationCtx context.Context, game *Game) (*Game, error) {
 		if game.Status == GameStatusFinished {
 			return nil, errors.New("game already finished")
 		}
@@ -411,14 +411,14 @@ func (s *graphQLServer) PassPriority(ctx context.Context, gameID string, toPlaye
 		}
 		if game.PendingWinClaim != nil {
 			if !claimMatchesPrioritySequence(game.PendingWinClaim, toPlayer) {
-				s.cancelPendingWinClaim(ctx, game, authUser.Username, "priority passed out of sequence")
+				s.cancelPendingWinClaim(mutationCtx, game, authUser.Username, "priority passed out of sequence")
 			} else {
 				claimer := game.PendingWinClaim.ClaimedBy
 				condition := game.PendingWinClaim.Condition
 				game.PendingWinClaim.Remaining = game.PendingWinClaim.Remaining[1:]
 				if toPlayer == claimer && len(game.PendingWinClaim.Remaining) == 0 {
 					finalizeGame(game, GameResultWin, []string{claimer}, condition)
-					s.logEvent(ctx, Event{
+					s.logEvent(mutationCtx, Event{
 						GameID: game.ID,
 						Type:   EventTypeGameFinished,
 						Actor:  authUser.Username,
@@ -432,7 +432,7 @@ func (s *graphQLServer) PassPriority(ctx context.Context, gameID string, toPlaye
 			}
 		}
 		game.Turn.Priority = toPlayer
-		s.logEvent(ctx, Event{
+		s.logEvent(mutationCtx, Event{
 			GameID: game.ID,
 			Type:   EventTypePriorityPassed,
 			Actor:  authUser.Username,
@@ -447,7 +447,7 @@ func (s *graphQLServer) PassPriority(ctx context.Context, gameID string, toPlaye
 		return nil, err
 	}
 	go s.publishGame(updated.ID, updated)
-	return updated, nil
+	return redactGameForUser(updated, authUser), nil
 }
 
 func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase string, number *int) (*Game, error) {
@@ -455,7 +455,7 @@ func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase s
 	if err != nil {
 		return nil, err
 	}
-	updated, err := s.mutateGame(ctx, gameID, func(game *Game) (*Game, error) {
+	updated, err := s.mutateGame(ctx, gameID, func(mutationCtx context.Context, game *Game) (*Game, error) {
 		if game.Status == GameStatusFinished {
 			return nil, errors.New("game already finished")
 		}
@@ -492,9 +492,9 @@ func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase s
 			game.Turn.Priority = game.Turn.Player
 		}
 		if game.PendingWinClaim != nil {
-			s.cancelPendingWinClaim(ctx, game, authUser.Username, "turn advanced")
+			s.cancelPendingWinClaim(mutationCtx, game, authUser.Username, "turn advanced")
 		}
-		s.logEvent(ctx, Event{
+		s.logEvent(mutationCtx, Event{
 			GameID: game.ID,
 			Type:   EventTypeTurnAdvanced,
 			Actor:  authUser.Username,
@@ -517,7 +517,7 @@ func (s *graphQLServer) AdvancePhase(ctx context.Context, gameID string, phase s
 		return nil, err
 	}
 	go s.publishGame(updated.ID, updated)
-	return updated, nil
+	return redactGameForUser(updated, authUser), nil
 }
 
 func normalizePhaseKey(phase string) string {
@@ -634,7 +634,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		return nil, errors.New("boardstate game ID must match the game being joined")
 	}
 
-	updated, err := s.mutateGame(ctx, input.ID, func(game *Game) (*Game, error) {
+	updated, err := s.mutateGame(ctx, input.ID, func(mutationCtx context.Context, game *Game) (*Game, error) {
 		if game.Status == GameStatusFinished {
 			return nil, errors.New("game already finished")
 		}
@@ -698,6 +698,9 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		// NB: Commented out while we figure out how to handle Commander selection.
 		if len(input.BoardState.Commander) > 0 {
 			for _, card := range input.BoardState.Commander {
+				if card == nil {
+					continue
+				}
 				commander, err := s.Card(ctx, card.Name, nil)
 				if err != nil {
 					s.loggerFor(ctx).Warn("error getting commander for deck", "err", err, "card_name", card.Name, "game_id", input.ID, "user_id", input.BoardState.UserID)
@@ -737,7 +740,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		},
 	})
 
-	return updated, nil
+	return redactGameForUser(updated, authUser), nil
 }
 
 const (
@@ -873,6 +876,9 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		// handle commander selection
 		if len(player.Commander) > 0 {
 			for _, card := range player.Commander {
+				if card == nil {
+					continue
+				}
 				commander, err := s.Card(ctx, card.Name, nil)
 				if err != nil {
 					s.loggerFor(ctx).Warn("error getting commander for deck", "err", err, "card_name", card.Name, "game_id", g.ID, "user_id", player.UserID)
@@ -904,7 +910,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 		// A caller retrying its own create must receive the original game, not
 		// replace it with a second client-authored payload.
 		outcome = gameCreateOutcomeSuccess
-		return persisted, nil
+		return redactGameForUser(persisted, authUser), nil
 	}
 
 	// DEC-L: the conversion belongs strictly after persistence. Existing
@@ -944,7 +950,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	})
 
 	outcome = gameCreateOutcomeSuccess
-	return persisted, nil
+	return redactGameForUser(persisted, authUser), nil
 }
 
 // getBareCard returns a card type that hasn't been hydrated with
@@ -952,6 +958,9 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 func getBareCard(inputCards []*InputCard) []*Card {
 	cardList := []*Card{}
 	for _, card := range inputCards {
+		if card == nil {
+			continue
+		}
 		c := &Card{
 			Name: card.Name,
 		}
@@ -1130,7 +1139,7 @@ func (s *graphQLServer) publishGame(gameID string, g *Game) {
 	logger := s.loggerFor(context.Background()).With("game_id", gameID)
 	for _, gameObs := range observers {
 		select {
-		case gameObs.Channel <- g:
+		case gameObs.Channel <- redactGameForIdentity(g, gameObs.UserID):
 		default:
 			// Drop a stale subscriber's update rather than stalling everyone.
 			logger.Warn("publishGame: drop update (channel full)", "observer_user_id", gameObs.UserID)

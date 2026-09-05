@@ -61,6 +61,8 @@ func NewPlayer(id string) (*inMemPlayer, error) {
 }
 
 func (p *inMemPlayer) ID() string {
+	p.Lock()
+	defer p.Unlock()
 	if p.state == nil {
 		p.state = make(JSON)
 	}
@@ -74,18 +76,32 @@ func (p *inMemPlayer) ID() string {
 
 // Boardstate returns the current boardstate for the Player.
 func (p *inMemPlayer) Boardstate() (JSON, error) {
+	p.Lock()
+	defer p.Unlock()
 	if p.state == nil {
 		p.state = make(JSON)
 	}
-	return p.state, nil
+	state := make(JSON, len(p.state))
+	for key, value := range p.state {
+		state[key] = value
+	}
+	return state, nil
 }
 
 // Sync
 func (p *inMemPlayer) Sync(json JSON) error {
+	state := make(JSON, len(json))
+	for key, value := range json {
+		state[key] = value
+	}
 	p.Lock()
-	p.state = json
+	p.state = state
+	game := p.Game
 	p.Unlock()
-	if err := p.Game.Publish(p.Game); err != nil {
+	if game == nil {
+		return fmt.Errorf("player is not attached to a game")
+	}
+	if err := game.Publish(game); err != nil {
 		return fmt.Errorf("failed to publish game event %w", err)
 	}
 	return nil
@@ -96,6 +112,8 @@ func (p *inMemPlayer) Sync(json JSON) error {
 // at player#Sync() call. I can't tell how I feel about this design yet.
 // Will review this decision later.
 func (p *inMemPlayer) AttachGame(game Game) error {
+	p.Lock()
+	defer p.Unlock()
 	p.Game = game
 	return nil
 }
@@ -182,6 +200,9 @@ func (m *MemStore) NewFullGame(id string, players []Player) (*FullGame, error) {
 
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
+	if m.games == nil {
+		m.games = make(map[string]Game)
+	}
 
 	m.games[g.ID()] = g
 	slog.Default().Info("created game", "game_id", id)
@@ -222,6 +243,8 @@ func (m *MemStore) List() ([]Game, error) {
 
 // Get returns the Game that matches `id` or an error.
 func (m *MemStore) Get(id string) (Game, error) {
+	m.Lock()
+	defer m.Unlock()
 	if game, ok := m.games[id]; ok {
 		return game, nil
 	}
@@ -237,11 +260,16 @@ func (f *FullGame) ID() string {
 // Games are made up of player Boardstates in a specific order.
 // Turn order is described by the order of Boardstates returned by Players.
 func (f *FullGame) Players() ([]Player, error) {
-	return f.players, nil
+	f.Lock()
+	defer f.Unlock()
+	players := append([]Player(nil), f.players...)
+	return players, nil
 }
 
 // Get returns a single Player from the full game.
 func (f *FullGame) Get(playerID string) (Player, error) {
+	f.Lock()
+	defer f.Unlock()
 	for _, player := range f.players {
 		if player.ID() == playerID {
 			return player, nil
@@ -294,9 +322,17 @@ func (f *FullGame) Subscribe() (chan Game, error) {
 
 // Publish should be called every time a FullGame is updated.
 func (f *FullGame) Publish(game Game) error {
-	for _, v := range f.subs {
-		v.ch <- game
-		slog.Default().Debug("published game event", "game_id", f.ID())
+	f.Lock()
+	subs := append([]*Subscriber(nil), f.subs...)
+	f.Unlock()
+	for _, v := range subs {
+		select {
+		case v.ch <- game:
+			slog.Default().Debug("published game event", "game_id", f.ID())
+		default:
+			// A slow subscriber must not block all game mutations.
+			slog.Default().Warn("dropped game event for slow subscriber", "game_id", f.ID(), "subscriber_id", v.id)
+		}
 	}
 	return nil
 }

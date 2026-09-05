@@ -126,10 +126,19 @@ func (s *graphQLServer) Users(ctx context.Context, id *string) ([]string, error)
 	}
 	limit := 10000
 	offset := 0
-	rows, err := s.db.Query(`select * from users limit $1 offset $2;`, limit, offset)
+	query := `SELECT username FROM users`
+	args := []any{}
+	if id != nil && strings.TrimSpace(*id) != "" {
+		query += ` WHERE uuid = $1`
+		args = append(args, *id)
+	}
+	query += ` ORDER BY username LIMIT $` + fmt.Sprint(len(args)+1) + ` OFFSET $` + fmt.Sprint(len(args)+2)
+	args = append(args, limit, offset)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
+	defer rows.Close()
 	users := []string{}
 	for rows.Next() {
 		var s string
@@ -138,6 +147,9 @@ func (s *graphQLServer) Users(ctx context.Context, id *string) ([]string, error)
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate users: %w", err)
 	}
 	return users, nil
 }

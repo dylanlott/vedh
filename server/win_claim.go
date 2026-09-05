@@ -10,7 +10,7 @@ func (s *graphQLServer) ClaimWin(ctx context.Context, gameID string, condition *
 	if err != nil {
 		return nil, err
 	}
-	updated, err := s.mutateGame(ctx, gameID, func(game *Game) (*Game, error) {
+	updated, err := s.mutateGame(ctx, gameID, func(mutationCtx context.Context, game *Game) (*Game, error) {
 		if game.Status == GameStatusFinished {
 			return nil, errors.New("game already finished")
 		}
@@ -37,7 +37,7 @@ func (s *graphQLServer) ClaimWin(ctx context.Context, gameID string, condition *
 			Remaining: sequence,
 		}
 
-		s.logEvent(ctx, Event{
+		s.logEvent(mutationCtx, Event{
 			GameID: game.ID,
 			Type:   EventTypeWinClaimed,
 			Actor:  authUser.Username,
@@ -53,5 +53,5 @@ func (s *graphQLServer) ClaimWin(ctx context.Context, gameID string, condition *
 		return nil, err
 	}
 	go s.publishGame(updated.ID, updated)
-	return updated, nil
+	return redactGameForUser(updated, authUser), nil
 }
