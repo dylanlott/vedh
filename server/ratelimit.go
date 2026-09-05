@@ -33,8 +33,14 @@ const (
 // TrackProductEvent at all.
 func (s *graphQLServer) allowRequest(ctx context.Context, surface ratelimit.Surface, clientKey string) bool {
 	allowed := true
-	if s != nil && s.limiter != nil {
-		allowed = s.limiter.Allow(surface, clientKey)
+	if s != nil {
+		limiter := s.limiter
+		if surface == ratelimit.SurfaceGuestSession {
+			limiter = s.guestLimiter
+		}
+		if limiter != nil {
+			allowed = limiter.Allow(surface, clientKey)
+		}
 	}
 
 	outcome := rateLimitOutcomeAllowed

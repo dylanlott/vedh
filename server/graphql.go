@@ -37,8 +37,9 @@ const (
 
 // Conf takes configuration values and loads them from the environment into our struct.
 type Conf struct {
-	PostgresURL    string `envconfig:"DATABASE_URL" default:"postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable"`
+	PostgresURL    string `envconfig:"DATABASE_URL" required:"true"`
 	DefaultPort    int    `envconfig:"PORT" default:"8080"`
+	JWTSecret      string `envconfig:"JWT_SECRET" required:"true"`
 	AllowedOrigins string `envconfig:"ALLOWED_ORIGINS" default:"http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080"`
 	MetricsEnabled bool   `envconfig:"METRICS_ENABLED" default:"false"`
 	MetricsToken   string `envconfig:"METRICS_TOKEN" default:""`
@@ -83,18 +84,9 @@ type Conf struct {
 	// two switches guard structurally different risks.
 	GuestCreationEnabled bool `envconfig:"GUEST_CREATION_ENABLED" default:"true"`
 
-	// GuestSessionRatePerMinute and GuestSessionRateBurst are declared per
-	// REQ-ACT-005's rate-limiting requirement for the guestSession
-	// mutation (T-02-01). DEC-C deliberately keeps pkg/ratelimit.Registry
-	// to a single (perMinute, burst) budget shared by every surface on
-	// s.limiter, rather than fragmenting idle eviction and the
-	// vedh_rate_limit_total mental model with a second Registry or a
-	// per-surface budget map. SurfaceGuestSession therefore draws on the
-	// same shared budget as SurfaceDeckImport/SurfaceProductEvent
-	// (s.limiter, constructed from DeckImportRatePerMinute/Burst below);
-	// these two fields exist to make the intended guest-specific budget
-	// operator-visible and are the values a future per-surface Registry
-	// enhancement would consume without a Conf shape change.
+	// GuestSessionRatePerMinute and GuestSessionRateBurst bound the separate
+	// guest-session registry. Guest creation is a higher-risk public write than
+	// previewing a deck, so it must be independently tunable.
 	GuestSessionRatePerMinute int `envconfig:"GUEST_SESSION_RATE_PER_MINUTE" default:"20"`
 	GuestSessionRateBurst     int `envconfig:"GUEST_SESSION_RATE_BURST" default:"5"`
 }
@@ -125,12 +117,13 @@ type graphQLServer struct {
 	allowedOrigins map[string]struct{}
 
 	// limiter is the per-surface, per-client token-bucket registry
-	// server/ratelimit.go's allowRequest consults for previewDeck and
-	// trackProductEvent. A nil limiter (e.g. a graphQLServer built as a
+	// server/ratelimit.go's allowRequest consults for deck import and product
+	// event requests. A nil limiter (e.g. a graphQLServer built as a
 	// struct literal by a test rather than through NewGraphQLServer)
 	// allows every request, so tests that do not care about rate
 	// limiting are unaffected.
-	limiter *ratelimit.Registry
+	limiter      *ratelimit.Registry
+	guestLimiter *ratelimit.Registry
 
 	// deckProviderAllowedHosts holds the parsed, lower-cased exact-match
 	// host allowlist for the outbound deck-provider fetch client
@@ -158,6 +151,7 @@ func NewGraphQLServer(
 		boards:                   map[string]*FullBoardstate{},
 		allowedOrigins:           parseAllowedOrigins(cfg.AllowedOrigins),
 		limiter:                  ratelimit.NewRegistry(cfg.DeckImportRatePerMinute, cfg.DeckImportRateBurst),
+		guestLimiter:             ratelimit.NewRegistry(cfg.GuestSessionRatePerMinute, cfg.GuestSessionRateBurst),
 		deckProviderAllowedHosts: parseAllowedHosts(cfg.DeckProviderAllowedHosts),
 	}, nil
 }
@@ -408,6 +402,7 @@ func (s *graphQLServer) Serve(route string, port int) error {
 		handler.WebsocketKeepAliveDuration(time.Second*10),
 	)
 	mux.Handle(route, s.withMaxGraphQLBody(gqlHandler))
+	mux.HandleFunc("/healthz", s.healthz)
 	corsMiddleware := cors.New(cors.Options{
 		AllowOriginFunc:  s.isAllowedOrigin,
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodOptions},
@@ -431,6 +426,25 @@ func (s *graphQLServer) Serve(route string, port int) error {
 	s.logger.Info("serving graphiql", "url", fmt.Sprintf("http://localhost:%d/playground", port))
 	server := newHTTPServer(port, h)
 	return server.ListenAndServe()
+}
+
+func (s *graphQLServer) healthz(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if s == nil || s.db == nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := s.db.PingContext(ctx); err != nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok\n"))
 }
 
 // withMaxGraphQLBody limits request allocation before gqlgen decodes a JSON

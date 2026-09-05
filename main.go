@@ -32,6 +32,10 @@ func main() {
 		logger.Error("failed to load config", "err", err)
 		os.Exit(1)
 	}
+	if err := cfg.Validate(); err != nil {
+		logger.Error("invalid configuration", "err", err)
+		os.Exit(1)
+	}
 	db, err := persistence.NewDB(cfg.PostgresURL)
 	if err != nil {
 		logger.Error("failed to connect database", "err", errs.Wrap(err))

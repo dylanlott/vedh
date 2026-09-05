@@ -29,6 +29,7 @@ func NewDB(dbURL string) (*sql.DB, error) {
 		return nil, errs.Wrap(err)
 	}
 	if err := pg.Ping(); err != nil {
+		_ = pg.Close()
 		return nil, errs.Wrap(err)
 	}
 	return pg, nil
@@ -56,7 +57,7 @@ func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
 	}
 	err = m.Up()
 	if err != nil {
-		if err.Error() == "no change" {
+		if errors.Is(err, migrate.ErrNoChange) || err.Error() == "no change" {
 			v, dirty, err := m.Version()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get migration version: %w", err)
@@ -68,10 +69,12 @@ func NewPostgres(migdir string, dbURL string) (*sql.DB, error) {
 			}
 			return db, nil
 		}
-		// should we fail here? regardless, we should not be silent
-		slog.Default().Error("failed to run migrations", "err", err)
-		slog.Default().Warn("attempting migration rollback")
-		return nil, m.Down()
+		// Never roll back the whole database from application startup. A
+		// failed migration needs operator review and the original error must
+		// remain visible; m.Down() would remove every applied migration.
+		slog.Default().Error("failed to run migrations; leaving database unchanged for operator recovery", "err", err)
+		_ = db.Close()
+		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
 	slog.Default().Info("database created")

@@ -9,10 +9,8 @@ import (
 	"testing"
 )
 
-// testAPIDefaultDSN is the local fallback DSN used when DATABASE_URL is
-// unset, mirroring production's own envconfig default for PostgresURL
-// (server/graphql.go's Conf) so a differently-configured environment is
-// not silently unreachable.
+// testAPIDefaultDSN is a test-only local fallback used when DATABASE_URL is
+// unset. Production startup requires DATABASE_URL explicitly.
 const testAPIDefaultDSN = "postgres://edhgo:edhgo@localhost:5432/edhgo?sslmode=disable&connect_timeout=3"
 
 func testAPI(t *testing.T) *graphQLServer {
@@ -43,8 +41,10 @@ func testAPI(t *testing.T) *graphQLServer {
 		// existing test's call volume ever approaches it; only
 		// server/ratelimit_test.go constructs its own small registry
 		// directly to exercise the limited path.
-		DeckImportRatePerMinute: 100000,
-		DeckImportRateBurst:     100000,
+		DeckImportRatePerMinute:   100000,
+		DeckImportRateBurst:       100000,
+		GuestSessionRatePerMinute: 100000,
+		GuestSessionRateBurst:     100000,
 		// GuestCreationEnabled mirrors the same fix(01-06) reasoning above:
 		// this Conf literal bypasses envconfig.Process, so
 		// GuestCreationEnabled's `default:"true"` tag (server/graphql.go)
