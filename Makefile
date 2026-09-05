@@ -38,13 +38,13 @@ clean:
 	rm -f $(BINARY_UNIX)
 
 run:
-	$(GOCMD) run ./
+	@set -eu; set -a; . ./.env; set +a; $(GOCMD) run ./
 
 # Run the local API and Vite application together. The API configuration lives
-# in the ignored .vedh.env file; Vite proxies /graphql to that API on :8080.
+# in the ignored root .env file; Vite proxies /graphql to the configured API port.
 dev:
 	@set -eu; \
-	set -a; . ./.vedh.env; set +a; \
+	set -a; . ./.env; set +a; \
 	$(GOCMD) run ./ & api_pid=$$!; \
 	(cd app && npm run dev -- --host 127.0.0.1) & web_pid=$$!; \
 	trap 'kill $$api_pid $$web_pid 2>/dev/null || true' EXIT INT TERM; \
@@ -83,13 +83,13 @@ import-csv:
 	$(GOCMD) run scripts/db_import.go -csv cards.csv -verbose
 
 persistence:
-	docker-compose -f dev.docker-compose.yml up -d postgres
+	docker compose --env-file .env -f dev.docker-compose.yml up -d postgres
 
 monitoring-up:
-	cd monitoring && docker compose --env-file .env.observability up -d
+	docker compose --env-file .env -f monitoring/docker-compose.yml up -d
 
 monitoring-down:
-	cd monitoring && docker compose --env-file .env.observability down
+	docker compose --env-file .env -f monitoring/docker-compose.yml down
 
 confirm:
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]

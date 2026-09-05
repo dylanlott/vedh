@@ -21,51 +21,24 @@ Prerequisites:
 - Make
 - Go v1.27.0
 - PostgreSQL 14.15.0
-- Node 16
+- Node 20+ (CI currently uses Node 24)
 
 ### Server
 
-You will need to configure `.vedh.env` and `.pg.env` environment files at your project root.
+Create one local environment file from the committed template. It is used by
+the Go server, Docker Compose, Vite, and the local monitoring stack.
 
 ```sh
-# .vedh.env example
-# Database connection URI
-DATABASE_URL=""
-# Optional listener port
-PORT="8080"
-# Authentication secret
-JWT_SECRET=""
-
-# Allowed browser origins for HTTP + websocket GraphQL traffic
-ALLOWED_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
-
-# Optional Prometheus exposure. Metrics stay disabled unless both are set.
-METRICS_ENABLED="false"
-METRICS_TOKEN=""
-
-# Optional: structured logging
-# Levels: debug, info, warn, error
-LOG_LEVEL="info"
+cp .env.example .env
 ```
 
-```sh
-# .pg.env example
-POSTGRESQL_USERNAME=""
-POSTGRESQL_PASSWORD=""
-POSTGRESQL_DATABASE=""
-```
+Replace `JWT_SECRET`, database credentials, and any monitoring credentials in
+`.env` before using the stack outside a disposable local environment.
 
 ### FrontEnd
 
-The front end uses Node 16 and won't build with any other version.
-I recommend NVM to manage the environment for it.
-The front end also supports an environment file, `.env.local`.
-
-```sh
-NODE_ENV="development"
-VITE_GRAPHQL_WS="ws://127.0.0.1:8080/graphql"
-VITE_GRAPHQL_HTTP="http://127.0.0.1:8080/graphql"
-```
+Vite reads the root `.env`. The default development endpoints are already
+provided by `.env.example`.
 
 ### Persistence
 
@@ -73,13 +46,17 @@ You can quickly start the persistence dependencies by running `make persistence`
 
 This will boot up Postgres database.
 
-Then run the server with our Makefile by running `make run`
+Then run the server with `make run`, or run the API and Vite together with
+`make dev`. Both commands load the root `.env` automatically.
 
-The server will attempt to run all migrations and then start up. If it can't run migrations, it will rollback the database and noisily fail.
+The server will attempt to run all migrations and then start up. If a
+migration fails, startup stops and the database is left available for operator
+recovery; migrations are never automatically rolled back by the application.
 
 You can run the server as if it's in prod with this same config, so you can switch between local and prod as long as you've configured your environment variables correctly.
 
-A copy of the server environment file for development is included in this repository.
+A copy of the environment template is included in this repository as
+`.env.example`.
 
 ### Web App
 
@@ -153,31 +130,23 @@ Use this stack to validate that the API is exporting `/prometheus` and that Graf
 1. Ensure API metrics are enabled and token-protected in the API env.
 
 ```sh
-cd /root/.openclaw/workspace/vedh
-sed -i 's/^METRICS_ENABLED=.*/METRICS_ENABLED=true/' .vedh.env
-sed -i 's/^METRICS_TOKEN=.*/METRICS_TOKEN=dev-metrics-token/' .vedh.env
-grep -q '^METRICS_ENABLED=' .vedh.env || echo 'METRICS_ENABLED=true' >> .vedh.env
-grep -q '^METRICS_TOKEN=' .vedh.env || echo 'METRICS_TOKEN=dev-metrics-token' >> .vedh.env
+sed -i 's/^METRICS_ENABLED=.*/METRICS_ENABLED=true/' .env
+sed -i 's/^METRICS_TOKEN=.*/METRICS_TOKEN=dev-metrics-token/' .env
+sed -i 's/^PROMETHEUS_BEARER_TOKEN=.*/PROMETHEUS_BEARER_TOKEN=dev-metrics-token/' .env
 ```
 
 2. Configure observability env.
 
-```sh
-cd /root/.openclaw/workspace/vedh/monitoring
-cp .env.observability.example .env.observability
-```
-
-Set these values in `.env.observability`:
+Set these values in the root `.env`:
 
 - `PROMETHEUS_TARGET` to the API host:port your monitoring stack should scrape
   - default example: `host.docker.internal:8081` for the API in `dev.docker-compose.yml`
-- `PROMETHEUS_BEARER_TOKEN` to match `METRICS_TOKEN` from `.vedh.env`
+- `PROMETHEUS_BEARER_TOKEN` to match `METRICS_TOKEN`
 - `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` for UI login
 
 3. Start the stack.
 
 ```sh
-cd /root/.openclaw/workspace/vedh
 make monitoring-up
 ```
 
@@ -217,7 +186,6 @@ up{job="vedh-api"}
 Stop the monitoring stack when done:
 
 ```sh
-cd /root/.openclaw/workspace/vedh
 make monitoring-down
 ```
 
@@ -230,18 +198,8 @@ make monitoring-down
 
 ## Deployment (Dokku)
 
-The current production deploys use Dokku on `dokku@192.241.142.53`.
-
-Every successful `CI` run for a push to `main` triggers the `Deploy to Dokku`
-workflow. That workflow deploys the tested revision to both Dokku apps and then
-checks the frontend and API routes. Configure these GitHub production-environment
-values before enabling automatic deployment:
-
-- Repository variables: `DOKKU_HOST`, `DOKKU_API_APP`, `DOKKU_WEB_APP`
-- Environment secrets: `DOKKU_SSH_PRIVATE_KEY`, `DOKKU_KNOWN_HOSTS`
-
-`DOKKU_KNOWN_HOSTS` must contain a host key verified independently by the
-operator; the workflow deliberately does not trust a runtime `ssh-keyscan`.
+The repository currently contains CI verification only; there is no automatic
+deployment workflow. Production deployment is operator-managed.
 
 Production is split across two Dokku apps:
 
@@ -286,10 +244,9 @@ git subtree push --prefix app dokku-app main
 
 ## Environments
 
-`app/.env.local` sets local environemnt variables and is used when `yarn start` is run.
-`app/.env.production` sets production environment variables and it used for `yarn build`.
-
-A copy of the frontend environment file for development is included in this repository.
+The root `.env` is the single local environment file. Production frontend
+builds must provide `VITE_GRAPHQL_HTTP` and `VITE_GRAPHQL_WS` as Docker build
+arguments or equivalent build-time environment.
 
 ## Runtime knobs that exist today
 
@@ -297,10 +254,18 @@ The current Go server reads these env vars in code:
 
 - `DATABASE_URL`
 - `PORT`
+- `JWT_SECRET`
 - `ALLOWED_ORIGINS`
 - `METRICS_ENABLED`
 - `METRICS_TOKEN`
 - `LOG_LEVEL`
+- `DECK_IMPORT_RATE_PER_MINUTE`
+- `DECK_IMPORT_RATE_BURST`
+- `DECK_PROVIDER_ENABLED`
+- `DECK_PROVIDER_ALLOWED_HOSTS`
+- `GUEST_CREATION_ENABLED`
+- `GUEST_SESSION_RATE_PER_MINUTE`
+- `GUEST_SESSION_RATE_BURST`
 
 ### Metrics hardening note
 
@@ -335,4 +300,4 @@ A few route expectations that matter when debugging prod:
 - `GET https://api.vedh.xyz/graphql` may return a GraphQL validation error when no operation is supplied; that is expected
 - `POST https://api.vedh.xyz/graphql` is the meaningful API smoke target
 - `https://api.vedh.xyz/playground` should load the GraphQL playground
-- there is currently no dedicated `/health` endpoint in the Go app
+- the Go API exposes `/healthz`, which checks database connectivity

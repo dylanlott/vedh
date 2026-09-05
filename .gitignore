@@ -5,9 +5,10 @@ vendor/
 *.sqlc
 .DS_store
 bin/*
-*.env
+# Environment files may contain database credentials, signing keys, or
+# monitoring credentials. Keep only the committed root template.
 *.env*
-!monitoring/.env.observability.example
+!.env.example
 
 # Frontend
 app/coverage/

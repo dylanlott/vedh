@@ -1,1 +1,6 @@
-.edhgo.env
+# Never send local environment files or secrets to the Docker builder.
+.env
+.env.*
+*.env*
+.vedh.env
+.pg.env
