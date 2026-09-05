@@ -21,7 +21,16 @@ if (import.meta.env.DEV) {
     }
   }
 }
-// Fallbacks for non-dev environments
+// In a browser, an unset production endpoint means the frontend and API are
+// expected to share an origin (the local Nginx image proxies /graphql). Node
+// and test processes retain the localhost fallback.
+const browserOrigin =
+  typeof window !== 'undefined' && window.location ? window.location.origin : '';
+if (!httpUri && browserOrigin) httpUri = `${browserOrigin}/graphql`;
+if (!wsUri && browserOrigin) {
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  wsUri = `${protocol}://${window.location.host}/graphql`;
+}
 if (!httpUri) httpUri = 'http://localhost:8080/graphql';
 if (!wsUri) wsUri = httpUri.replace(/^http/, 'ws');
 

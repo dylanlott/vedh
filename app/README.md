@@ -18,7 +18,8 @@ npm run build
 npm run type-check
 ```
 
-By default, the GraphQL API is expected at `http://localhost:8080/graphql`. Override the endpoints by adding a `.env` file with the following settings:
+Vite reads the shared root `.env` file. By default, the GraphQL API is
+expected at `http://localhost:8080/graphql`:
 
 ```bash
 VITE_GRAPHQL_HTTP=http://localhost:8080/graphql

@@ -3,10 +3,12 @@ import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, '..', '');
   const devPort = Number(env.VITE_DEV_PORT || 5173);
+  const apiPort = Number(env.PORT || 8080);
 
   return {
+    envDir: '..',
     plugins: [vue()],
     resolve: {
       alias: {
@@ -36,7 +38,7 @@ export default defineConfig(({ mode }) => {
       },
       proxy: {
         '/graphql': {
-          target: 'http://localhost:8080',
+          target: `http://localhost:${apiPort}`,
           changeOrigin: true,
           ws: true,
           secure: false,
