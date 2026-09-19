@@ -1,0 +1,1336 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Target Up",
+      "description": "Whether the live jank-app target is currently being scraped.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"jank-app\"}"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Down",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Up",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Searches Last 24h",
+      "description": "Recent search demand across the forum, regardless of outcome.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(jank_search_queries_total{job=\"jank-app\"}[24h])) or vector(0)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "New Users Last 24h",
+      "description": "Recent successful account creations across Jank auth surfaces.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(jank_signup_attempts_total{job=\"jank-app\",result=\"success\"}[24h])) or vector(0)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Daily Active Users",
+      "description": "Distinct users with persisted authenticated activity in the last 24 hours.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(jank_daily_active_users_total{job=\"jank-app\"})"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Threads Created Last 24h",
+      "description": "Recent forum thread creation volume.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(jank_threads_created_total{job=\"jank-app\"}[24h])) or vector(0)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Posts Created Last 24h",
+      "description": "Recent forum replies/posts created by users.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(jank_posts_created_total{job=\"jank-app\"}[24h])) or vector(0)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Search Empty Share",
+      "description": "Share of recent searches that returned nothing useful.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(increase(jank_search_queries_total{job=\"jank-app\",result=\"empty\"}[24h])) / clamp_min(sum(increase(jank_search_queries_total{job=\"jank-app\"}[24h])), 1)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 25
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Signup Success Rate",
+      "description": "Quality read on the signup funnel over the last 24 hours.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(increase(jank_signup_attempts_total{job=\"jank-app\",result=\"success\"}[24h])) / clamp_min(sum(increase(jank_signup_attempts_total{job=\"jank-app\"}[24h])), 1)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Login Success Rate",
+      "description": "Quality read on whether people who try to come back are getting in.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(increase(jank_login_attempts_total{job=\"jank-app\",result=\"success\"}[24h])) / clamp_min(sum(increase(jank_login_attempts_total{job=\"jank-app\"}[24h])), 1)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Contribution Depth",
+      "description": "Average posts created per newly created thread in the last 24 hours.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(increase(jank_posts_created_total{job=\"jank-app\"}[24h])) / clamp_min(sum(increase(jank_threads_created_total{job=\"jank-app\"}[24h])), 1)) or vector(0)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Card Trees Created Last 24h",
+      "description": "Recent card-tree creation volume across tracked scopes.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(jank_card_trees_created_total{job=\"jank-app\"}[24h])) or vector(0)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Search → Thread Yield",
+      "description": "Simple product-yield proxy: recent thread creation divided by matched searches.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(increase(jank_threads_created_total{job=\"jank-app\"}[24h])) / clamp_min(sum(increase(jank_search_queries_total{job=\"jank-app\",result=\"match\"}[24h])), 1)"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "type": "bargauge",
+      "title": "Search Outcomes Last 24h",
+      "description": "Search demand split by outcome so empty-result drift is easy to spot.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (result) (increase(jank_search_queries_total{job=\"jank-app\"}[24h]))",
+          "legendFormat": "{{result}}"
+        }
+      ],
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 14,
+      "type": "bargauge",
+      "title": "Login Outcomes Last 24h",
+      "description": "Login attempts grouped by auth surface and outcome.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (surface,result) (increase(jank_login_attempts_total{job=\"jank-app\"}[24h]))",
+          "legendFormat": "{{surface}} • {{result}}"
+        }
+      ],
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 15,
+      "type": "bargauge",
+      "title": "Signup Outcomes Last 24h",
+      "description": "Signup attempts grouped by auth surface and outcome.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (surface,result) (increase(jank_signup_attempts_total{job=\"jank-app\"}[24h]))",
+          "legendFormat": "{{surface}} • {{result}}"
+        }
+      ],
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Creation Activity (6h rolling)",
+      "description": "Recent creation behavior across threads, posts, and card trees.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(jank_threads_created_total{job=\"jank-app\"}[6h]))",
+          "legendFormat": "threads"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(increase(jank_posts_created_total{job=\"jank-app\"}[6h]))",
+          "legendFormat": "posts"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(increase(jank_card_trees_created_total{job=\"jank-app\"}[6h]))",
+          "legendFormat": "card trees"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Funnel Activity (6h rolling)",
+      "description": "Recent discovery → auth → contribution movement in one view.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(jank_search_queries_total{job=\"jank-app\",result=\"match\"}[6h]))",
+          "legendFormat": "search matches"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(increase(jank_signup_attempts_total{job=\"jank-app\",result=\"success\"}[6h]))",
+          "legendFormat": "successful signups"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(increase(jank_login_attempts_total{job=\"jank-app\",result=\"success\"}[6h]))",
+          "legendFormat": "successful logins"
+        },
+        {
+          "refId": "D",
+          "expr": "sum(increase(jank_threads_created_total{job=\"jank-app\"}[6h]))",
+          "legendFormat": "threads created"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Route Demand (6h rolling)",
+      "description": "Low-traffic-friendly view of recent demand across the key public routes.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (route) (increase(jank_http_requests_total{job=\"jank-app\",route=~\"/|/login|/search\",route!=\"/metrics\"}[6h]))",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Request Rate by Route",
+      "description": "1h-smoothed request rate by route so low-traffic forum behavior still shows up clearly.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (route,status_code) (rate(jank_http_requests_total{job=\"jank-app\",route!=\"/metrics\"}[1h]))",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "P95 Request Latency by Route",
+      "description": "1h-smoothed p95 latency by route to keep sparse traffic visible in early production.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1000 * histogram_quantile(0.95, sum by (le,route) (rate(jank_http_request_duration_seconds_bucket{job=\"jank-app\",route!=\"/metrics\"}[1h])))",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Resident Memory",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 32
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_resident_memory_bytes{job=\"jank-app\"}"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Process CPU Usage",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 32
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * rate(process_cpu_seconds_total{job=\"jank-app\"}[$__rate_interval])",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "User Base Since Deploy",
+      "description": "Current registered-user count from persisted Jank auth state.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(jank_users_total{job=\"jank-app\"})"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "Weekly Active Users",
+      "description": "Distinct users with persisted authenticated activity in the last 7 days.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(jank_weekly_active_users_total{job=\"jank-app\"})"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 25,
+      "type": "stat",
+      "title": "Monthly Active Users",
+      "description": "Distinct users with persisted authenticated activity in the last 30 days.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(jank_monthly_active_users_total{job=\"jank-app\"})"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": [
+    "jank",
+    "app",
+    "engagement",
+    "business-metrics"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Jank App Overview",
+  "uid": "jank-app-overview",
+  "version": 2,
+  "weekStart": ""
+}
