@@ -490,10 +490,12 @@ func stackKey(card *Card) string {
 // JoinGame handles a user joining an existing game.
 func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Game, error) {
 	if input == nil || input.BoardState == nil {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide boardstate to join a game")
 	}
 	authUser, err := requireMatchingUser(ctx, input.BoardState.UserID, input.BoardState.User)
 	if err != nil {
+		recordVedhGameJoinAttempt("unauthorized")
 		return nil, err
 	}
 	// TODO: Handle rejoins by detecting if that player's user.ID already exists
@@ -501,15 +503,19 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	// TODO: Check context for User auth and append user info that way
 	// TODO: Pull user boardstate creation out into a function since we do it multiple places
 	if input.BoardState.UserID == "" {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide user ID to join a game")
 	}
 	if input.BoardState.GameID == "" {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide a game ID to join")
 	}
 	if input.BoardState.User == "" {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide a username to join")
 	}
 	if input.Decklist == nil {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide a decklist to join")
 	}
 
@@ -517,19 +523,24 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	game, err := s.loadGameByID(input.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			recordVedhGameJoinAttempt("not_found")
 			return nil, fmt.Errorf("game does not exist: %w", err)
 		}
+		recordVedhGameJoinAttempt("error")
 		return nil, fmt.Errorf("failed to find game: %w", err)
 	}
 	ensureGameDefaults(game)
 	if game.Status == GameStatusFinished {
+		recordVedhGameJoinAttempt("game_finished")
 		return nil, errors.New("game already finished")
 	}
 
 	if len(game.Players) >= 4 {
+		recordVedhGameJoinAttempt("game_full")
 		return nil, errors.New("game is full")
 	}
 	if isUserInGame(game, authUser) {
+		recordVedhGameJoinAttempt("already_in_game")
 		return nil, errors.New("user already in game")
 	}
 
@@ -551,6 +562,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	// hydrate and validate the library from the provided decklist
 	library, err := s.createLibraryFromDecklist(ctx, *input.Decklist, input.BoardState.Commander)
 	if err != nil {
+		recordVedhGameJoinAttempt("invalid_decklist")
 		return nil, fmt.Errorf("invalid decklist: %w", err)
 	}
 	user.Boardstate.Library = library
@@ -571,6 +583,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	shuff, err := Shuffle(user.Boardstate.Library)
 	if err != nil {
 		s.loggerFor(ctx).Error("error shuffling library", "err", err, "game_id", input.ID, "user_id", input.BoardState.UserID)
+		recordVedhGameJoinAttempt("error")
 		return nil, err
 	}
 	user.Boardstate.Library = shuff
@@ -582,6 +595,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 
 	// update game in postgrse
 	if err := s.upsertGame(game); err != nil {
+		recordVedhGameJoinAttempt("error")
 		return nil, fmt.Errorf("failed to update game: %w", err)
 	}
 
@@ -593,6 +607,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 			"user": authUser.Username,
 		},
 	})
+	recordVedhGameJoinAttempt("success")
 
 	return game, nil
 }
@@ -713,6 +728,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 	if err := s.upsertGame(g); err != nil {
 		return nil, fmt.Errorf("failed to update game: %w", err)
 	}
+	recordVedhGameCreated(format.ID)
 
 	var players []map[string]interface{}
 	for _, p := range g.Players {

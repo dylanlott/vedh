@@ -26,11 +26,12 @@ import (
 )
 
 const (
-	readHeaderTimeout = 5 * time.Second
-	readTimeout       = 15 * time.Second
-	writeTimeout      = 30 * time.Second
-	idleTimeout       = 60 * time.Second
-	maxHeaderBytes    = 1 << 20 // 1 MiB
+	readHeaderTimeout            = 5 * time.Second
+	readTimeout                  = 15 * time.Second
+	writeTimeout                 = 30 * time.Second
+	idleTimeout                  = 60 * time.Second
+	maxHeaderBytes               = 1 << 20 // 1 MiB
+	userActivityTouchMinInterval = 15 * time.Minute
 )
 
 // Conf takes configuration values and loads them from the environment into our struct.
@@ -292,7 +293,7 @@ func (s *graphQLServer) Serve(route string, port int) error {
 	h = s.withRequestID(h)
 	mux.Handle("/playground", playground.Handler("GraphQL", route))
 	if s.shouldExposeMetrics() {
-		mux.Handle("/prometheus", s.withMetricsAuth(promhttp.Handler()))
+		mux.Handle("/prometheus", s.withMetricsAuth(s.withUserMetricsRefresh(promhttp.Handler())))
 	} else if s != nil && s.cfg.MetricsEnabled {
 		s.logger.Warn("prometheus metrics disabled because METRICS_TOKEN is empty")
 	} else {
@@ -324,8 +325,31 @@ func (s *graphQLServer) withAuthContext(next http.Handler) http.Handler {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
+		if user != nil && !shouldSkipUserActivityTouch(r) {
+			if _, err := touchVedhUserActivity(s.db, user.ID, time.Now().UTC(), userActivityTouchMinInterval); err != nil {
+				s.loggerFor(r.Context()).Warn("failed to touch authenticated user activity", "err", err, "user_id", user.ID)
+			} else if err := refreshVedhUserActivityMetrics(s.db); err != nil {
+				s.loggerFor(r.Context()).Warn("failed to refresh active-user metrics after request activity", "err", err)
+			}
+		}
 		ctx := withAuth(r.Context(), user)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func shouldSkipUserActivityTouch(r *http.Request) bool {
+	if r == nil || r.URL == nil {
+		return false
+	}
+	return r.URL.Path == "/prometheus"
+}
+
+func (s *graphQLServer) withUserMetricsRefresh(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := refreshVedhUserActivityMetrics(s.db); err != nil {
+			s.loggerFor(r.Context()).Warn("failed to refresh active-user metrics before scrape", "err", err)
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 
