@@ -1,0 +1,21 @@
+week,day,pillar,concept,hook,format,cta,production_note,status
+1,Monday,table chaos,complex board state,"47 permanents. 12 triggers. whose turn is it?",pain-to-proof,"start a table at vedh.xyz","physical table cold open; vEDH by second 3",idea
+1,Tuesday,product proof,priority flow,"the stack is not a suggestion.",one-feature walkthrough,"try it with your pod","show pass priority and resolve action",idea
+1,Wednesday,build notes,why vEDH exists,"we gave a commander game a transaction log.",founder voiceover,"follow the build","founder voice plus game log screen",idea
+1,Thursday,product proof,shared zones,"your webcam shows the cards. this shows the game state.",before-after,"link in bio","split screen table and synced UI",idea
+1,Friday,post-game data,life history,"someone gained 18 life. the log did not forget.",data reveal,"start a tracked game","open on chart; replay key event",idea
+2,Monday,table chaos,life-total dispute,"the feature nobody asks for until turn nine.",pain-to-proof,"send this to your pod","show a disputed life change then the shared log",idea
+2,Tuesday,product proof,hidden information,"hidden zones stay hidden. everything else gets obvious.",one-feature walkthrough,"start a table","show hand/library privacy and public zones",idea
+2,Wednesday,build notes,data modeling,"building commander software means modeling arguments as state.",build log,"tell me the argument I missed","show schema or state event briefly",idea
+2,Thursday,product proof,game join flow,"a four-player table in under 20 seconds.",timed demo,"try the setup","real-time create and join; no cuts that hide waits",idea
+2,Friday,community,pod friction,"what breaks first: priority, counters, or someone’s wifi?",comment prompt,"answer with your pod’s failure mode","founder on camera; use replies next week",idea
+3,Monday,table chaos,priority dispute,"this is what priority looks like when everyone can see it.",before-after,"try it with your pod","stage a real priority pass",idea
+3,Tuesday,product proof,card movement,"one move. four screens. same state.",product proof,"start a synced table","show drag/move and remote update",idea
+3,Wednesday,comment reply,top week-2 objection,"does it support that? honest answer:",reply video,"drop the next question","use the actual comment; demonstrate or name limitation",idea
+3,Thursday,product proof,game analysis,"the game ended. now prove what happened.",data reveal,"track the next one","winner duration turns and event list",idea
+3,Friday,build notes,user feedback,"a pod asked for this. it shipped.",build log,"test it and break it","use real feedback only",idea
+4,Monday,table chaos,remote readability,"four cameras are not a board state.",pain-to-proof,"link in bio","avoid claiming webcam replacement; show complementary state",idea
+4,Tuesday,product proof,partner commanders,"two commanders. one rules constraint. yes, partner matters.",one-feature walkthrough,"try the board","show the supported partner-pair selection flow",idea
+4,Wednesday,build notes,technical architecture,"realtime commander state: vue, graphql, go.",build log,"follow the working notes","fast architecture overlay then product result",idea
+4,Thursday,comment reply,best product question,"short answer: yes. useful answer:",reply video,"ask the next question","answer with interface evidence",idea
+4,Friday,post-game data,monthly findings,"20 posts later: what commander players actually cared about.",founder recap,"join the next test pod","share real metrics and product lesson",idea
