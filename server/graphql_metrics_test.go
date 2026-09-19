@@ -1,9 +1,13 @@
 package server
 
 import (
+	"bytes"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestGraphQLServer_ShouldExposeMetrics(t *testing.T) {
@@ -90,5 +94,32 @@ func TestGraphQLServer_WithMetricsAuth_AllowsValidBearer(t *testing.T) {
 	}
 	if !called {
 		t.Fatalf("expected wrapped handler to be called")
+	}
+}
+
+func TestGraphQLServer_WithAuthContext_DoesNotTouchUserActivityForPrometheusScrape(t *testing.T) {
+	s := testAPI(t)
+	var logs bytes.Buffer
+	s.logger = slog.New(slog.NewTextHandler(&logs, nil))
+
+	token, err := newAuthToken(&User{ID: "prometheus", Username: "prometheus"}, time.Hour)
+	if err != nil {
+		t.Fatalf("failed to mint auth token: %v", err)
+	}
+
+	h := s.withAuthContext(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/prometheus", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp := httptest.NewRecorder()
+	h.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusNoContent {
+		t.Fatalf("unexpected status: got %d want %d", resp.Code, http.StatusNoContent)
+	}
+	if strings.Contains(logs.String(), "failed to touch authenticated user activity") {
+		t.Fatalf("expected prometheus scrape to skip user activity touch, got logs: %s", logs.String())
 	}
 }

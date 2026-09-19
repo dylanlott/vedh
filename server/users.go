@@ -14,47 +14,60 @@ import (
 
 func (s *graphQLServer) Signup(ctx context.Context, username string, password string) (*User, error) {
 	if password == "" {
+		recordVedhSignup("validation_error")
 		return nil, errs.New("must provide a password")
 	}
 	hashed, err := hashPassword(password)
 	if err != nil {
+		recordVedhSignup("error")
 		return nil, errs.Wrap(err)
 	}
 	id := uuid.New().String()
+	now := time.Now().UTC()
 	stmt := `
-	INSERT INTO "users" (uuid, username, password)
-	VALUES ($1, $2, $3)
+	INSERT INTO "users" (uuid, username, password, last_login_at, last_active_at)
+	VALUES ($1, $2, $3, $4, $5)
 	RETURNING uuid, username;
 	`
-	result, err := s.db.Query(stmt, id, username, hashed)
+	result, err := s.db.Query(stmt, id, username, hashed, now, now)
 	if err != nil {
 		if strings.Contains(err.Error(), "username_unique") || strings.Contains(strings.ToLower(err.Error()), "duplicate key value") {
+			recordVedhSignup("conflict")
 			return nil, errs.New("That username is already taken. Try another one.")
 		}
+		recordVedhSignup("error")
 		return nil, errs.Wrap(err)
 	}
 	defer result.Close()
 	user := &User{}
 	for result.Next() {
 		if err := result.Scan(&user.ID, &user.Username); err != nil {
+			recordVedhSignup("error")
 			return nil, errs.Wrap(err)
 		}
 	}
 
 	t, err := newAuthToken(user, time.Hour*24)
 	if err != nil {
+		recordVedhSignup("error")
 		return nil, errs.Wrap(err)
 	}
 	user.Token = &t
+	recordVedhSignup("success")
+	if err := refreshVedhUserActivityMetrics(s.db); err != nil {
+		s.loggerFor(ctx).Warn("failed to refresh active-user metrics after signup", "err", err)
+	}
 
 	return user, nil
 }
 
 func (s *graphQLServer) Login(ctx context.Context, username string, password string) (*User, error) {
 	if password == "" {
+		recordVedhLoginAttempt("validation_error")
 		return nil, errs.New("must provide a password for authentication")
 	}
 	if username == "" {
+		recordVedhLoginAttempt("validation_error")
 		return nil, errs.New("must provide a username for authentication")
 	}
 
@@ -63,8 +76,10 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	rows, err := s.db.Query(q, username)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			recordVedhLoginAttempt("invalid_credentials")
 			return nil, fmt.Errorf("user not found")
 		}
+		recordVedhLoginAttempt("error")
 		return nil, fmt.Errorf("failed to find rows: %w", err)
 	}
 
@@ -75,6 +90,7 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	for rows.Next() {
 		if err := rows.Scan(&user.ID, &user.Username, &hash, &isGuest); err != nil {
 			s.loggerFor(ctx).Error("failed to scan user at login", "err", err, "username", username)
+			recordVedhLoginAttempt("error")
 			return nil, errs.Wrap(err)
 		}
 	}
@@ -82,6 +98,7 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	// check password validity, return if invalid
 	valid := checkPasswordHash(password, hash)
 	if !valid {
+		recordVedhLoginAttempt("invalid_credentials")
 		return nil, errs.New("failed to authenticate")
 	}
 	// Defense in depth: GuestSession sets a crypto/rand password no client
@@ -92,8 +109,13 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	}
 
 	// we're valid, so generate a new token and assign it to the user
+	now := time.Now().UTC()
+	if _, err := s.db.Exec(`UPDATE "users" SET last_login_at = $2, last_active_at = $2 WHERE uuid = $1`, user.ID, now); err != nil {
+		s.loggerFor(ctx).Warn("failed to persist user login activity", "err", err, "user_id", user.ID)
+	}
 	t, err := newAuthToken(user, time.Hour*24)
 	if err != nil {
+		recordVedhLoginAttempt("error")
 		return nil, errs.Wrap(err)
 	}
 
@@ -104,6 +126,10 @@ func (s *graphQLServer) Login(ctx context.Context, username string, password str
 	// s.lru.Set(user.Username, t, time.Duration(time.Hour*24*14))
 
 	user.Token = &t
+	recordVedhLoginAttempt("success")
+	if err := refreshVedhUserActivityMetrics(s.db); err != nil {
+		s.loggerFor(ctx).Warn("failed to refresh active-user metrics after login", "err", err)
+	}
 
 	return user, nil
 }

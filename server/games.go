@@ -597,13 +597,22 @@ func stackKey(card *Card) string {
 	return "name:" + card.Name
 }
 
+var (
+	errJoinGameFinished    = errors.New("game already finished")
+	errJoinGameFull        = errors.New("game is full")
+	errJoinAlreadyInGame   = errors.New("user already in game")
+	errJoinInvalidDecklist = errors.New("invalid decklist")
+)
+
 // JoinGame handles a user joining an existing game.
 func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Game, error) {
 	if input == nil || input.BoardState == nil {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide boardstate to join a game")
 	}
 	authUser, err := requireMatchingUser(ctx, input.BoardState.UserID, input.BoardState.User)
 	if err != nil {
+		recordVedhGameJoinAttempt("unauthorized")
 		return nil, err
 	}
 	var joiningDisplayName sql.NullString
@@ -619,31 +628,36 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	// TODO: Check context for User auth and append user info that way
 	// TODO: Pull user boardstate creation out into a function since we do it multiple places
 	if input.BoardState.UserID == "" {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide user ID to join a game")
 	}
 	if input.BoardState.GameID == "" {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide a game ID to join")
 	}
 	if input.BoardState.User == "" {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide a username to join")
 	}
 	if input.Decklist == nil {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide a decklist to join")
 	}
 	if input.BoardState.GameID != input.ID {
+		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("boardstate game ID must match the game being joined")
 	}
 
 	updated, err := s.mutateGame(ctx, input.ID, func(mutationCtx context.Context, game *Game) (*Game, error) {
 		if game.Status == GameStatusFinished {
-			return nil, errors.New("game already finished")
+			return nil, errJoinGameFinished
 		}
 
 		if len(game.Players) >= 4 {
-			return nil, errors.New("game is full")
+			return nil, errJoinGameFull
 		}
 		if isUserInGame(game, authUser) {
-			return nil, errors.New("user already in game")
+			return nil, errJoinAlreadyInGame
 		}
 
 		// CR-01 fix: InputBoardState.Life is a required, non-pointer Int!
@@ -691,7 +705,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		parsedDeck := deckimport.Parse(*input.Decklist)
 		library, err := s.createLibraryFromDecklist(ctx, &parsedDeck, input.BoardState.Commander)
 		if err != nil {
-			return nil, fmt.Errorf("invalid decklist: %w", err)
+			return nil, fmt.Errorf("%w: %v", errJoinInvalidDecklist, err)
 		}
 		user.Boardstate.Library = library
 
@@ -723,8 +737,20 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		return game, nil
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			recordVedhGameJoinAttempt("not_found")
 			return nil, fmt.Errorf("game does not exist: %w", err)
+		case errors.Is(err, errJoinGameFinished):
+			recordVedhGameJoinAttempt("game_finished")
+		case errors.Is(err, errJoinGameFull):
+			recordVedhGameJoinAttempt("game_full")
+		case errors.Is(err, errJoinAlreadyInGame):
+			recordVedhGameJoinAttempt("already_in_game")
+		case errors.Is(err, errJoinInvalidDecklist):
+			recordVedhGameJoinAttempt("invalid_decklist")
+		default:
+			recordVedhGameJoinAttempt("error")
 		}
 		return nil, err
 	}
@@ -739,6 +765,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 			"user": authUser.Username,
 		},
 	})
+	recordVedhGameJoinAttempt("success")
 
 	return redactGameForUser(updated, authUser), nil
 }
@@ -928,6 +955,7 @@ func (s *graphQLServer) CreateGame(ctx context.Context, inputGame InputCreateGam
 			}, false)
 		}
 	}
+	recordVedhGameCreated(format.ID)
 
 	var players []map[string]interface{}
 	for _, p := range persisted.Players {
