@@ -15,6 +15,10 @@ app/coverage/
 
 # Local build output
 tools/smoke/target/
+ios/.build/
+ios/DerivedData/
+ios/**/*.xcuserdatad/
+ios/**/*.xcuserdata/
 
 # Import script and temp data
 scripts/*

@@ -21,3 +21,12 @@ Original prompt: Make the player area intuitively designed and juice up interact
 - Client run completed under escalated execution (browser launch is blocked in sandbox mode).
 - Artifacts produced: `shot-0.png`, `shot-1.png`, `shot-2.png`; no `state-*.json`/`errors-*.json` were emitted.
 - Removed generated screenshot output directory after inspection step to keep workspace clean.
+
+## Deck activation implementation (2026-09-21)
+
+- Task: reconcile the deck-activation PRD implementation onto current `origin/main`, complete Phases 2–5, verify release gates, and prepare staging.
+- Created isolated worktree branch `reconcile/deck-activation-20260921` from `origin/main` so the existing dirty checkout remains untouched.
+- Reconciled published business-metrics, observability-dashboard, TikTok-strategy, and Pokemon-planning commits.
+- Preserved `main`'s transactional game mutation and per-viewer privacy behavior while merging join-attempt business metrics.
+- Promoted the intentional marketing-goal and non-generated iOS source artifacts; excluded `.build`, `DerivedData`, and user-specific Xcode state.
+- Next: repair server test fixtures, close Phase 2 validation, then implement and exercise the remaining activation path.

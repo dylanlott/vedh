@@ -5,6 +5,8 @@
 **Horizon:** 90 days  
 **Operating model:** automate preparation and measurement; keep taste, rules accuracy, community interaction, and publishing under human control.
 
+The authoritative cross-channel targets and definitions live in [social-engagement-goals.md](social-engagement-goals.md). This document defines TikTok execution within that scorecard.
+
 ## Recommendation
 
 Lead with one sharp promise:
@@ -371,4 +373,3 @@ No custom social platform is required.
 3. Record one staged game and extract 10 moments.
 4. Produce the first five posts from the launch calendar.
 5. Publish for four weeks before expanding scope or building posting infrastructure.
-
