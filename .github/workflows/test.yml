@@ -132,6 +132,7 @@ jobs:
       ALLOWED_ORIGINS: http://127.0.0.1:5173
       VEDH_GRAPHQL_URL: http://127.0.0.1:8080/graphql
       VEDH_APP_BASE_URL: http://127.0.0.1:5173
+      VEDH_E2E_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
       CI: "true"
     steps:
       - name: Check out code
@@ -164,6 +165,15 @@ jobs:
       - name: Prepare deterministic test database
         run: go run ./tools/testdb
 
+      - name: Verify activation analytics fixture
+        run: psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f docs/analytics/deck-to-game-activation-fixture-test.sql
+
+      - name: Verify generated activation dashboard
+        run: node --test monitoring/grafana/dashboards/vedhAppDashboard.test.js
+
+      - name: Compile Rust smoke client
+        run: cargo test --locked --manifest-path tools/smoke/Cargo.toml
+
       - name: Start API and frontend
         run: |
           go run . > "$RUNNER_TEMP/vedh-server.log" 2>&1 &
@@ -186,6 +196,11 @@ jobs:
       - name: Run browser E2E
         working-directory: app
         run: npm run test:e2e
+
+      - name: Verify activation events
+        run: |
+          mismatches="$(psql -At -v ON_ERROR_STOP=1 -v run_id="$VEDH_E2E_RUN_ID" "$DATABASE_URL" -f tools/testdb/verify_activation_events.sql)"
+          test "$mismatches" = "0"
 
       - name: Stop local application
         if: always()

@@ -33,7 +33,7 @@ func testAPI(t *testing.T) *graphQLServer {
 		DefaultPort: 8080,
 		// fix(01-06): testAPI builds Conf as a literal rather than through
 		// envconfig.Process (main.go's production path), so the `default`
-		// tags on DeckImportRatePerMinute/DeckImportRateBurst are never
+		// tags on the rate-limit fields are never
 		// applied here -- an unset field would be Go's zero value, which
 		// would make NewGraphQLServer construct a burst-0 registry that
 		// denies every single PreviewDeck/TrackProductEvent call this
@@ -43,6 +43,8 @@ func testAPI(t *testing.T) *graphQLServer {
 		// directly to exercise the limited path.
 		DeckImportRatePerMinute:   100000,
 		DeckImportRateBurst:       100000,
+		ProductEventRatePerMinute: 100000,
+		ProductEventRateBurst:     100000,
 		GuestSessionRatePerMinute: 100000,
 		GuestSessionRateBurst:     100000,
 		// GuestCreationEnabled mirrors the same fix(01-06) reasoning above:

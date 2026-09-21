@@ -378,6 +378,8 @@ func (s *graphQLServer) buildDeckPreviewWithSuggestionBudget(ctx context.Context
 	cardCount := 0
 	anyResolved := false
 	var unresolvedNames []string
+	commanderCandidates := make([]*Card, 0, 2)
+	seenCommanderCandidates := map[string]struct{}{}
 
 	for i, pe := range parsed.Entries {
 		card := resolvedCards[i]
@@ -385,6 +387,13 @@ func (s *graphQLServer) buildDeckPreviewWithSuggestionBudget(ctx context.Context
 		if resolved {
 			cardCount += pe.Quantity
 			anyResolved = true
+			if pe.Section == deckimport.SectionCommander {
+				key := strings.ToLower(strings.TrimSpace(card.Name))
+				if _, seen := seenCommanderCandidates[key]; !seen {
+					seenCommanderCandidates[key] = struct{}{}
+					commanderCandidates = append(commanderCandidates, card)
+				}
+			}
 		} else {
 			// D-02/D-04: Candidates is filled in below, once, from one
 			// batched lookup over every unresolved entry's (deduplicated)
@@ -438,7 +447,7 @@ func (s *graphQLServer) buildDeckPreviewWithSuggestionBudget(ctx context.Context
 		SourceType:          string(parsed.Source),
 		CardCount:           cardCount,
 		Entries:             entries,
-		CommanderCandidates: []*Card{},
+		CommanderCandidates: commanderCandidates,
 		Unresolved:          unresolved,
 		Warnings:            warnings,
 		// An unmatched card must never block the player: CanContinue is

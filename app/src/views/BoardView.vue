@@ -68,7 +68,7 @@
       </button>
     </aside>
     <ClaimGuestAccount
-      v-if="boardReadyTracked && auth.isGuest"
+      v-if="claimPromptEligible"
       :game-i-d="game.ID"
       :role="game.Players[0]?.ID === auth.profile?.ID ? 'host' : 'invitee'"
     />
@@ -709,6 +709,7 @@ const route = useRoute();
 const router = useRouter();
 const boardLoadStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
 const boardReadyTracked = ref(false);
+const claimPromptEligible = ref(false);
 
 // Zone typing shared across helpers
 const zones = ['Commander','Battlefield','Hand','Graveyard','Exiled','Revealed','Library','Controlled'] as const;
@@ -772,6 +773,12 @@ watch([() => games.boardConnectionState, selfPlayer], ([state, player]) => {
     outcome: state,
     durationMs: elapsed,
   });
+}, { immediate: true });
+
+// Keep the claim component mounted through a successful claim so it can show
+// confirmation before the now-permanent profile turns auth.isGuest false.
+watch([boardReadyTracked, () => auth.isGuest], ([ready, isGuest]) => {
+  if (ready && isGuest) claimPromptEligible.value = true;
 }, { immediate: true });
 
 // Simple tile-only view; no display toggles needed

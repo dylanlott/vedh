@@ -71,11 +71,7 @@ async function submit(): Promise<void> {
 
   submitting.value = true;
   const sessionID = getSessionID();
-  track('account_claim_started', {}, {
-    gameID: props.gameID,
-    role: props.role,
-    source: 'board',
-  });
+  track('account_claim_started');
   try {
     await auth.claimGuestAccount({
       username: trimmedUsername,

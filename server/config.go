@@ -32,6 +32,9 @@ func (c Conf) Validate() error {
 	if c.DeckImportRatePerMinute < 1 || c.DeckImportRateBurst < 1 {
 		return fmt.Errorf("deck import rate limits must be positive")
 	}
+	if c.ProductEventRatePerMinute < 1 || c.ProductEventRateBurst < 1 {
+		return fmt.Errorf("product event rate limits must be positive")
+	}
 	if c.GuestSessionRatePerMinute < 1 || c.GuestSessionRateBurst < 1 {
 		return fmt.Errorf("guest session rate limits must be positive")
 	}

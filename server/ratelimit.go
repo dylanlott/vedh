@@ -35,7 +35,10 @@ func (s *graphQLServer) allowRequest(ctx context.Context, surface ratelimit.Surf
 	allowed := true
 	if s != nil {
 		limiter := s.limiter
-		if surface == ratelimit.SurfaceGuestSession {
+		switch surface {
+		case ratelimit.SurfaceProductEvent:
+			limiter = s.eventLimiter
+		case ratelimit.SurfaceGuestSession:
 			limiter = s.guestLimiter
 		}
 		if limiter != nil {

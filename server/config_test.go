@@ -10,6 +10,8 @@ func validTestConf() Conf {
 		AllowedOrigins:            "http://localhost:5173",
 		DeckImportRatePerMinute:   30,
 		DeckImportRateBurst:       10,
+		ProductEventRatePerMinute: 120,
+		ProductEventRateBurst:     60,
 		GuestSessionRatePerMinute: 20,
 		GuestSessionRateBurst:     5,
 	}
@@ -42,5 +44,13 @@ func TestConfValidateRequiresProviderAllowlistWhenEnabled(t *testing.T) {
 	cfg.DeckProviderEnabled = true
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("Validate() unexpectedly accepted provider fetches without an allowlist")
+	}
+}
+
+func TestConfValidateRejectsMissingProductEventBudget(t *testing.T) {
+	cfg := validTestConf()
+	cfg.ProductEventRateBurst = 0
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() unexpectedly accepted an empty product event budget")
 	}
 }

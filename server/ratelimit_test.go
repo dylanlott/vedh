@@ -93,11 +93,11 @@ func TestRateLimit_PreviewDeckNamesNoLimitValue(t *testing.T) {
 // TestRateLimit_TrackProductEventStillReturnsTrue proves a limited
 // trackProductEvent call still returns true with no error, per D-19/D-22.
 func TestRateLimit_TrackProductEventStillReturnsTrue(t *testing.T) {
-	s := &graphQLServer{limiter: ratelimit.NewRegistry(60, 1)}
+	s := &graphQLServer{eventLimiter: ratelimit.NewRegistry(60, 1)}
 	input := InputProductEvent{Name: "quick_start_viewed", SessionID: "rate-limit-test-session"}
 
 	clientKey := clientKeyFor(context.Background(), input.SessionID)
-	if !s.limiter.Allow(ratelimit.SurfaceProductEvent, clientKey) {
+	if !s.eventLimiter.Allow(ratelimit.SurfaceProductEvent, clientKey) {
 		t.Fatal("expected the first Allow call against the registry to succeed")
 	}
 

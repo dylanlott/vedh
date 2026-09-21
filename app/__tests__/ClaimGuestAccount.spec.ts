@@ -33,9 +33,7 @@ describe('ClaimGuestAccount', () => {
     await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toContain('already taken');
     expect(wrapper.text()).toContain('Save your games');
-    expect(productEvents.track).toHaveBeenCalledWith('account_claim_started', {}, {
-      gameID: 'game-1', role: 'host', source: 'board',
-    });
+    expect(productEvents.track).toHaveBeenCalledWith('account_claim_started');
   });
 
   it('keeps the board context and renders a quiet success after claiming', async () => {

@@ -46,8 +46,7 @@ type Conf struct {
 	MetricsToken   string `envconfig:"METRICS_TOKEN" default:""`
 
 	// DeckImportRatePerMinute and DeckImportRateBurst bound the token
-	// bucket server/ratelimit.go constructs for previewDeck and
-	// trackProductEvent (pkg/ratelimit.Registry). Tuned generously per
+	// bucket server/ratelimit.go constructs for previewDeck. Tuned generously per
 	// 01-RESEARCH.md Open Question 2: previewDeck sits on the activation
 	// critical path, and a limit set too tight would throttle the very
 	// funnel this phase exists to measure. The idle-eviction window that
@@ -55,6 +54,12 @@ type Conf struct {
 	// variable here — see pkg/ratelimit's idleWindow constant.
 	DeckImportRatePerMinute int `envconfig:"DECK_IMPORT_RATE_PER_MINUTE" default:"30"`
 	DeckImportRateBurst     int `envconfig:"DECK_IMPORT_RATE_BURST" default:"10"`
+
+	// Product events have their own, larger bucket. A normal two-player
+	// activation emits more than ten client events in a few seconds, so sharing
+	// previewDeck's burst would silently discard the end of the measured funnel.
+	ProductEventRatePerMinute int `envconfig:"PRODUCT_EVENT_RATE_PER_MINUTE" default:"120"`
+	ProductEventRateBurst     int `envconfig:"PRODUCT_EVENT_RATE_BURST" default:"60"`
 
 	// DeckProviderAllowedHosts is the comma-separated exact-match host
 	// allowlist server/deck_providers.go's redirect hook (and, once plan
@@ -117,13 +122,13 @@ type graphQLServer struct {
 	// allowedOrigins holds normalized origins permitted for CORS and websocket checks.
 	allowedOrigins map[string]struct{}
 
-	// limiter is the per-surface, per-client token-bucket registry
-	// server/ratelimit.go's allowRequest consults for deck import and product
-	// event requests. A nil limiter (e.g. a graphQLServer built as a
+	// The three registries keep deck imports, telemetry, and guest creation on
+	// independent budgets. A nil limiter (e.g. a graphQLServer built as a
 	// struct literal by a test rather than through NewGraphQLServer)
 	// allows every request, so tests that do not care about rate
 	// limiting are unaffected.
 	limiter      *ratelimit.Registry
+	eventLimiter *ratelimit.Registry
 	guestLimiter *ratelimit.Registry
 
 	// deckProviderAllowedHosts holds the parsed, lower-cased exact-match
@@ -152,6 +157,7 @@ func NewGraphQLServer(
 		boards:                   map[string]*FullBoardstate{},
 		allowedOrigins:           parseAllowedOrigins(cfg.AllowedOrigins),
 		limiter:                  ratelimit.NewRegistry(cfg.DeckImportRatePerMinute, cfg.DeckImportRateBurst),
+		eventLimiter:             ratelimit.NewRegistry(cfg.ProductEventRatePerMinute, cfg.ProductEventRateBurst),
 		guestLimiter:             ratelimit.NewRegistry(cfg.GuestSessionRatePerMinute, cfg.GuestSessionRateBurst),
 		deckProviderAllowedHosts: parseAllowedHosts(cfg.DeckProviderAllowedHosts),
 	}, nil

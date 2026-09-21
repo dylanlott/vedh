@@ -76,6 +76,26 @@ func TestTracer_PreviewDeckEmitsMeasuredEvent(t *testing.T) {
 	}
 }
 
+func TestPreviewDeck_CommanderSectionReturnsResolvedCandidates(t *testing.T) {
+	s := testAPI(t)
+	text := "Commander\n1 Kykar, Wind's Fury\nDeck\n99 Island"
+	preview, err := s.PreviewDeck(context.Background(), InputDeckImport{
+		Text: &text, SessionID: "test-commander-candidate",
+	})
+	if err != nil {
+		t.Fatalf("PreviewDeck() error = %v", err)
+	}
+	if len(preview.CommanderCandidates) != 1 {
+		t.Fatalf("CommanderCandidates = %+v, want exactly one", preview.CommanderCandidates)
+	}
+	if got := preview.CommanderCandidates[0].Name; got != "Kykar, Wind's Fury" {
+		t.Fatalf("CommanderCandidates[0].Name = %q", got)
+	}
+	if preview.CardCount != 100 || !preview.CanContinue {
+		t.Fatalf("preview = %+v, want a 100-card actionable deck", preview)
+	}
+}
+
 // cardNameSearchIndexes are the four indexes this migration creates on top
 // of the card_names table itself; assertCardNameSearchObjectsPresent checks
 // all of them plus card_names in one pass.
