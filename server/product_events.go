@@ -172,6 +172,7 @@ func (s *graphQLServer) TrackProductEvent(ctx context.Context, input InputProduc
 		userID = &id
 	}
 
+	eventValid := telemetry.ValidateEvent(input.Name, input.SessionID, metadata, true) == telemetry.RejectionNone
 	s.recordProductEvent(ctx, ProductEvent{
 		Name:       input.Name,
 		SessionID:  input.SessionID,
@@ -184,5 +185,31 @@ func (s *graphQLServer) TrackProductEvent(ctx context.Context, input InputProduc
 		Metadata:   metadata,
 	}, true)
 
+	// PostgreSQL remains the funnel source of truth. This parallel metric is
+	// bounded to the two roles and readiness modes the board can emit, so a
+	// client cannot manufacture a high-cardinality Prometheus label.
+	if eventValid && input.Name == "board_ready" && input.DurationMs != nil && *input.DurationMs >= 0 {
+		var role telemetry.Role
+		switch valueOrEmpty(input.Role) {
+		case string(telemetry.RoleHost):
+			role = telemetry.RoleHost
+		case string(telemetry.RoleInvitee):
+			role = telemetry.RoleInvitee
+		default:
+			return true, nil
+		}
+		outcome := valueOrEmpty(input.Outcome)
+		if outcome == "ready" || outcome == "degraded" {
+			collectors.ObserveBoardActivation(role, outcome, time.Duration(*input.DurationMs)*time.Millisecond)
+		}
+	}
+
 	return true, nil
+}
+
+func valueOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

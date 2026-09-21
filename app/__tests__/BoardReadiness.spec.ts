@@ -65,7 +65,7 @@ describe('BoardView readiness telemetry', () => {
     await nextTick();
     expect(productEvents.track).toHaveBeenCalledTimes(1);
     expect(productEvents.track).toHaveBeenCalledWith('board_ready', {}, expect.objectContaining({
-      gameID: 'game-1', role: 'host', source: 'board',
+      gameID: 'game-1', role: 'host', source: 'board', outcome: 'degraded',
     }));
 
     games.boardConnectionState = 'ready';

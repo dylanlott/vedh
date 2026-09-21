@@ -147,6 +147,7 @@ describe('track', () => {
       gameID: 'game-1',
       role: 'invitee',
       source: 'board',
+      outcome: 'ready',
       durationMs: 842,
     });
 
@@ -155,6 +156,7 @@ describe('track', () => {
       gameID: 'game-1',
       role: 'invitee',
       source: 'board',
+      outcome: 'ready',
       durationMs: 842,
       metadata: [],
     });

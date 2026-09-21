@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
 import { apolloClient } from '../services/apollo';
-import { LOGIN_MUTATION, SIGNUP_MUTATION, GUEST_SESSION_MUTATION } from '../graphql/mutations';
+import { CLAIM_GUEST_ACCOUNT_MUTATION, GUEST_SESSION_MUTATION, LOGIN_MUTATION, SIGNUP_MUTATION } from '../graphql/mutations';
 import type {
   LoginMutation,
   LoginMutationVariables,
@@ -9,6 +9,8 @@ import type {
   SignupMutationVariables,
   GuestSessionMutation,
   GuestSessionMutationVariables,
+  ClaimGuestAccountMutation,
+  ClaimGuestAccountMutationVariables,
 } from '../types/generated';
 
 interface AuthProfile {
@@ -83,9 +85,10 @@ export const useAuthStore = defineStore('auth', () => {
       return;
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  }, { deep: true });
+  }, { deep: true, flush: 'sync' });
 
   const isAuthenticated = computed(() => Boolean(profile.value?.Token));
+  const isGuest = computed(() => profile.value?.IsGuest === true);
 
   async function login(credentials: { username: string; password: string; redirect?: string }) {
     loading.value = true;
@@ -179,6 +182,50 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function claimGuestAccount(args: { username: string; password: string; sessionID: string }) {
+    loading.value = true;
+    errorMessage.value = null;
+    try {
+      const guestID = profile.value?.ID;
+      if (!guestID || profile.value?.IsGuest !== true) {
+        throw new Error('Only a guest account can be saved.');
+      }
+      const { data } = await apolloClient.mutate<ClaimGuestAccountMutation, ClaimGuestAccountMutationVariables>({
+        mutation: CLAIM_GUEST_ACCOUNT_MUTATION,
+        variables: {
+          username: args.username.trim(),
+          password: args.password,
+          sessionID: args.sessionID,
+        },
+      });
+      if (!data?.claimGuestAccount?.Token) {
+        throw new Error('Account claim returned an empty response.');
+      }
+      if (data.claimGuestAccount.ID !== guestID) {
+        throw new Error('Account claim returned a different identity.');
+      }
+
+      // One assignment replaces the guest JWT without clearing the active
+      // board or reconnecting its subscription. The old guest credential is
+      // removed only after the permanent profile is accepted.
+      profile.value = {
+        ID: data.claimGuestAccount.ID,
+        Username: data.claimGuestAccount.Username,
+        Token: data.claimGuestAccount.Token,
+        DisplayName: data.claimGuestAccount.DisplayName ?? undefined,
+        IsGuest: false,
+      };
+      clearGuestCredential();
+      return profile.value;
+    } catch (error: unknown) {
+      console.error('[auth] account claim failed', error);
+      errorMessage.value = error instanceof Error ? error.message : 'Could not save this account.';
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function logout() {
     profile.value = null;
     clearGuestCredential();
@@ -189,9 +236,11 @@ export const useAuthStore = defineStore('auth', () => {
     loading,
     errorMessage,
     isAuthenticated,
+    isGuest,
     login,
     signup,
     createGuestSession,
+    claimGuestAccount,
     readGuestCredential,
     logout,
   };

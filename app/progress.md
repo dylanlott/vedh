@@ -40,3 +40,9 @@ Original prompt: Make the player area intuitively designed and juice up interact
 - Added board invite sharing with native-share, clipboard, and selectable-manual fallbacks. Telemetry stores the method only and never the URL/clipboard contents.
 - Phase 3 targeted verification: Go invite/privacy/rate-limit/event tests pass; Node 24 type-check passes; frontend suite passes (152 passed, 2 skipped).
 - Ran the web-game Playwright client against a missing public invite and visually verified the safe not-found state; no console-error artifact was emitted.
+- Implemented Phase 4 account claim: the prompt appears only after a usable board, remains dismissible per game, preserves the active board/subscription, validates the claimed UUID, atomically replaces the guest token, and clears the recovery credential only after success.
+- Rewrote the landing path around the verified Commander workflow, routed the primary CTA directly to `/play`, retained login/invite paths, and emitted only allowlisted campaign attribution.
+- Closed dormant technical telemetry emit sites for game join latency, board ready/degraded mode, and the observed Archidekt provider fetch; extended the generated Grafana dashboard with bounded activation-health panels.
+- Added executable activation SQL plus an isolated fixture harness and the quiet-beta cohort/go-no-go/alert/kill-switch runbook. The fixture produced expected host, invite, timing, source, resolution, and seven-day claim results, then rolled back.
+- Phase 4 targeted verification: Node 24 type-check and 36 focused frontend tests pass; targeted Go telemetry/provider tests pass; dashboard generation tests pass.
+- Ran the web-game Playwright client against the landing page, inspected the final screenshot, and verified the Commander copy and CTA hierarchy; no console-error artifact was emitted.

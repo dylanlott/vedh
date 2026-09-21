@@ -359,17 +359,89 @@ function createVedhAppDashboard({ datasourceUid }) {
         gridPos: { h: 8, w: 8, x: 16, y: 32 },
         datasourceUid,
       }),
+      timeSeriesPanel({
+        id: 25,
+        title: 'Public Request Decisions (5m rate)',
+        description: 'Allowed versus limited traffic on bounded public activation surfaces.',
+        expr: 'sum by (surface, outcome) (rate(vedh_rate_limit_total{job="vedh-api"}[5m]))',
+        gridPos: { h: 8, w: 6, x: 0, y: 40 },
+        datasourceUid,
+      }),
+      timeSeriesPanel({
+        id: 26,
+        title: 'Deck Import Outcomes (5m rate)',
+        description: 'Technical deck-preview outcomes by bounded source and outcome labels.',
+        expr: 'sum by (source, outcome) (rate(vedh_deck_import_total{job="vedh-api"}[5m]))',
+        gridPos: { h: 8, w: 6, x: 6, y: 40 },
+        datasourceUid,
+      }),
+      timeSeriesPanel({
+        id: 27,
+        title: 'Game Create Outcomes (5m rate)',
+        description: 'Create request health from the canonical createGame resolver.',
+        expr: 'sum by (outcome) (rate(vedh_game_create_total{job="vedh-api"}[5m]))',
+        gridPos: { h: 8, w: 6, x: 12, y: 40 },
+        datasourceUid,
+      }),
+      timeSeriesPanel({
+        id: 28,
+        title: 'Game Join Outcomes (5m rate)',
+        description: 'Join request health using a closed set of server-owned outcomes.',
+        expr: 'sum by (outcome) (rate(vedh_game_join_total{job="vedh-api"}[5m]))',
+        gridPos: { h: 8, w: 6, x: 18, y: 40 },
+        datasourceUid,
+      }),
+      timeSeriesPanel({
+        id: 29,
+        title: 'Activation Latency p90',
+        description: 'Technical p90 latency for import, create, join, and client-reported board readiness.',
+        targets: [
+          { refId: 'A', expr: 'histogram_quantile(0.90, sum by (le) (rate(vedh_deck_import_duration_seconds_bucket{job="vedh-api"}[5m])))', legendFormat: 'deck import' },
+          { refId: 'B', expr: 'histogram_quantile(0.90, sum by (le) (rate(vedh_game_create_duration_seconds_bucket{job="vedh-api"}[5m])))', legendFormat: 'game create' },
+          { refId: 'C', expr: 'histogram_quantile(0.90, sum by (le) (rate(vedh_game_join_duration_seconds_bucket{job="vedh-api"}[5m])))', legendFormat: 'game join' },
+          { refId: 'D', expr: 'histogram_quantile(0.90, sum by (le) (rate(vedh_board_activation_duration_seconds_bucket{job="vedh-api"}[5m])))', legendFormat: 'board ready' },
+        ],
+        gridPos: { h: 8, w: 8, x: 0, y: 48 },
+        datasourceUid,
+        unit: 's',
+        min: 0,
+      }),
+      timeSeriesPanel({
+        id: 30,
+        title: 'Provider Fetch Health (5m rate)',
+        description: 'Archidekt fetch success versus failure. Kill-switch refusals do not count as fetches.',
+        expr: 'sum by (provider, outcome) (rate(vedh_deck_provider_fetch_total{job="vedh-api"}[5m]))',
+        gridPos: { h: 8, w: 8, x: 8, y: 48 },
+        datasourceUid,
+      }),
+      timeSeriesPanel({
+        id: 31,
+        title: 'Board Readiness Mode (15m)',
+        description: 'Ready versus degraded board activations, split by host and invitee.',
+        expr: 'sum by (role, outcome) (increase(vedh_board_activation_total{job="vedh-api"}[15m]))',
+        gridPos: { h: 8, w: 8, x: 16, y: 48 },
+        datasourceUid,
+      }),
+      barGaugePanel({
+        id: 32,
+        title: 'Product Event Drops (15m)',
+        description: 'Measurement gaps by bounded rejection reason; any sustained non-zero value requires review.',
+        expr: 'sum by (reason) (increase(vedh_product_events_dropped_total{job="vedh-api"}[15m]))',
+        gridPos: { h: 6, w: 24, x: 0, y: 56 },
+        datasourceUid,
+        legendFormat: '{{reason}}',
+      }),
     ],
     refresh: '30s',
     schemaVersion: 41,
-    tags: ['vedh', 'app', 'engagement', 'business-metrics'],
+    tags: ['vedh', 'app', 'engagement', 'business-metrics', 'activation'],
     templating: { list: [] },
     time: { from: 'now-24h', to: 'now' },
     timepicker: {},
     timezone: 'browser',
     title: 'vEDH App Overview',
     uid: 'vedh-app-overview',
-    version: 2,
+    version: 3,
     weekStart: '',
   };
 }
@@ -377,3 +449,10 @@ function createVedhAppDashboard({ datasourceUid }) {
 module.exports = {
   createVedhAppDashboard,
 };
+
+if (require.main === module) {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const output = path.join(__dirname, 'vedh-app-overview.json');
+  fs.writeFileSync(output, `${JSON.stringify(createVedhAppDashboard({ datasourceUid: 'bfcctb05vkm4ge' }), null, 2)}\n`);
+}

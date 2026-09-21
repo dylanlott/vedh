@@ -1237,6 +1237,343 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Public Request Decisions (5m rate)",
+      "description": "Allowed versus limited traffic on bounded public activation surfaces.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (surface, outcome) (rate(vedh_rate_limit_total{job=\"vedh-api\"}[5m]))",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "Deck Import Outcomes (5m rate)",
+      "description": "Technical deck-preview outcomes by bounded source and outcome labels.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (source, outcome) (rate(vedh_deck_import_total{job=\"vedh-api\"}[5m]))",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Game Create Outcomes (5m rate)",
+      "description": "Create request health from the canonical createGame resolver.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(vedh_game_create_total{job=\"vedh-api\"}[5m]))",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Game Join Outcomes (5m rate)",
+      "description": "Join request health using a closed set of server-owned outcomes.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(vedh_game_join_total{job=\"vedh-api\"}[5m]))",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Activation Latency p90",
+      "description": "Technical p90 latency for import, create, join, and client-reported board readiness.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 48
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.90, sum by (le) (rate(vedh_deck_import_duration_seconds_bucket{job=\"vedh-api\"}[5m])))",
+          "legendFormat": "deck import"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.90, sum by (le) (rate(vedh_game_create_duration_seconds_bucket{job=\"vedh-api\"}[5m])))",
+          "legendFormat": "game create"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.90, sum by (le) (rate(vedh_game_join_duration_seconds_bucket{job=\"vedh-api\"}[5m])))",
+          "legendFormat": "game join"
+        },
+        {
+          "refId": "D",
+          "expr": "histogram_quantile(0.90, sum by (le) (rate(vedh_board_activation_duration_seconds_bucket{job=\"vedh-api\"}[5m])))",
+          "legendFormat": "board ready"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Provider Fetch Health (5m rate)",
+      "description": "Archidekt fetch success versus failure. Kill-switch refusals do not count as fetches.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 48
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (provider, outcome) (rate(vedh_deck_provider_fetch_total{job=\"vedh-api\"}[5m]))",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Board Readiness Mode (15m)",
+      "description": "Ready versus degraded board activations, split by host and invitee.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 48
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (role, outcome) (increase(vedh_board_activation_total{job=\"vedh-api\"}[15m]))",
+          "legendFormat": "__auto"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 32,
+      "type": "bargauge",
+      "title": "Product Event Drops (15m)",
+      "description": "Measurement gaps by bounded rejection reason; any sustained non-zero value requires review.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bfcctb05vkm4ge"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 56
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (reason) (increase(vedh_product_events_dropped_total{job=\"vedh-api\"}[15m]))",
+          "legendFormat": "{{reason}}"
+        }
+      ],
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
     }
   ],
   "refresh": "30s",
@@ -1245,7 +1582,8 @@
     "vedh",
     "app",
     "engagement",
-    "business-metrics"
+    "business-metrics",
+    "activation"
   ],
   "templating": {
     "list": []
@@ -1258,6 +1596,6 @@
   "timezone": "browser",
   "title": "vEDH App Overview",
   "uid": "vedh-app-overview",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

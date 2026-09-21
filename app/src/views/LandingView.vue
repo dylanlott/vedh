@@ -2,28 +2,28 @@
   <section class="landing">
     <div class="hero">
       <div class="hero-copy">
-        <span class="eyebrow">vEDH multiplayer hub</span>
-        <h1>Bring any TCG table online, instantly.</h1>
+        <span class="eyebrow">Commander tables, without the signup wall</span>
+        <h1>Paste a Commander deck. Start a table.</h1>
         <p>
-          vEDH keeps matches clean and collaborative with live zones, shared counters, and
-          flexible turn flow for any trading card game.
+          Preview your list, choose your commander, and open a shared board. You can host as a
+          guest and decide whether to save the account after the game is ready.
         </p>
         <div class="actions">
-          <button class="primary" @click="goToSignup">Start a table</button>
-          <button class="secondary" @click="goToLogin">Join a game</button>
+          <button class="primary" @click="goToPlay">Start a table</button>
+          <button class="secondary" @click="goToLogin">Log in</button>
         </div>
         <div class="hero-stats">
           <div>
-            <strong>Live zones</strong>
-            <span>Hands, boards, discard, and more.</span>
+            <strong>1 · Paste</strong>
+            <span>Bring a Commander decklist.</span>
           </div>
           <div>
-            <strong>Shared counters</strong>
-            <span>Track life, energy, and custom tokens.</span>
+            <strong>2 · Review</strong>
+            <span>Confirm the commander and resolved cards.</span>
           </div>
           <div>
-            <strong>Turn flow</strong>
-            <span>Pass priority, log moves, stay synced.</span>
+            <strong>3 · Play</strong>
+            <span>Share the invite and reach the board.</span>
           </div>
         </div>
       </div>
@@ -38,8 +38,8 @@
           <div class="tcg-card-edge"></div>
           <div class="tcg-card-header">
             <div>
-              <span class="tcg-card-kicker">vector table relic</span>
-              <strong>Mythic Junction // Table Nexus</strong>
+              <span class="tcg-card-kicker">Commander table</span>
+              <strong>Your deck // Your pod</strong>
             </div>
             <span class="tcg-card-cost">
               <span></span>
@@ -73,7 +73,7 @@
             </div>
             <div class="rule-line">
               <span class="rule-icon link"></span>
-              <span>Original vector hero card with crisp linework and no borrowed game framing.</span>
+              <span>Invite the pod with one table link.</span>
             </div>
           </div>
 
@@ -94,65 +94,74 @@
     </div>
     <div class="feature-grid">
       <article>
-        <h3>Table-state clarity</h3>
-        <p>Track zones and permanents with a board that stays readable at a glance.</p>
+        <h3>Guest-first hosting</h3>
+        <p>Reach a usable board before deciding whether to create a permanent login.</p>
       </article>
       <article>
-        <h3>Match flow tools</h3>
-        <p>Use phase markers, priority passes, and quick logs to keep play moving.</p>
+        <h3>Decklist preview</h3>
+        <p>See resolved cards and fix blocking entries before the table is created.</p>
       </article>
       <article>
-        <h3>Deck workspace</h3>
-        <p>Search, shuffle, reveal, and organize without leaving the table.</p>
+        <h3>Shared Commander board</h3>
+        <p>Track zones, life, turns, priority, and the stack with the pod.</p>
       </article>
     </div>
     <div class="playbook">
       <div>
-        <h2>Set up in seconds.</h2>
+        <h2>From decklist to board.</h2>
         <p>
-          Create a lobby, invite your group, and play any ruleset you want. vEDH gives your
-          table the structure you need without locking you into a single format.
+          The host imports first. Invitees open a safe table preview, bring their own deck,
+          and join as a guest or an existing player.
         </p>
       </div>
       <div class="steps">
         <div>
           <span>01</span>
-          <h4>Open a table</h4>
-          <p>Name the match, pick player counts, and post the invite.</p>
+          <h4>Import your deck</h4>
+          <p>Paste the list and correct anything the preview cannot resolve.</p>
         </div>
         <div>
           <span>02</span>
-          <h4>Sync your decks</h4>
-          <p>Shuffle, draw, and reveal cards with shared, live state.</p>
+          <h4>Review the commander</h4>
+          <p>Confirm the deck is ready before a guest identity is created.</p>
         </div>
         <div>
           <span>03</span>
-          <h4>Play faster</h4>
-          <p>Log moves and pass turns with friction-free controls.</p>
+          <h4>Share the table</h4>
+          <p>Send the invite and keep playing if realtime falls back to polling.</p>
         </div>
       </div>
     </div>
     <div class="cta">
       <div>
-        <h2>Ready to host your next match?</h2>
-        <p>Keep every TCG table organized, even when the board gets wild.</p>
+        <h2>Hosting or joining?</h2>
+        <p>Start with your deck, or open a table invite you already received.</p>
       </div>
-      <button class="primary" @click="goToSignup">Create a table</button>
+      <div class="actions">
+        <button class="primary" @click="goToPlay">Start with a deck</button>
+        <button class="secondary" @click="goToJoin">Open an invite</button>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import { track } from '../services/productEvents';
 
 const router = useRouter();
 
-function goToSignup() {
-  router.push({ name: 'signup' });
+function goToPlay() {
+  track('landing_primary_cta', {}, { source: 'landing' });
+  router.push({ name: 'quick-start' });
 }
 
 function goToLogin() {
   router.push({ name: 'login' });
+}
+
+function goToJoin() {
+  router.push({ name: 'join' });
 }
 </script>
 

@@ -606,12 +606,19 @@ var (
 
 // JoinGame handles a user joining an existing game.
 func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Game, error) {
+	startedAt := time.Now()
+	metricOutcome := "failure"
+	defer func() {
+		collectors.ObserveGameJoin(metricOutcome, time.Since(startedAt))
+	}()
 	if input == nil || input.BoardState == nil {
+		metricOutcome = "invalid_input"
 		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide boardstate to join a game")
 	}
 	authUser, err := requireMatchingUser(ctx, input.BoardState.UserID, input.BoardState.User)
 	if err != nil {
+		metricOutcome = "unauthorized"
 		recordVedhGameJoinAttempt("unauthorized")
 		return nil, err
 	}
@@ -628,22 +635,27 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	// TODO: Check context for User auth and append user info that way
 	// TODO: Pull user boardstate creation out into a function since we do it multiple places
 	if input.BoardState.UserID == "" {
+		metricOutcome = "invalid_input"
 		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide user ID to join a game")
 	}
 	if input.BoardState.GameID == "" {
+		metricOutcome = "invalid_input"
 		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide a game ID to join")
 	}
 	if input.BoardState.User == "" {
+		metricOutcome = "invalid_input"
 		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide a username to join")
 	}
 	if input.Decklist == nil {
+		metricOutcome = "invalid_input"
 		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("must provide a decklist to join")
 	}
 	if input.BoardState.GameID != input.ID {
+		metricOutcome = "invalid_input"
 		recordVedhGameJoinAttempt("invalid_input")
 		return nil, errors.New("boardstate game ID must match the game being joined")
 	}
@@ -739,17 +751,23 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
+			metricOutcome = "not_found"
 			recordVedhGameJoinAttempt("not_found")
 			return nil, fmt.Errorf("game does not exist: %w", err)
 		case errors.Is(err, errJoinGameFinished):
+			metricOutcome = "game_finished"
 			recordVedhGameJoinAttempt("game_finished")
 		case errors.Is(err, errJoinGameFull):
+			metricOutcome = "game_full"
 			recordVedhGameJoinAttempt("game_full")
 		case errors.Is(err, errJoinAlreadyInGame):
+			metricOutcome = "already_in_game"
 			recordVedhGameJoinAttempt("already_in_game")
 		case errors.Is(err, errJoinInvalidDecklist):
+			metricOutcome = "invalid_decklist"
 			recordVedhGameJoinAttempt("invalid_decklist")
 		default:
+			metricOutcome = "error"
 			recordVedhGameJoinAttempt("error")
 		}
 		return nil, err
@@ -782,6 +800,7 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 		}, false)
 	}
 	recordVedhGameJoinAttempt("success")
+	metricOutcome = "success"
 
 	return redactGameForUser(updated, authUser), nil
 }

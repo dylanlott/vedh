@@ -54,7 +54,7 @@ func exerciseAndGather(t *testing.T) []*dto.MetricFamily {
 	c.IncDeckSuggestionTruncated()
 	c.ObserveRateLimit(ratelimit.SurfaceDeckImport, "allowed")
 	c.ObserveRateLimit(ratelimit.SurfaceProductEvent, "limited")
-	c.ObserveDeckProviderFetch(DeckProviderMoxfield, "success", 100*time.Millisecond)
+	c.ObserveDeckProviderFetch(DeckProviderArchidekt, "success", 100*time.Millisecond)
 
 	families, err := reg.Gather()
 	if err != nil {

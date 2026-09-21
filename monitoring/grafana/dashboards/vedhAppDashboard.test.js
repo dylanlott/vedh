@@ -11,7 +11,7 @@ test('createVedhAppDashboard emphasizes product engagement and game health', () 
   assert.equal(dashboard.title, 'vEDH App Overview');
   assert.equal(dashboard.schemaVersion >= 39, true);
   assert.equal(Array.isArray(dashboard.panels), true);
-  assert.equal(dashboard.panels.length, 24);
+  assert.equal(dashboard.panels.length, 32);
   assert.deepEqual(dashboard.time, { from: 'now-24h', to: 'now' });
 
   const panelsByTitle = new Map(dashboard.panels.map((panel) => [panel.title, panel]));
@@ -40,6 +40,14 @@ test('createVedhAppDashboard emphasizes product engagement and game health', () 
     'Process CPU Usage',
     'File Descriptors',
     'Go Heap vs Stack',
+    'Public Request Decisions (5m rate)',
+    'Deck Import Outcomes (5m rate)',
+    'Game Create Outcomes (5m rate)',
+    'Game Join Outcomes (5m rate)',
+    'Activation Latency p90',
+    'Provider Fetch Health (5m rate)',
+    'Board Readiness Mode (15m)',
+    'Product Event Drops (15m)',
   ];
 
   for (const title of expectedPanels) {
@@ -147,6 +155,21 @@ test('createVedhAppDashboard emphasizes product engagement and game health', () 
   assert.equal(heapPanel.targets.length, 2);
   assert.match(heapPanel.targets[0].expr, /go_memstats_heap_alloc_bytes/);
   assert.match(heapPanel.targets[1].expr, /go_memstats_stack_inuse_bytes/);
+
+  assert.match(panelsByTitle.get('Public Request Decisions (5m rate)').targets[0].expr, /vedh_rate_limit_total/);
+  assert.match(panelsByTitle.get('Deck Import Outcomes (5m rate)').targets[0].expr, /vedh_deck_import_total/);
+  assert.match(panelsByTitle.get('Game Create Outcomes (5m rate)').targets[0].expr, /vedh_game_create_total/);
+  assert.match(panelsByTitle.get('Game Join Outcomes (5m rate)').targets[0].expr, /vedh_game_join_total/);
+
+  const activationLatency = panelsByTitle.get('Activation Latency p90');
+  assert.equal(activationLatency.targets.length, 4);
+  assert.match(activationLatency.targets[0].expr, /vedh_deck_import_duration_seconds_bucket/);
+  assert.match(activationLatency.targets[1].expr, /vedh_game_create_duration_seconds_bucket/);
+  assert.match(activationLatency.targets[2].expr, /vedh_game_join_duration_seconds_bucket/);
+  assert.match(activationLatency.targets[3].expr, /vedh_board_activation_duration_seconds_bucket/);
+  assert.match(panelsByTitle.get('Provider Fetch Health (5m rate)').targets[0].expr, /vedh_deck_provider_fetch_total/);
+  assert.match(panelsByTitle.get('Board Readiness Mode (15m)').targets[0].expr, /vedh_board_activation_total/);
+  assert.match(panelsByTitle.get('Product Event Drops (15m)').targets[0].expr, /vedh_product_events_dropped_total/);
 });
 
 test('generated dashboard JSON stays in sync with the dashboard builder', () => {

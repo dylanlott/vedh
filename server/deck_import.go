@@ -12,6 +12,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/openmtg/edh-go/pkg/deckimport"
 	"github.com/openmtg/edh-go/pkg/ratelimit"
+	"github.com/openmtg/edh-go/pkg/telemetry"
 	"github.com/zeebo/errs"
 )
 
@@ -268,6 +269,11 @@ func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) (*Dec
 		return blockedPreview(deckimport.SourceUnknown,
 			"Deck links aren't available right now. Paste your decklist as text instead."), nil
 	}
+	providerStartedAt := time.Now()
+	providerOutcome := "failure"
+	defer func() {
+		collectors.ObserveDeckProviderFetch(telemetry.DeckProviderArchidekt, providerOutcome, time.Since(providerStartedAt))
+	}()
 
 	body, err := deckProviderFetch(ctx, s.deckProviderClient(), s.deckProviderAllowedHosts, rawURL)
 	if err != nil {
@@ -290,6 +296,7 @@ func (s *graphQLServer) previewDeckURL(ctx context.Context, rawURL string) (*Dec
 	// pasted-text path.
 	parsed := deckimport.ParseWithSource(text, adapter.source())
 	preview, _ := s.buildDeckPreview(ctx, parsed)
+	providerOutcome = "success"
 	return preview, nil
 }
 

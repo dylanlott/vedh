@@ -43,6 +43,22 @@ export interface GuestSessionMutationVariables {
   sessionID: string;
 }
 
+export interface ClaimGuestAccountMutation {
+  claimGuestAccount: {
+    ID: string;
+    Username: string;
+    DisplayName?: string | null;
+    IsGuest?: boolean | null;
+    Token: string;
+  };
+}
+
+export interface ClaimGuestAccountMutationVariables {
+  username: string;
+  password: string;
+  sessionID: string;
+}
+
 // --- Game creation (Phase 2, plan 02-04) ---
 
 export interface InputCreateGame {

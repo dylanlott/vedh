@@ -155,6 +155,18 @@ export const GUEST_SESSION_MUTATION = gql`
   }
 `;
 
+export const CLAIM_GUEST_ACCOUNT_MUTATION = gql`
+  mutation ClaimGuestAccount($username: String!, $password: String!, $sessionID: String!) {
+    claimGuestAccount(username: $username, password: $password, sessionID: $sessionID) {
+      ID
+      Username
+      DisplayName
+      IsGuest
+      Token
+    }
+  }
+`;
+
 export const PREVIEW_DECK_MUTATION = gql`
   mutation PreviewDeck($input: InputDeckImport!) {
     previewDeck(input: $input) {

@@ -359,9 +359,9 @@ func (c *Collectors) RateLimitCounter(surface ratelimit.Surface, outcome string)
 type DeckProvider string
 
 const (
-	// DeckProviderMoxfield identifies server/deck_providers.go's
-	// moxfieldHost adapter.
-	DeckProviderMoxfield DeckProvider = "moxfield"
+	// DeckProviderArchidekt identifies server/deck_providers.go's only
+	// registered adapter and matches the observed production contract.
+	DeckProviderArchidekt DeckProvider = "archidekt"
 )
 
 // AllDeckProviders returns every declared DeckProvider value. It exists so
@@ -369,7 +369,7 @@ const (
 // of the enum, never an arbitrary string — the same role
 // deckimport.AllSourceTypes plays for the `source` label.
 func AllDeckProviders() []DeckProvider {
-	return []DeckProvider{DeckProviderMoxfield}
+	return []DeckProvider{DeckProviderArchidekt}
 }
 
 // ObserveDeckProviderFetch records one outbound deck-provider fetch
@@ -387,4 +387,14 @@ func (c *Collectors) ObserveDeckProviderFetch(provider DeckProvider, outcome str
 // prometheus/testutil.ToFloat64.
 func (c *Collectors) DeckProviderFetchCounter(provider DeckProvider, outcome string) prometheus.Counter {
 	return c.deckProviderFetchTotal.WithLabelValues(string(provider), outcome)
+}
+
+// GameJoinCounter returns one bounded game-join outcome for integration tests.
+func (c *Collectors) GameJoinCounter(outcome string) prometheus.Counter {
+	return c.gameJoinTotal.WithLabelValues(outcome)
+}
+
+// BoardActivationCounter returns one bounded readiness outcome for integration tests.
+func (c *Collectors) BoardActivationCounter(role Role, outcome string) prometheus.Counter {
+	return c.boardActivationTotal.WithLabelValues(string(role), outcome)
 }

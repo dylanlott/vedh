@@ -55,6 +55,38 @@ func TestProductEvents_WriteFailureIsNonFatal(t *testing.T) {
 	}
 }
 
+func TestProductEvents_BoardReadinessMetricsUseOnlyBoundedLabels(t *testing.T) {
+	s := testAPI(t)
+	duration := 842
+	role := string(telemetry.RoleInvitee)
+	ready := "ready"
+	before := testutil.ToFloat64(collectors.BoardActivationCounter(telemetry.RoleInvitee, ready))
+
+	_, err := s.TrackProductEvent(context.Background(), InputProductEvent{
+		Name: "board_ready", SessionID: "test-board-readiness-metric", Role: &role,
+		Outcome: &ready, DurationMs: &duration,
+	})
+	if err != nil {
+		t.Fatalf("TrackProductEvent() error = %v", err)
+	}
+	after := testutil.ToFloat64(collectors.BoardActivationCounter(telemetry.RoleInvitee, ready))
+	if after != before+1 {
+		t.Fatalf("board readiness metric delta = %v, want 1", after-before)
+	}
+
+	unknown := "attacker-controlled"
+	_, err = s.TrackProductEvent(context.Background(), InputProductEvent{
+		Name: "board_ready", SessionID: "test-board-readiness-unbounded", Role: &role,
+		Outcome: &unknown, DurationMs: &duration,
+	})
+	if err != nil {
+		t.Fatalf("TrackProductEvent(unbounded) error = %v", err)
+	}
+	if got := testutil.ToFloat64(collectors.BoardActivationCounter(telemetry.RoleInvitee, ready)); got != after {
+		t.Fatalf("bounded board readiness counter changed after unknown outcome: before=%v after=%v", after, got)
+	}
+}
+
 // --- shared helpers for the tests below -----------------------------------
 
 // uniqueSessionID returns a session ID unique to the calling test, so tests

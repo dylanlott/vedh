@@ -67,6 +67,11 @@
         Reconnect realtime
       </button>
     </aside>
+    <ClaimGuestAccount
+      v-if="boardReadyTracked && auth.isGuest"
+      :game-i-d="game.ID"
+      :role="game.Players[0]?.ID === auth.profile?.ID ? 'host' : 'invitee'"
+    />
     <div class="board-grid">
       <!-- Opponents at top -->
       <aside class="players opponents">
@@ -696,6 +701,7 @@ import { displayNameOf } from '../services/displayName';
 import { track } from '../services/productEvents';
 import Card from '../components/Card.vue';
 import InviteShare from '../components/InviteShare.vue';
+import ClaimGuestAccount from '../components/auth/ClaimGuestAccount.vue';
 import { isLandCard, moveHandCardToStackState, resolveStackCardToGraveyardState } from '../utils/stack';
 const games = useGamesStore();
 const auth = useAuthStore();
@@ -763,6 +769,7 @@ watch([() => games.boardConnectionState, selfPlayer], ([state, player]) => {
     gameID: game.value?.ID,
     role: isHost ? 'host' : 'invitee',
     source: 'board',
+    outcome: state,
     durationMs: elapsed,
   });
 }, { immediate: true });
