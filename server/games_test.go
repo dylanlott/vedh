@@ -1023,9 +1023,30 @@ drainCh1:
 		t.Fatalf("timed out waiting for third subscription")
 	}
 
-	assert.Equal(t, first, second)
-	assert.Equal(t, first, third)
-	assert.Equal(t, second, third)
+	// Every subscriber receives the same public game state, but private zones
+	// are intentionally viewer-specific. Re-redacting each snapshot as an
+	// outsider produces a stable public representation for comparison.
+	assert.Equal(t, redactGameForIdentity(first, "outsider"), redactGameForIdentity(second, "outsider"))
+	assert.Equal(t, redactGameForIdentity(first, "outsider"), redactGameForIdentity(third, "outsider"))
+
+	assertSubscriptionPrivacy := func(t *testing.T, snapshot *Game, viewerID string) {
+		t.Helper()
+		for _, player := range snapshot.Players {
+			if player == nil || player.Boardstate == nil {
+				continue
+			}
+			for _, card := range player.Boardstate.Library {
+				if player.ID == viewerID {
+					assert.NotEqual(t, "Hidden", card.Name, "viewer must see their own library")
+				} else {
+					assert.Equal(t, "Hidden", card.Name, "viewer must not see another player's library")
+				}
+			}
+		}
+	}
+	assertSubscriptionPrivacy(t, first, mastershake)
+	assertSubscriptionPrivacy(t, second, carl)
+	assertSubscriptionPrivacy(t, third, meatwad)
 }
 
 func TestGetGame_RejectsNonParticipant(t *testing.T) {

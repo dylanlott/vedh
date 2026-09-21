@@ -260,7 +260,7 @@ func TestGuestUsers_KillSwitch(t *testing.T) {
 // and writes no row.
 func TestGuestUsers_RateLimit(t *testing.T) {
 	s := testAPI(t)
-	s.limiter = ratelimit.NewRegistry(1, 1)
+	s.guestLimiter = ratelimit.NewRegistry(1, 1)
 	sessionID := guestTestSessionID(t)
 
 	before := countUsers(t, s)
@@ -418,7 +418,7 @@ func TestGuestUsers_ErrorCodes(t *testing.T) {
 
 	t.Run("rate limited", func(t *testing.T) {
 		s := testAPI(t)
-		s.limiter = ratelimit.NewRegistry(1, 1)
+		s.guestLimiter = ratelimit.NewRegistry(1, 1)
 		sessionID := guestTestSessionID(t)
 		if _, err := s.GuestSession(context.Background(), nil, sessionID); err != nil {
 			t.Fatalf("first GuestSession() error = %v", err)

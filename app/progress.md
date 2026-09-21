@@ -30,3 +30,8 @@ Original prompt: Make the player area intuitively designed and juice up interact
 - Preserved `main`'s transactional game mutation and per-viewer privacy behavior while merging join-attempt business metrics.
 - Promoted the intentional marketing-goal and non-generated iOS source artifacts; excluded `.build`, `DerivedData`, and user-specific Xcode state.
 - Next: repair server test fixtures, close Phase 2 validation, then implement and exercise the remaining activation path.
+- Repaired stale server tests after the limiter/privacy changes: the guest tests now target `guestLimiter`, and subscription coverage compares shared public state while asserting per-viewer hidden zones.
+- Verified `go test ./server/... -race -count=1` against an isolated PostgreSQL 14 container (pass, 269.119s).
+- Verified the Node 24 frontend suite (138 passed, 3 skipped) and production build.
+- Ran the web-game Playwright client against `/play` for three iterations; inspected the final screenshot and found no generated console-error artifact.
+- The explicit Phase 2 human taste checkpoint for the complete generated-name cross product remains distinct from machine validation.
