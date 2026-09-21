@@ -39,25 +39,34 @@
           </div>
         </div>
       </div>
-      <div class="settings">
-        <button class="settings-trigger" type="button" @click="settingsOpen = !settingsOpen" aria-label="Open settings">
-          ⚙️
-        </button>
-        <div v-if="settingsOpen" class="settings-drawer" @click.stop>
-          <div class="settings-title">Settings</div>
-          <label class="toast-toggle">
-            <input type="checkbox" v-model="boardstateToastsEnabled" />
-            <span>Board toasts</span>
-          </label>
-          <label class="toast-ttl">
-            <span>Toast TTL</span>
-            <input type="number" min="500" max="10000" step="250" v-model.number="toastDurationMs" />
-            <span class="unit">ms</span>
-          </label>
+      <div class="board-actions">
+        <InviteShare :game-i-d="game.ID" :role="game.Players[0]?.ID === auth.profile?.ID ? 'host' : 'invitee'" />
+        <div class="settings">
+          <button class="settings-trigger" type="button" @click="settingsOpen = !settingsOpen" aria-label="Open settings">
+            ⚙️
+          </button>
+          <div v-if="settingsOpen" class="settings-drawer" @click.stop>
+            <div class="settings-title">Settings</div>
+            <label class="toast-toggle">
+              <input type="checkbox" v-model="boardstateToastsEnabled" />
+              <span>Board toasts</span>
+            </label>
+            <label class="toast-ttl">
+              <span>Toast TTL</span>
+              <input type="number" min="500" max="10000" step="250" v-model.number="toastDurationMs" />
+              <span class="unit">ms</span>
+            </label>
+          </div>
         </div>
       </div>
     </header>
 
+    <aside v-if="games.boardConnectionState !== 'ready'" class="connection-state" :data-state="games.boardConnectionState">
+      <span>{{ connectionMessage }}</span>
+      <button v-if="games.boardConnectionState === 'degraded' || games.boardConnectionState === 'failed'" class="tool" type="button" @click="games.reconnectGame">
+        Reconnect realtime
+      </button>
+    </aside>
     <div class="board-grid">
       <!-- Opponents at top -->
       <aside class="players opponents">
@@ -684,18 +693,31 @@ import { ADVANCE_PHASE_MUTATION, CLAIM_WIN_MUTATION, PASS_PRIORITY_MUTATION, UPD
 // Subscriptions are handled centrally in the games store.
 import { fetchScryfallImageByName } from '../services/scryfall';
 import { displayNameOf } from '../services/displayName';
+import { track } from '../services/productEvents';
 import Card from '../components/Card.vue';
+import InviteShare from '../components/InviteShare.vue';
 import { isLandCard, moveHandCardToStackState, resolveStackCardToGraveyardState } from '../utils/stack';
 const games = useGamesStore();
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const boardLoadStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+const boardReadyTracked = ref(false);
 
 // Zone typing shared across helpers
 const zones = ['Commander','Battlefield','Hand','Graveyard','Exiled','Revealed','Library','Controlled'] as const;
 type Zone = typeof zones[number];
 
 const game = computed(() => games.activeGame);
+const connectionMessage = computed(() => {
+  switch (games.boardConnectionState) {
+    case 'loading': return 'Loading the live board…';
+    case 'reconnecting': return 'Reconnecting live updates…';
+    case 'degraded': return 'Live updates are unavailable. The board is refreshing in read-only mode.';
+    case 'failed': return 'The board could not refresh. Reconnect when you’re ready.';
+    default: return 'Preparing live updates…';
+  }
+});
 
 // Current user player object and opponents
 const selfPlayer = computed(() => {
@@ -731,6 +753,19 @@ const pendingWinText = computed(() => {
   const next = pendingWinClaim.value.Remaining?.[0];
   return next ? `Awaiting ${next}` : 'Awaiting priority';
 });
+
+watch([() => games.boardConnectionState, selfPlayer], ([state, player]) => {
+  if (boardReadyTracked.value || !player || (state !== 'ready' && state !== 'degraded')) return;
+  boardReadyTracked.value = true;
+  const elapsed = Math.max(0, Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - boardLoadStartedAt));
+  const isHost = game.value?.Players[0]?.ID === auth.profile?.ID;
+  track('board_ready', {}, {
+    gameID: game.value?.ID,
+    role: isHost ? 'host' : 'invitee',
+    source: 'board',
+    durationMs: elapsed,
+  });
+}, { immediate: true });
 
 // Simple tile-only view; no display toggles needed
 const MAIN_PLAYER_PREF_KEY = 'vedh:mainPlayerPanel:v1';
@@ -1870,6 +1905,29 @@ watch(stackedZones, (val) => {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.board-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.connection-state {
+  margin: 0;
+  border: 1px solid var(--vedh-border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  background: var(--vedh-panel);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.connection-state[data-state='degraded'],
+.connection-state[data-state='failed'] {
+  border-color: var(--vedh-danger);
 }
 
 .turn-spotlight {

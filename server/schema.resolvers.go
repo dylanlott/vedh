@@ -99,6 +99,11 @@ func (r *queryResolver) GetGame(ctx context.Context, gameID string) (*Game, erro
 	panic(fmt.Errorf("not implemented: GetGame - getGame"))
 }
 
+// GameInvite is the resolver for the gameInvite field.
+func (r *queryResolver) GameInvite(ctx context.Context, gameID string, sessionID string) (*GameInvite, error) {
+	panic(fmt.Errorf("not implemented: GameInvite - gameInvite"))
+}
+
 // GameLogs is the resolver for the gameLogs field.
 func (r *queryResolver) GameLogs(ctx context.Context, gameID string, offset int, limit int) ([]*GameLogEvent, error) {
 	panic(fmt.Errorf("not implemented: GameLogs - gameLogs"))

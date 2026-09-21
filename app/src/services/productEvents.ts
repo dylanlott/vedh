@@ -209,7 +209,19 @@ export function captureAttribution(): Record<string, string> {
  * never places an authorization value into metadata; the server attaches
  * the authenticated user identifier from the request context.
  */
-export function track(name: string, metadata: Record<string, string | number> = {}): void {
+export interface ProductEventFields {
+  gameID?: string;
+  role?: 'host' | 'invitee';
+  source?: string;
+  outcome?: string;
+  durationMs?: number;
+}
+
+export function track(
+  name: string,
+  metadata: Record<string, string | number> = {},
+  fields: ProductEventFields = {},
+): void {
   const attribution = EVENTS_ACCEPTING_ATTRIBUTION.has(name) ? captureAttribution() : {};
   const merged: Record<string, string | number> = { ...attribution, ...metadata };
   const metadataList: InputProductEventMeta[] = Object.entries(merged).map(([key, value]) => ({
@@ -224,6 +236,11 @@ export function track(name: string, metadata: Record<string, string | number> = 
         input: {
           name,
           sessionID: getSessionID(),
+          gameID: fields.gameID,
+          role: fields.role,
+          source: fields.source,
+          outcome: fields.outcome,
+          durationMs: fields.durationMs,
           metadata: metadataList,
         },
       },

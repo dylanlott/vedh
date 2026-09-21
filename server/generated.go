@@ -170,6 +170,16 @@ type ComplexityRoot struct {
 		Visibility    func(childComplexity int) int
 	}
 
+	GameInvite struct {
+		Capacity           func(childComplexity int) int
+		CreatedAt          func(childComplexity int) int
+		Format             func(childComplexity int) int
+		ID                 func(childComplexity int) int
+		PlayerCount        func(childComplexity int) int
+		PlayerDisplayNames func(childComplexity int) int
+		Status             func(childComplexity int) int
+	}
+
 	GameLogEvent struct {
 		Actor     func(childComplexity int) int
 		EventTime func(childComplexity int) int
@@ -203,15 +213,16 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Card      func(childComplexity int, name string, id *string) int
-		Cards     func(childComplexity int, list []string) int
-		Formats   func(childComplexity int) int
-		GameLogs  func(childComplexity int, gameID string, offset int, limit int) int
-		Games     func(childComplexity int, offset int, limit int) int
-		GetGame   func(childComplexity int, gameID string) int
-		Search    func(childComplexity int, name *string, colors []*string, colorIdentity []*string, keywords []*string) int
-		SearchAll func(childComplexity int, name *string, colors []*string, colorIdentity []*string, keywords []*string) int
-		Users     func(childComplexity int, userID *string) int
+		Card       func(childComplexity int, name string, id *string) int
+		Cards      func(childComplexity int, list []string) int
+		Formats    func(childComplexity int) int
+		GameInvite func(childComplexity int, gameID string, sessionID string) int
+		GameLogs   func(childComplexity int, gameID string, offset int, limit int) int
+		Games      func(childComplexity int, offset int, limit int) int
+		GetGame    func(childComplexity int, gameID string) int
+		Search     func(childComplexity int, name *string, colors []*string, colorIdentity []*string, keywords []*string) int
+		SearchAll  func(childComplexity int, name *string, colors []*string, colorIdentity []*string, keywords []*string) int
+		Users      func(childComplexity int, userID *string) int
 	}
 
 	Rule struct {
@@ -264,6 +275,7 @@ type QueryResolver interface {
 	Games(ctx context.Context, offset int, limit int) ([]*Game, error)
 	Formats(ctx context.Context) ([]*GameFormat, error)
 	GetGame(ctx context.Context, gameID string) (*Game, error)
+	GameInvite(ctx context.Context, gameID string, sessionID string) (*GameInvite, error)
 	GameLogs(ctx context.Context, gameID string, offset int, limit int) ([]*GameLogEvent, error)
 	Card(ctx context.Context, name string, id *string) (*Card, error)
 	Cards(ctx context.Context, list []string) ([]*Card, error)
@@ -856,6 +868,49 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GameFormatZone.Visibility(childComplexity), true
 
+	case "GameInvite.Capacity":
+		if e.complexity.GameInvite.Capacity == nil {
+			break
+		}
+
+		return e.complexity.GameInvite.Capacity(childComplexity), true
+	case "GameInvite.CreatedAt":
+		if e.complexity.GameInvite.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.GameInvite.CreatedAt(childComplexity), true
+	case "GameInvite.Format":
+		if e.complexity.GameInvite.Format == nil {
+			break
+		}
+
+		return e.complexity.GameInvite.Format(childComplexity), true
+	case "GameInvite.ID":
+		if e.complexity.GameInvite.ID == nil {
+			break
+		}
+
+		return e.complexity.GameInvite.ID(childComplexity), true
+	case "GameInvite.PlayerCount":
+		if e.complexity.GameInvite.PlayerCount == nil {
+			break
+		}
+
+		return e.complexity.GameInvite.PlayerCount(childComplexity), true
+	case "GameInvite.PlayerDisplayNames":
+		if e.complexity.GameInvite.PlayerDisplayNames == nil {
+			break
+		}
+
+		return e.complexity.GameInvite.PlayerDisplayNames(childComplexity), true
+	case "GameInvite.Status":
+		if e.complexity.GameInvite.Status == nil {
+			break
+		}
+
+		return e.complexity.GameInvite.Status(childComplexity), true
+
 	case "GameLogEvent.Actor":
 		if e.complexity.GameLogEvent.Actor == nil {
 			break
@@ -1095,6 +1150,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Formats(childComplexity), true
+	case "Query.gameInvite":
+		if e.complexity.Query.GameInvite == nil {
+			break
+		}
+
+		args, err := ec.field_Query_gameInvite_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GameInvite(childComplexity, args["gameID"].(string), args["sessionID"].(string)), true
 	case "Query.gameLogs":
 		if e.complexity.Query.GameLogs == nil {
 			break
@@ -1662,6 +1728,22 @@ func (ec *executionContext) field_Query_cards_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["list"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_gameInvite_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "gameID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["gameID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "sessionID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["sessionID"] = arg1
 	return args, nil
 }
 
@@ -5294,6 +5376,209 @@ func (ec *executionContext) fieldContext_GameFormatZone_SupportsCards(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _GameInvite_ID(ctx context.Context, field graphql.CollectedField, obj *GameInvite) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameInvite_ID,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameInvite_ID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameInvite",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameInvite_Format(ctx context.Context, field graphql.CollectedField, obj *GameInvite) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameInvite_Format,
+		func(ctx context.Context) (any, error) {
+			return obj.Format, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameInvite_Format(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameInvite",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameInvite_Status(ctx context.Context, field graphql.CollectedField, obj *GameInvite) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameInvite_Status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNGameStatus2githubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameInvite_Status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameInvite",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type GameStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameInvite_PlayerDisplayNames(ctx context.Context, field graphql.CollectedField, obj *GameInvite) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameInvite_PlayerDisplayNames,
+		func(ctx context.Context) (any, error) {
+			return obj.PlayerDisplayNames, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameInvite_PlayerDisplayNames(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameInvite",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameInvite_PlayerCount(ctx context.Context, field graphql.CollectedField, obj *GameInvite) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameInvite_PlayerCount,
+		func(ctx context.Context) (any, error) {
+			return obj.PlayerCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameInvite_PlayerCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameInvite",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameInvite_Capacity(ctx context.Context, field graphql.CollectedField, obj *GameInvite) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameInvite_Capacity,
+		func(ctx context.Context) (any, error) {
+			return obj.Capacity, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameInvite_Capacity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameInvite",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GameInvite_CreatedAt(ctx context.Context, field graphql.CollectedField, obj *GameInvite) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GameInvite_CreatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GameInvite_CreatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GameInvite",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GameLogEvent_ID(ctx context.Context, field graphql.CollectedField, obj *GameLogEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6619,6 +6904,63 @@ func (ec *executionContext) fieldContext_Query_getGame(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getGame_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_gameInvite(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_gameInvite,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().GameInvite(ctx, fc.Args["gameID"].(string), fc.Args["sessionID"].(string))
+		},
+		nil,
+		ec.marshalOGameInvite2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameInvite,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_gameInvite(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ID":
+				return ec.fieldContext_GameInvite_ID(ctx, field)
+			case "Format":
+				return ec.fieldContext_GameInvite_Format(ctx, field)
+			case "Status":
+				return ec.fieldContext_GameInvite_Status(ctx, field)
+			case "PlayerDisplayNames":
+				return ec.fieldContext_GameInvite_PlayerDisplayNames(ctx, field)
+			case "PlayerCount":
+				return ec.fieldContext_GameInvite_PlayerCount(ctx, field)
+			case "Capacity":
+				return ec.fieldContext_GameInvite_Capacity(ctx, field)
+			case "CreatedAt":
+				return ec.fieldContext_GameInvite_CreatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GameInvite", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_gameInvite_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9780,7 +10122,7 @@ func (ec *executionContext) unmarshalInputInputJoinGame(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"ID", "Decklist", "BoardState"}
+	fieldsInOrder := [...]string{"ID", "SessionID", "Decklist", "BoardState"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -9794,6 +10136,13 @@ func (ec *executionContext) unmarshalInputInputJoinGame(ctx context.Context, obj
 				return it, err
 			}
 			it.ID = data
+		case "SessionID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SessionID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SessionID = data
 		case "Decklist":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Decklist"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -10817,6 +11166,75 @@ func (ec *executionContext) _GameFormatZone(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var gameInviteImplementors = []string{"GameInvite"}
+
+func (ec *executionContext) _GameInvite(ctx context.Context, sel ast.SelectionSet, obj *GameInvite) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, gameInviteImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GameInvite")
+		case "ID":
+			out.Values[i] = ec._GameInvite_ID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Format":
+			out.Values[i] = ec._GameInvite_Format(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Status":
+			out.Values[i] = ec._GameInvite_Status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "PlayerDisplayNames":
+			out.Values[i] = ec._GameInvite_PlayerDisplayNames(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "PlayerCount":
+			out.Values[i] = ec._GameInvite_PlayerCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "Capacity":
+			out.Values[i] = ec._GameInvite_Capacity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "CreatedAt":
+			out.Values[i] = ec._GameInvite_CreatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var gameLogEventImplementors = []string{"GameLogEvent"}
 
 func (ec *executionContext) _GameLogEvent(ctx context.Context, sel ast.SelectionSet, obj *GameLogEvent) graphql.Marshaler {
@@ -11159,6 +11577,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "gameInvite":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_gameInvite(ctx, field)
 				return res
 			}
 
@@ -12961,6 +13398,13 @@ func (ec *executionContext) marshalOGame2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋ
 		return graphql.Null
 	}
 	return ec._Game(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOGameInvite2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameInvite(ctx context.Context, sel ast.SelectionSet, v *GameInvite) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._GameInvite(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOGameResult2ᚖgithubᚗcomᚋopenmtgᚋedhᚑgoᚋserverᚐGameResult(ctx context.Context, v any) (*GameResult, error) {

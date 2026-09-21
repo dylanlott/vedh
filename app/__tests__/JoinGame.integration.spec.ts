@@ -1,6 +1,5 @@
-import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { JSDOM } from 'jsdom';
-import { mount } from '@vue/test-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
 const pushMock = vi.fn();
@@ -9,172 +8,169 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
-// Setup minimal DOM and storage before importing modules that use window/localStorage
-const dom = new JSDOM('', { url: 'http://localhost' });
-(global as any).window = dom.window as any;
-(global as any).document = dom.window.document as any;
-(global as any).localStorage = dom.window.localStorage as any;
-(global as any).SVGElement = (dom.window as any).SVGElement ?? class SVGElement {};
+const productEvents = vi.hoisted(() => ({
+  getSessionID: vi.fn(() => 'join-session'),
+  track: vi.fn(),
+}));
+vi.mock('../src/services/productEvents', () => productEvents);
 
-import { apolloClient } from '../src/services/apollo';
-import { SIGNUP_MUTATION, CREATE_GAME_MUTATION, JOIN_GAME_MUTATION } from '../src/graphql/mutations';
-import JoinGameView from '../src/views/JoinGameView.vue';
+import CommanderReview from '../src/components/decks/CommanderReview.vue';
 import DeckImportPanel from '../src/components/decks/DeckImportPanel.vue';
 import { MAGIC_COMMANDER_DECK_CONTEXT } from '../src/components/decks/deckImportContext';
-import { useGamesStore } from '../src/stores/games';
+import JoinGameView from '../src/views/JoinGameView.vue';
+import { useAuthStore } from '../src/stores/auth';
+import { useGamesStore, type GameInvite } from '../src/stores/games';
+
+const VALID_INVITE: GameInvite = {
+  ID: 'game-1',
+  Format: 'EDH',
+  Status: 'IN_PROGRESS',
+  PlayerDisplayNames: ['Host'],
+  PlayerCount: 1,
+  Capacity: 4,
+  CreatedAt: '2026-09-21T00:00:00Z',
+};
+
+const READY_PREVIEW = {
+  SourceType: 'PASTE',
+  CardCount: 100,
+  Entries: [],
+  CommanderCandidates: [{ ID: 'commander-1', Name: 'Atraxa', Text: '' }],
+  Unresolved: [],
+  Warnings: [],
+  BlockingErrors: [],
+  CanContinue: true,
+};
+
+function mockInvite(invite: GameInvite | null = VALID_INVITE) {
+  const games = useGamesStore();
+  vi.spyOn(games, 'fetchGameInvite').mockImplementation(async () => {
+    games.invite = invite;
+    games.inviteError = invite ? null : 'not_found';
+    return invite;
+  });
+  return games;
+}
+
+async function prepareJoin(wrapper: ReturnType<typeof mount>) {
+  const panel = wrapper.getComponent(DeckImportPanel);
+  panel.vm.$emit('change', {
+    text: '1 Sol Ring\n99 Island',
+    sourceURL: '',
+    corrections: {},
+    decklist: '1 Sol Ring\n99 Island',
+  });
+  panel.vm.$emit('preview-resolved', READY_PREVIEW);
+  panel.vm.$emit('continue');
+  await flushPromises();
+  wrapper.getComponent(CommanderReview).vm.$emit('selection-change', [{ ID: 'commander-1', Name: 'Atraxa' }]);
+  await flushPromises();
+}
 
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('edhgo/auth', JSON.stringify({ ID: 'user-2', Username: 'Joiner', Token: 'token' }));
   setActivePinia(createPinia());
   pushMock.mockReset();
+  productEvents.track.mockReset();
 });
 
-describe('JoinGame shared deck import', () => {
-  it('renders DeckImportPanel without a persistence key and removes legacy CSV copy', () => {
+describe('JoinGame public activation flow', () => {
+  it('loads the safe invite before rendering the shared deck import', async () => {
+    const games = mockInvite();
     const wrapper = mount(JoinGameView);
-    const panel = wrapper.getComponent(DeckImportPanel);
+    await flushPromises();
 
-    expect(panel.exists()).toBe(true);
-    expect(panel.props('persistenceKey')).toBeUndefined();
+    expect(games.fetchGameInvite).toHaveBeenCalledWith('game-1', 'join-session');
+    expect(wrapper.get('[data-testid="invite-summary"]').text()).toContain('1 of 4 seats filled');
+    expect(wrapper.get('[data-testid="invite-summary"]').text()).toContain('Host');
+    const panel = wrapper.getComponent(DeckImportPanel);
     expect(panel.props('context')).toEqual(MAGIC_COMMANDER_DECK_CONTEXT);
-    const context = wrapper.get('[data-testid="deck-import-context"]');
-    expect(context.findAll('dt').map((term) => term.text())).toEqual(['Game', 'Format']);
-    expect(context.findAll('dd').map((value) => value.text())).toEqual([
-      'Magic: The Gathering',
-      'Commander (EDH)',
-    ]);
-    expect(wrapper.get('[data-testid="deck-import-panel"]').attributes('aria-label')).toBe(
-      'Magic: The Gathering Commander (EDH) deck import',
-    );
     expect(wrapper.text()).not.toContain('quantity,name per line');
+    expect(productEvents.track).toHaveBeenCalledWith('invite_viewed', {}, {
+      gameID: 'game-1', role: 'invitee', source: 'invite',
+    });
   });
 
-  it('submits the same panel deck representation through the unchanged join payload', async () => {
-    const games = useGamesStore();
+  it('submits the canonical deck through the existing join mutation for an authenticated player', async () => {
+    const games = mockInvite();
     const joinGame = vi.spyOn(games, 'joinGame').mockResolvedValue('game-1');
     const wrapper = mount(JoinGameView);
+    await flushPromises();
+    await prepareJoin(wrapper);
 
-    await wrapper.get('[data-testid="deck-text"]').setValue('1 Sol Ring\n99 Island');
-    await wrapper.get('form').trigger('submit');
+    await wrapper.get('[data-testid="join-table"]').trigger('click');
+    await flushPromises();
 
-    expect(joinGame).toHaveBeenCalledOnce();
-    expect(joinGame.mock.calls[0][0]).toMatchObject({
+    expect(joinGame).toHaveBeenCalledWith(expect.objectContaining({
       ID: 'game-1',
+      SessionID: 'join-session',
       Decklist: '1 Sol Ring\n99 Island',
-      BoardState: {
+      BoardState: expect.objectContaining({
         UserID: 'user-2',
         User: 'Joiner',
-        GameID: 'game-1',
-        Life: 40,
-        Commander: [],
-      },
-    });
+        Commander: [{ ID: 'commander-1', Name: 'Atraxa' }],
+      }),
+    }));
     expect(pushMock).toHaveBeenCalledWith({ name: 'board', params: { id: 'game-1' } });
   });
-});
 
-const runLiveIntegration = process.env.VEDH_RUN_LIVE_INTEGRATION === '1';
-const describeLiveIntegration = runLiveIntegration ? describe : describe.skip;
-
-// This integration test talks to the live GraphQL backend.
-// It is skipped by default so routine test runs stay local/safe.
-// Set VEDH_RUN_LIVE_INTEGRATION=1 to opt in when you explicitly want live coverage.
-
-describeLiveIntegration('JoinGame (integration)', () => {
-  it('creates a game as user A and joins it as user B', async () => {
-    // Sign up user A
-    const usernameA = `userA_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    const password = 'password123';
-
-    const { data: signupA } = await apolloClient.mutate({
-      mutation: SIGNUP_MUTATION,
-      variables: { username: usernameA, password },
+  it('creates a guest only after preview and commander review are complete', async () => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    const games = mockInvite();
+    vi.spyOn(games, 'joinGame').mockResolvedValue('game-1');
+    const auth = useAuthStore();
+    const createGuest = vi.spyOn(auth, 'createGuestSession').mockImplementation(async () => {
+      auth.profile = { ID: 'guest-id', Username: 'BraveSliver', Token: 'guest-token', IsGuest: true };
+      return auth.profile;
     });
+    const wrapper = mount(JoinGameView);
+    await flushPromises();
 
-    expect(signupA?.signup).toBeTruthy();
-    const aProfile = {
-      ID: signupA!.signup.ID,
-      Username: signupA!.signup.Username,
-      Token: signupA!.signup.Token,
-    } as const;
+    expect(createGuest).not.toHaveBeenCalled();
+    await prepareJoin(wrapper);
+    expect(createGuest).not.toHaveBeenCalled();
+    await wrapper.get('[data-testid="join-display-name"]').setValue('Dylan');
+    await wrapper.get('[data-testid="join-table"]').trigger('click');
+    await flushPromises();
 
-    // Use user A token for game creation
-    localStorage.setItem('edhgo/auth', JSON.stringify(aProfile));
+    expect(createGuest).toHaveBeenCalledWith({ displayName: 'Dylan', sessionID: 'join-session' });
+  });
 
-    const gameID = `join-test-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const createPayload = {
-      ID: gameID,
-      Turn: { Player: aProfile.Username, Phase: 'MAIN', Number: 1, Priority: aProfile.Username },
-      Players: [
-        {
-          UserID: aProfile.ID,
-          User: aProfile.Username,
-          GameID: gameID,
-          Life: 40,
-          Commander: [],
-          Library: [],
-          Graveyard: [],
-          Exiled: [],
-          Battlefield: [],
-          Hand: [],
-          Revealed: [],
-          Controlled: [],
-          Counters: [],
-        },
-      ],
-    } as const;
+  it.each([
+    { state: 'finished', invite: { ...VALID_INVITE, Status: 'FINISHED' as const }, testID: 'invite-finished' },
+    { state: 'full', invite: { ...VALID_INVITE, PlayerCount: 4 }, testID: 'invite-full' },
+  ])('shows the $state state before requesting a deck', async ({ invite, testID }) => {
+    mockInvite(invite);
+    const wrapper = mount(JoinGameView);
+    await flushPromises();
 
-    const { data: created } = await apolloClient.mutate({
-      mutation: CREATE_GAME_MUTATION,
-      variables: { input: createPayload },
-    });
+    expect(wrapper.get(`[data-testid="${testID}"]`).exists()).toBe(true);
+    expect(wrapper.findComponent(DeckImportPanel).exists()).toBe(false);
+  });
 
-    expect(created?.createGame?.ID).toBe(gameID);
+  it('shows a missing invite before requesting a deck', async () => {
+    mockInvite(null);
+    const wrapper = mount(JoinGameView);
+    await flushPromises();
 
-    // Sign up user B
-    const usernameB = `userB_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    const { data: signupB } = await apolloClient.mutate({
-      mutation: SIGNUP_MUTATION,
-      variables: { username: usernameB, password },
-    });
-    expect(signupB?.signup).toBeTruthy();
-    const bProfile = {
-      ID: signupB!.signup.ID,
-      Username: signupB!.signup.Username,
-      Token: signupB!.signup.Token,
-    } as const;
+    expect(wrapper.get('[data-testid="invite-not-found"]').exists()).toBe(true);
+    expect(wrapper.findComponent(DeckImportPanel).exists()).toBe(false);
+  });
 
-    // Switch auth to user B
-    localStorage.setItem('edhgo/auth', JSON.stringify(bProfile));
+  it('keeps the prepared deck and commander when a join race is recoverable', async () => {
+    const games = mockInvite();
+    vi.spyOn(games, 'joinGame').mockRejectedValue(new Error('raw server detail'));
+    const wrapper = mount(JoinGameView);
+    await flushPromises();
+    await prepareJoin(wrapper);
 
-    const joinPayload = {
-      ID: gameID,
-      Decklist: '',
-      BoardState: {
-        UserID: bProfile.ID,
-        User: bProfile.Username,
-        GameID: gameID,
-        Life: 40,
-        Commander: [],
-        Library: [],
-        Graveyard: [],
-        Exiled: [],
-        Battlefield: [],
-        Hand: [],
-        Revealed: [],
-        Controlled: [],
-        Counters: [],
-      },
-    } as const;
+    await wrapper.get('[data-testid="join-table"]').trigger('click');
+    await flushPromises();
 
-    const { data: joined } = await apolloClient.mutate({
-      mutation: JOIN_GAME_MUTATION,
-      variables: { input: joinPayload },
-    });
-
-    expect(joined?.joinGame?.ID).toBe(gameID);
-    // Expect the returned game to contain at least two players now
-    expect(joined?.joinGame?.Players?.length).toBeGreaterThanOrEqual(2);
-  }, 25000);
+    expect(wrapper.get('[data-testid="join-error"]').text()).not.toContain('raw server detail');
+    expect(wrapper.getComponent(DeckImportPanel).props('initialText')).toBe('1 Sol Ring\n99 Island');
+    expect(wrapper.getComponent(CommanderReview).props('selected')).toEqual([{ ID: 'commander-1', Name: 'Atraxa' }]);
+  });
 });

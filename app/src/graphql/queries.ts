@@ -65,6 +65,20 @@ export const GET_GAME_QUERY = gql`
   }
 `;
 
+export const GAME_INVITE_QUERY = gql`
+  query GameInvite($gameID: String!, $sessionID: String!) {
+    gameInvite(gameID: $gameID, sessionID: $sessionID) {
+      ID
+      Format
+      Status
+      PlayerDisplayNames
+      PlayerCount
+      Capacity
+      CreatedAt
+    }
+  }
+`;
+
 export const GAME_UPDATED_SUBSCRIPTION = gql`
   subscription GameUpdated($gameID: String!, $userID: String!) {
     gameUpdated(gameID: $gameID, userID: $userID) {

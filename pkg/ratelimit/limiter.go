@@ -40,6 +40,10 @@ const (
 	// isolates it from SurfaceDeckImport and SurfaceProductEvent without
 	// a second Registry.
 	SurfaceGuestSession Surface = "guest_session"
+	// SurfaceInviteLookup identifies the public gameInvite query
+	// (REQ-ACT-007). Its buckets are isolated from deck imports even when
+	// both surfaces share the same registry configuration.
+	SurfaceInviteLookup Surface = "invite_lookup"
 )
 
 // idleWindow is how long a (surface, client key) bucket may go untouched

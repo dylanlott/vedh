@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { apolloClient } from '../services/apollo';
+import { apolloClient, onRealtimeConnectionState, type RealtimeConnectionState } from '../services/apollo';
 import { CREATE_GAME_MUTATION, JOIN_GAME_MUTATION } from '../graphql/mutations';
-import { GAMES_QUERY, GET_GAME_QUERY, GAME_UPDATED_SUBSCRIPTION, FORMATS_QUERY } from '../graphql/queries';
+import { GAMES_QUERY, GET_GAME_QUERY, GAME_UPDATED_SUBSCRIPTION, FORMATS_QUERY, GAME_INVITE_QUERY } from '../graphql/queries';
 import { formats as localFormats, lookupFormat, type GameFormat } from '../formats/registry';
 import type { ApolloQueryResult } from '@apollo/client/core';
 import type { FetchResult } from '@apollo/client/link/core';
@@ -62,15 +62,112 @@ interface GameDetail extends GameSummary {
   Stack: BoardStateZoneCard[];
 }
 
+export interface GameInvite {
+  ID: string;
+  Format: string;
+  Status: 'IN_PROGRESS' | 'FINISHED';
+  PlayerDisplayNames: string[];
+  PlayerCount: number;
+  Capacity: number;
+  CreatedAt: string;
+}
+
+export type BoardConnectionState = 'idle' | 'loading' | 'ready' | 'degraded' | 'reconnecting' | 'failed';
+
+const REALTIME_CONNECT_TIMEOUT_MS = 2_000;
+const DEGRADED_POLL_INTERVAL_MS = 3_000;
+const MAX_DEGRADED_POLLS = 10;
+
 export const useGamesStore = defineStore('games', () => {
   const games = ref<GameSummary[]>([]);
   const activeGame = ref<GameDetail | null>(null);
   const formats = ref<GameFormat[]>([...localFormats]);
   const loading = ref(false);
   const errorMessage = ref<string | null>(null);
+  const invite = ref<GameInvite | null>(null);
+  const inviteLoading = ref(false);
+  const inviteError = ref<'not_found' | 'unavailable' | null>(null);
+  const boardConnectionState = ref<BoardConnectionState>('idle');
   let activeSubscription: { unsubscribe: () => void } | null = null;
+  let activeGameID = '';
+  let activeUserID = '';
+  let realtimeState: RealtimeConnectionState = 'unavailable';
+  let connectTimer: number | null = null;
+  let pollingTimer: number | null = null;
+  let degradedPolls = 0;
 
   const hasActiveGame = computed(() => Boolean(activeGame.value));
+
+  function hasCurrentPlayerBoard(): boolean {
+    return Boolean(activeGame.value?.Players.some((player) => player.ID === activeUserID && player.Boardstate));
+  }
+
+  function clearConnectTimer(): void {
+    if (connectTimer !== null) window.clearTimeout(connectTimer);
+    connectTimer = null;
+  }
+
+  function stopPolling(): void {
+    if (pollingTimer !== null) window.clearInterval(pollingTimer);
+    pollingTimer = null;
+    degradedPolls = 0;
+  }
+
+  async function fetchActiveGameSnapshot(): Promise<boolean> {
+    if (!activeGameID) return false;
+    try {
+      const { data }: ApolloQueryResult<{ getGame: GameDetail }> = await apolloClient.query({
+        query: GET_GAME_QUERY,
+        variables: { gameID: activeGameID },
+        fetchPolicy: 'network-only',
+      });
+      activeGame.value = data?.getGame ?? null;
+      return hasCurrentPlayerBoard();
+    } catch (error) {
+      console.error('[games] degraded poll failed', error);
+      return false;
+    }
+  }
+
+  function beginDegradedPolling(): void {
+    clearConnectTimer();
+    if (!activeGame.value || !hasCurrentPlayerBoard()) {
+      boardConnectionState.value = 'failed';
+      return;
+    }
+    boardConnectionState.value = 'degraded';
+    if (pollingTimer !== null) return;
+    degradedPolls = 0;
+    pollingTimer = window.setInterval(() => {
+      degradedPolls += 1;
+      void fetchActiveGameSnapshot().then((usable) => {
+        if (usable) boardConnectionState.value = 'degraded';
+        if (degradedPolls >= MAX_DEGRADED_POLLS) {
+          stopPolling();
+          boardConnectionState.value = 'failed';
+        }
+      });
+    }, DEGRADED_POLL_INTERVAL_MS);
+  }
+
+  function markRealtimeReady(): void {
+    if (!activeGame.value || !hasCurrentPlayerBoard()) return;
+    clearConnectTimer();
+    stopPolling();
+    boardConnectionState.value = 'ready';
+  }
+
+  onRealtimeConnectionState((state) => {
+    realtimeState = state;
+    if (!activeSubscription) return;
+    if (state === 'connected') {
+      markRealtimeReady();
+    } else if (state === 'closed' || state === 'error' || state === 'unavailable') {
+      beginDegradedPolling();
+    } else if (state === 'connecting' && boardConnectionState.value !== 'loading') {
+      boardConnectionState.value = 'reconnecting';
+    }
+  });
 
   async function fetchGames(offset = 0, limit = 12) {
     loading.value = true;
@@ -109,6 +206,9 @@ export const useGamesStore = defineStore('games', () => {
   async function loadGame(gameID: string, userID?: string) {
     loading.value = true;
     errorMessage.value = null;
+    boardConnectionState.value = 'loading';
+    activeGameID = gameID;
+    activeUserID = userID ?? '';
     try {
       const { data }: ApolloQueryResult<{ getGame: GameDetail }> = await apolloClient.query({
         query: GET_GAME_QUERY,
@@ -116,10 +216,15 @@ export const useGamesStore = defineStore('games', () => {
         fetchPolicy: 'network-only',
       });
       activeGame.value = data?.getGame ?? null;
+      if (!activeGame.value || !activeUserID || !hasCurrentPlayerBoard()) {
+        boardConnectionState.value = 'failed';
+        return;
+      }
       subscribeToGame(gameID, userID);
     } catch (error) {
       console.error('[games] failed to load game', error);
       errorMessage.value = 'Unable to load game';
+      boardConnectionState.value = 'failed';
     } finally {
       loading.value = false;
     }
@@ -130,6 +235,12 @@ export const useGamesStore = defineStore('games', () => {
       activeSubscription.unsubscribe();
       activeSubscription = null;
     }
+    clearConnectTimer();
+    stopPolling();
+    activeGameID = gameID;
+    activeUserID = userID ?? activeUserID;
+    if (!activeUserID) return;
+    boardConnectionState.value = boardConnectionState.value === 'loading' ? 'loading' : 'reconnecting';
     activeSubscription = apolloClient.subscribe({
       query: GAME_UPDATED_SUBSCRIPTION,
       variables: { gameID, userID },
@@ -145,12 +256,50 @@ export const useGamesStore = defineStore('games', () => {
             // Fallback to direct assignment if cloning fails
             activeGame.value = data.gameUpdated as GameDetail;
           }
+          markRealtimeReady();
         }
       },
       error: (error: unknown) => {
         console.error('[games] subscription error', error);
+        beginDegradedPolling();
       },
     });
+
+    if (realtimeState === 'connected') {
+      markRealtimeReady();
+    } else {
+      connectTimer = window.setTimeout(beginDegradedPolling, REALTIME_CONNECT_TIMEOUT_MS);
+    }
+  }
+
+  function reconnectGame(): void {
+    if (!activeGameID || !activeUserID) {
+      boardConnectionState.value = 'failed';
+      return;
+    }
+    subscribeToGame(activeGameID, activeUserID);
+  }
+
+  async function fetchGameInvite(gameID: string, sessionID: string): Promise<GameInvite | null> {
+    inviteLoading.value = true;
+    inviteError.value = null;
+    invite.value = null;
+    try {
+      const { data }: ApolloQueryResult<{ gameInvite: GameInvite | null }> = await apolloClient.query({
+        query: GAME_INVITE_QUERY,
+        variables: { gameID, sessionID },
+        fetchPolicy: 'network-only',
+      });
+      invite.value = data?.gameInvite ?? null;
+      if (!invite.value) inviteError.value = 'not_found';
+      return invite.value;
+    } catch (error) {
+      console.error('[games] failed to load invite', error);
+      inviteError.value = 'unavailable';
+      return null;
+    } finally {
+      inviteLoading.value = false;
+    }
   }
 
   async function createGame(payload: Record<string, unknown>) {
@@ -191,6 +340,11 @@ export const useGamesStore = defineStore('games', () => {
       activeSubscription.unsubscribe();
       activeSubscription = null;
     }
+    clearConnectTimer();
+    stopPolling();
+    activeGameID = '';
+    activeUserID = '';
+    boardConnectionState.value = 'idle';
   }
 
   return {
@@ -198,12 +352,18 @@ export const useGamesStore = defineStore('games', () => {
     activeGame,
     loading,
     errorMessage,
+    invite,
+    inviteLoading,
+    inviteError,
+    boardConnectionState,
     hasActiveGame,
     formats,
     fetchGames,
     fetchFormats,
     loadGame,
     subscribeToGame,
+    reconnectGame,
+    fetchGameInvite,
     createGame,
     joinGame,
     clearActiveGame,

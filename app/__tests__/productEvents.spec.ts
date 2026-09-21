@@ -140,6 +140,26 @@ describe('track', () => {
     expect(mutate.mock.calls[0][0].variables.input.sessionID).toBe(sessionID);
   });
 
+  it('places funnel dimensions in dedicated event columns rather than metadata', async () => {
+    const { service, mutate } = await loadService();
+
+    service.track('board_ready', {}, {
+      gameID: 'game-1',
+      role: 'invitee',
+      source: 'board',
+      durationMs: 842,
+    });
+
+    expect(mutate.mock.calls[0][0].variables.input).toMatchObject({
+      name: 'board_ready',
+      gameID: 'game-1',
+      role: 'invitee',
+      source: 'board',
+      durationMs: 842,
+      metadata: [],
+    });
+  });
+
   it('swallows a rejected mutation without throwing, without an unhandled rejection, and without console.error', async () => {
     const { service, mutate } = await loadService();
     mutate.mockRejectedValue(new Error('network down'));

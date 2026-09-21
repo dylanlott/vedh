@@ -45,8 +45,6 @@ describe('router authentication boundaries', () => {
     '/games/game-1',
     '/games/game-1/score',
     '/games/game-1/analysis',
-    '/join',
-    '/join/game-1',
   ])('keeps the pre-existing requiresAuth redirect for %s', async (path) => {
     await router.push(path);
 
@@ -55,6 +53,16 @@ describe('router authentication boundaries', () => {
     expect(authStore.useAuthStore).toHaveBeenCalledTimes(1);
     const protectedRecord = router.getRoutes().find((record) => record.path === path.replace('game-1', ':id'));
     expect(protectedRecord?.meta.requiresAuth).toBe(true);
+  });
+
+  it.each(['/join', '/join/game-1'])('resolves public invite route %s without an auth-store lookup', async (path) => {
+    await router.push(path);
+
+    expect(router.currentRoute.value.path).toBe(path);
+    expect(router.currentRoute.value.name).not.toBe('login');
+    expect(authStore.useAuthStore).not.toHaveBeenCalled();
+    const publicRecord = router.getRoutes().find((record) => record.path === path.replace('game-1', ':id'));
+    expect(publicRecord?.meta.public).toBe(true);
   });
 
   it.each(['/login', '/signup'])('resolves the public auth route %s without an auth-store lookup', async (path) => {

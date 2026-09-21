@@ -1,388 +1,292 @@
 <template>
   <section class="join-game">
-    <h1>Join game</h1>
-    
-    <form v-if="!gameID" @submit.prevent="submitInvite">
-      <label for="invite">Paste invite link or game ID</label>
-      <input id="invite" v-model.trim="invite" type="text" placeholder="e.g. https://app/join/abcd-1234 or abcd-1234" />
-      <div class="help" v-if="invite && !parsedID">Couldn’t detect a game ID from that input.</div>
-      <button class="primary" :disabled="!parsedID">Continue</button>
+    <h1>Join a Commander table</h1>
+
+    <form v-if="!gameID" class="invite-entry" @submit.prevent="submitInvite">
+      <label for="invite">Paste an invite link or game ID</label>
+      <input id="invite" v-model.trim="inviteInput" type="text" placeholder="https://vedh.xyz/join/…" />
+      <p v-if="inviteInput && !parsedID" class="hint">We couldn’t find a game ID in that invite.</p>
+      <button class="primary" :disabled="!parsedID">Check table</button>
     </form>
 
-    <form v-else @submit.prevent="handleJoin">
-      <p>You are about to join game <strong>{{ gameID }}</strong>.</p>
+    <p v-else-if="games.inviteLoading" class="state-card" role="status">Checking this invite…</p>
 
-      <label class="stacked">
-        <span>Commander(s) — up to 2 (Partners)</span>
-        <div class="inline">
-          <button class="secondary" type="button" @click="isCommanderModalOpen = true">Choose commander</button>
-          <div class="chips" v-if="selectedCommanders.length">
-            <span v-for="(cmd, idx) in selectedCommanders" :key="cmd.ID" class="chip">
-              {{ cmd.Name }}
-              <button type="button" class="remove" @click="removeCommander(idx)" aria-label="Remove">×</button>
-            </span>
-            <button type="button" class="link" @click="clearAllCommanders">Clear all</button>
-          </div>
-          <span class="hint" v-else>No commander selected</span>
+    <section v-else-if="games.inviteError === 'not_found'" class="state-card" data-testid="invite-not-found">
+      <h2>This table doesn’t exist</h2>
+      <p>Ask the host for a fresh invite link.</p>
+    </section>
+
+    <section v-else-if="games.inviteError === 'unavailable'" class="state-card" data-testid="invite-unavailable">
+      <h2>We can’t check this invite right now</h2>
+      <p>Your link is still here. Try again in a moment.</p>
+      <button class="secondary" type="button" @click="loadInvite">Try again</button>
+    </section>
+
+    <template v-else-if="games.invite">
+      <section class="invite-summary" data-testid="invite-summary">
+        <div>
+          <span class="eyebrow">{{ formatName }}</span>
+          <h2>{{ games.invite.PlayerCount }} of {{ games.invite.Capacity }} seats filled</h2>
         </div>
-      </label>
-
-      <DeckImportPanel
-        :initial-text="decklist"
-        :session-id="sessionID"
-        :context="MAGIC_COMMANDER_DECK_CONTEXT"
-        @change="handleDeckChange"
-        @preview-resolved="deckPreview = $event"
-      />
-      <p class="hint">Deck count: {{ deckPreview?.CardCount ?? 0 }}</p>
-
-      <footer class="actions">
-        <button class="primary" :disabled="games.loading">{{ games.loading ? 'Joining…' : 'Join game' }}</button>
-      </footer>
-    </form>
-
-    <!-- Commander selection modal -->
-    <div v-if="isCommanderModalOpen" class="backdrop" @click.self="isCommanderModalOpen = false">
-      <section class="modal">
-        <header>
-          <h2>Select your Commander</h2>
-          <button class="link" type="button" @click="isCommanderModalOpen = false" aria-label="Close">×</button>
-        </header>
-        <label @keydown.stop>
-          <span>Search</span>
-          <input
-            v-model="commanderQuery"
-            @input="onCommanderInput"
-            @keydown.down.prevent="onCommanderKey('down')"
-            @keydown.up.prevent="onCommanderKey('up')"
-            @keydown.enter.prevent="onCommanderKey('enter')"
-            @keydown.esc.prevent="onCommanderKey('escape')"
-            @blur="onCommanderBlur"
-            placeholder="e.g., Atraxa"
-            autocomplete="off"
-            role="combobox"
-            :aria-expanded="showCommanderList ? 'true' : 'false'"
-            aria-autocomplete="list"
-            aria-controls="commander-typeahead"
-            :aria-activedescendant="activeIndex >= 0 ? `commander-opt-${activeIndex}` : undefined"
-          />
-          <ul v-if="showCommanderList" id="commander-typeahead" class="typeahead" role="listbox">
-            <li v-if="isSearching" class="hint" role="option" aria-disabled="true">Searching…</li>
-            <template v-else>
-              <li
-                v-for="(c, idx) in limitedCommanderResults"
-                :key="c.ID"
-                :id="`commander-opt-${idx}`"
-                role="option"
-                :aria-selected="idx === activeIndex ? 'true' : 'false'"
-                :class="{ active: idx === activeIndex }"
-                @mousedown.prevent="selectCommander(c)"
-                @mousemove="activeIndex = idx"
-              >
-                {{ c.Name }}
-              </li>
-              <li v-if="!limitedCommanderResults.length" class="hint" role="option" aria-disabled="true">No results</li>
-            </template>
-          </ul>
-          <div class="chips" v-if="selectedCommanders.length">
-            <span v-for="(cmd, idx) in selectedCommanders" :key="cmd.ID" class="chip">
-              {{ cmd.Name }}
-              <button type="button" class="remove" @click="removeCommander(idx)" aria-label="Remove">×</button>
-            </span>
-            <button type="button" class="link" @click="clearAllCommanders">Clear all</button>
-          </div>
-          <p v-if="commanderError" class="hint">{{ commanderError }}</p>
-          <p v-else-if="!selectedCommanders.length" class="hint">No commander selected</p>
-        </label>
-        <footer class="actions">
-          <button class="secondary" type="button" @click="isCommanderModalOpen = false">Done</button>
-        </footer>
+        <ul aria-label="Players already at this table">
+          <li v-for="name in games.invite.PlayerDisplayNames" :key="name">{{ name }}</li>
+        </ul>
       </section>
-    </div>
+
+      <section v-if="games.invite.Status === 'FINISHED'" class="state-card" data-testid="invite-finished">
+        <h2>This game has finished</h2>
+        <p>Ask the host to start a new table.</p>
+      </section>
+
+      <section v-else-if="games.invite.PlayerCount >= games.invite.Capacity" class="state-card" data-testid="invite-full">
+        <h2>This table is full</h2>
+        <p>All {{ games.invite.Capacity }} seats are already taken.</p>
+      </section>
+
+      <div v-else class="join-layout">
+        <DeckImportPanel
+          :initial-text="deckText"
+          :initial-source-u-r-l="sourceURL"
+          :session-id="sessionID"
+          :context="MAGIC_COMMANDER_DECK_CONTEXT"
+          @submit="handleDeckImportStarted"
+          @change="handleDeckChange"
+          @preview-resolved="handlePreviewResolved"
+          @continue="stage = 'commander'"
+        />
+
+        <section v-if="stage === 'commander' || selectedCommanders.length" class="finish-pane">
+          <CommanderReview
+            :candidates="commanderCandidates"
+            :selected="selectedCommanders"
+            @selection-change="selectedCommanders = [...$event]"
+          />
+
+          <label v-if="!auth.isAuthenticated" class="display-name-field">
+            <span>Display name (optional)</span>
+            <input v-model="displayName" data-testid="join-display-name" maxlength="64" placeholder="How should the pod see you?" />
+          </label>
+          <p v-else class="joining-as">Joining as {{ auth.profile?.DisplayName || auth.profile?.Username }}</p>
+
+          <button
+            class="primary"
+            type="button"
+            data-testid="join-table"
+            :disabled="!canJoin"
+            @click="handleJoin"
+          >
+            {{ joining ? 'Joining table…' : 'Join table' }}
+          </button>
+        </section>
+      </div>
+
+      <section v-if="joinError" class="state-card error" data-testid="join-error" role="alert">
+        <h2>The table changed while you were joining</h2>
+        <p>{{ joinError }}</p>
+        <button v-if="isInviteJoinable" class="secondary" type="button" @click="handleJoin">Try again</button>
+      </section>
+    </template>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useGamesStore } from '../stores/games';
-import { useAuthStore } from '../stores/auth';
-import { apolloClient } from '../services/apollo';
-import { SEARCH_CARDS_QUERY } from '../graphql/queries';
+import CommanderReview from '../components/decks/CommanderReview.vue';
 import DeckImportPanel, { type DeckImportChange } from '../components/decks/DeckImportPanel.vue';
 import { MAGIC_COMMANDER_DECK_CONTEXT } from '../components/decks/deckImportContext';
-import { getSessionID } from '../services/productEvents';
+import { lookupFormat } from '../formats/registry';
+import type { CommanderPick } from '../services/commanderPartner';
+import { getSessionID, track } from '../services/productEvents';
+import { useAuthStore } from '../stores/auth';
+import { useGamesStore } from '../stores/games';
 import type { DeckPreview } from '../types/generated';
-import {
-  type CommanderPick,
-  canAddSecondCommander,
-  isValidPartnerPair,
-  partnerConstraintMessage,
-} from '../services/commanderPartner';
 
 const route = useRoute();
 const router = useRouter();
 const games = useGamesStore();
 const auth = useAuthStore();
-
-const gameID = computed(() => route.params.id as string | undefined);
-const invite = ref('');
-
-const parsedID = computed(() => {
-  const raw = invite.value.trim();
-  if (!raw) return '';
-  // Match URLs containing /join/:id or /games/:id
-  const match = raw.match(/\/(?:join|games)\/([A-Za-z0-9\-]+)/i);
-  if (match?.[1]) return match[1];
-  // If it looks like a bare id (uuid-ish or slug), accept alnum-dash 6+ chars
-  if (/^[A-Za-z0-9\-]{6,}$/.test(raw)) return raw;
-  return '';
-});
-
-function submitInvite() {
-  if (!parsedID.value) return;
-  router.push({ name: 'join-game', params: { id: parsedID.value } });
-}
-
-// Commander search state (mirrors FormCreateGame)
-const isCommanderModalOpen = ref(false);
-const commanderQuery = ref('');
-const commanderResults = ref<CommanderPick[]>([]);
-const selectedCommanders = ref<CommanderPick[]>([]);
-const showCommanderList = ref(false);
-const isSearching = ref(false);
-const activeIndex = ref(-1);
-const commanderError = ref<string>('');
-const resultsLimit = 8;
-let commanderDebounce: number | undefined;
-
-const limitedCommanderResults = computed(() => commanderResults.value.slice(0, resultsLimit));
-
-async function runCommanderSearch(query: string) {
-  if (query.length < 2) {
-    commanderResults.value = [];
-    isSearching.value = false;
-    return;
-  }
-  isSearching.value = true;
-  try {
-    const { data } = await apolloClient.query<{ search?: CommanderPick[] }>({
-      query: SEARCH_CARDS_QUERY,
-      variables: { name: `%${query}%` },
-      fetchPolicy: 'no-cache',
-    });
-    commanderResults.value = data?.search ?? [];
-  } catch (e) {
-    commanderResults.value = [];
-  } finally {
-    isSearching.value = false;
-  }
-}
-
-function onCommanderInput() {
-  showCommanderList.value = commanderQuery.value.length >= 2;
-  activeIndex.value = -1;
-  if (commanderDebounce) window.clearTimeout(commanderDebounce);
-  commanderDebounce = window.setTimeout(() => {
-    void runCommanderSearch(commanderQuery.value.trim());
-  }, 150);
-}
-
-function onCommanderKey(key: 'down' | 'up' | 'enter' | 'escape') {
-  if (!showCommanderList.value) {
-    if (key === 'down') {
-      showCommanderList.value = commanderQuery.value.length >= 2;
-      if (showCommanderList.value && !limitedCommanderResults.value.length) void runCommanderSearch(commanderQuery.value.trim());
-    }
-    return;
-  }
-  const max = limitedCommanderResults.value.length - 1;
-  if (key === 'down') {
-    activeIndex.value = activeIndex.value < max ? activeIndex.value + 1 : 0;
-  } else if (key === 'up') {
-    activeIndex.value = activeIndex.value > 0 ? activeIndex.value - 1 : max;
-  } else if (key === 'enter') {
-    if (activeIndex.value >= 0 && activeIndex.value <= max) {
-      selectCommander(limitedCommanderResults.value[activeIndex.value]);
-    }
-  } else if (key === 'escape') {
-    showCommanderList.value = false;
-  }
-}
-
-function onCommanderBlur() {
-  setTimeout(() => {
-    showCommanderList.value = false;
-  }, 120);
-}
-
-function selectCommander(card: { ID: string; Name: string }) {
-  commanderError.value = '';
-  const exists = selectedCommanders.value.some(c => c.ID === card.ID);
-
-  if (exists) {
-    commanderQuery.value = '';
-    showCommanderList.value = false;
-    return;
-  }
-
-  if (selectedCommanders.value.length === 0) {
-    selectedCommanders.value.push(card as CommanderPick);
-  } else if (selectedCommanders.value.length === 1) {
-    const first = selectedCommanders.value[0];
-    if (!canAddSecondCommander(selectedCommanders.value)) {
-      commanderError.value = partnerConstraintMessage(first);
-    } else if (!isValidPartnerPair(first, card as CommanderPick)) {
-      commanderError.value = partnerConstraintMessage(first);
-    } else {
-      selectedCommanders.value.push(card as CommanderPick);
-    }
-  }
-  commanderQuery.value = '';
-  showCommanderList.value = false;
-}
-
-function removeCommander(index: number) {
-  selectedCommanders.value.splice(index, 1);
-  commanderError.value = '';
-}
-
-function clearAllCommanders() {
-  selectedCommanders.value = [];
-  commanderError.value = '';
-}
-
-// The shared panel owns deck parsing and correction. This view only forwards
-// its prepared representation through the unchanged join payload.
-const decklist = ref('');
-const deckPreview = ref<DeckPreview | null>(null);
 const sessionID = getSessionID();
 
-function handleDeckChange(change: DeckImportChange) {
-  decklist.value = change.decklist;
+const inviteInput = ref('');
+const deckText = ref('');
+const sourceURL = ref('');
+const preparedDecklist = ref('');
+const previewResult = ref<DeckPreview | null>(null);
+const selectedCommanders = ref<CommanderPick[]>([]);
+const displayName = ref('');
+const stage = ref<'import' | 'commander'>('import');
+const joining = ref(false);
+const joinError = ref('');
+const trackedInviteIDs = new Set<string>();
+
+const gameID = computed(() => typeof route.params.id === 'string' ? route.params.id : '');
+const parsedID = computed(() => {
+  const raw = inviteInput.value.trim();
+  if (!raw) return '';
+  const match = raw.match(/\/(?:join|games)\/([A-Za-z0-9-]+)/i);
+  if (match?.[1]) return match[1];
+  return /^[A-Za-z0-9-]{6,}$/.test(raw) ? raw : '';
+});
+const formatName = computed(() => lookupFormat(games.invite?.Format).Name);
+const commanderCandidates = computed<CommanderPick[]>(() => {
+  const candidates = previewResult.value?.CommanderCandidates ?? [];
+  return candidates.length ? candidates : selectedCommanders.value;
+});
+const legalCommanderSelection = computed(() => selectedCommanders.value.length === 1 || selectedCommanders.value.length === 2);
+const isInviteJoinable = computed(() => Boolean(
+  games.invite
+  && games.invite.Status === 'IN_PROGRESS'
+  && games.invite.PlayerCount < games.invite.Capacity,
+));
+const canJoin = computed(() => Boolean(
+  isInviteJoinable.value
+  && previewResult.value?.CanContinue
+  && previewResult.value.BlockingErrors.length === 0
+  && legalCommanderSelection.value
+  && !joining.value,
+));
+
+function submitInvite(): void {
+  if (parsedID.value) void router.push({ name: 'join-game', params: { id: parsedID.value } });
 }
 
-async function handleJoin() {
-  if (!gameID.value || !auth.profile) return;
-  const payload = {
-    ID: gameID.value,
-    Decklist: decklist.value,
-    BoardState: {
-      UserID: auth.profile.ID,
-      User: auth.profile.Username,
-      GameID: gameID.value,
-      Life: 40,
-  Commander: selectedCommanders.value.map(c => ({ ID: c.ID, Name: c.Name })),
-      Library: [],
-      Graveyard: [],
-      Exiled: [],
-      Battlefield: [],
-      Hand: [],
-      Revealed: [],
-      Controlled: [],
-      Counters: [],
-    },
-  } as const;
-  const joinedID = await games.joinGame(payload);
-  if (joinedID) {
-    router.push({ name: 'board', params: { id: joinedID } });
+async function loadInvite(): Promise<void> {
+  if (!gameID.value) return;
+  const loaded = await games.fetchGameInvite(gameID.value, sessionID);
+  if (loaded && !trackedInviteIDs.has(loaded.ID)) {
+    trackedInviteIDs.add(loaded.ID);
+    track('invite_viewed', {}, { gameID: loaded.ID, role: 'invitee', source: 'invite' });
   }
 }
+
+function handleDeckImportStarted(): void {
+  track('deck_import_started', {}, { gameID: gameID.value, role: 'invitee', source: 'invite' });
+}
+
+function handleDeckChange(change: DeckImportChange): void {
+  deckText.value = change.text;
+  sourceURL.value = change.sourceURL;
+  preparedDecklist.value = change.decklist;
+}
+
+function handlePreviewResolved(preview: DeckPreview): void {
+  previewResult.value = preview;
+  joinError.value = '';
+}
+
+async function handleJoin(): Promise<void> {
+  if (!canJoin.value || !gameID.value) return;
+  joining.value = true;
+  joinError.value = '';
+  try {
+    track('join_started', {}, { gameID: gameID.value, role: 'invitee', source: 'invite' });
+    if (!auth.isAuthenticated) {
+      await auth.createGuestSession({ displayName: displayName.value || undefined, sessionID });
+    }
+    const profile = auth.profile;
+    if (!profile) throw new Error('join identity unavailable');
+
+    const joinedID = await games.joinGame({
+      ID: gameID.value,
+      SessionID: sessionID,
+      Decklist: preparedDecklist.value,
+      BoardState: {
+        UserID: profile.ID,
+        User: profile.Username,
+        GameID: gameID.value,
+        Life: 40,
+        Commander: selectedCommanders.value.map(({ ID, Name }) => ({ ID, Name })),
+        Library: [],
+        Graveyard: [],
+        Exiled: [],
+        Battlefield: [],
+        Hand: [],
+        Revealed: [],
+        Controlled: [],
+        Counters: [],
+      },
+    });
+    if (!joinedID) throw new Error('join returned no game');
+    await router.push({ name: 'board', params: { id: joinedID } });
+  } catch {
+    joinError.value = 'Your deck and commander choices are still here. Check the table and try again.';
+    await loadInvite();
+  } finally {
+    joining.value = false;
+  }
+}
+
+watch(gameID, () => void loadInvite());
+onMounted(() => void loadInvite());
 </script>
 
 <style scoped lang="scss">
+@use '@/styles/breakpoints' as bp;
+
 .join-game {
-  max-width: 480px;
-  margin: 3rem auto;
-  padding: 2.5rem;
+  box-sizing: border-box;
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 48px 16px;
+  display: grid;
+  gap: 24px;
+}
+
+h1, h2, p { margin: 0; }
+
+.invite-entry,
+.finish-pane,
+.display-name-field,
+.state-card,
+.invite-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.invite-entry,
+.state-card,
+.invite-summary,
+.finish-pane {
+  padding: 24px;
+  border: 1px solid var(--vedh-border);
   border-radius: 20px;
   background: var(--vedh-panel);
-  border: 1px solid var(--vedh-border);
 }
 
-button.primary {
-  border: none;
-  border-radius: 10px;
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
-  font-weight: 600;
-  background: var(--vedh-primary-gradient);
-  color: var(--vedh-primary-contrast);
-  cursor: pointer;
-}
-
-button.secondary {
+.invite-entry input,
+.display-name-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 16px;
   border: 1px solid var(--vedh-border);
   border-radius: 10px;
-  padding: 0.6rem 0.9rem;
   background: rgba(255, 244, 237, 0.05);
   color: var(--vedh-text);
+  font: inherit;
+}
+
+.invite-summary ul { margin: 0; padding-left: 20px; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.7; }
+.hint, .joining-as { opacity: 0.8; }
+.error { border-color: var(--vedh-danger); }
+.join-layout { min-width: 0; display: grid; gap: 24px; }
+
+button {
+  border-radius: 10px;
+  padding: 12px 16px;
+  font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
+button.primary { border: 0; background: var(--vedh-primary-gradient); color: var(--vedh-primary-contrast); }
+button.secondary { border: 1px solid var(--vedh-border); background: var(--vedh-surface); color: var(--vedh-text); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.stacked { display: grid; gap: 0.5rem; }
-.inline { display: flex; gap: 0.75rem; align-items: center; }
-.hint { opacity: 0.8; font-size: 0.9rem; }
-
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(33, 20, 18, 0.72);
-  display: grid;
-  place-items: center;
-  z-index: 40;
-}
-
-.modal {
-  width: min(90vw, 420px);
-  background: var(--vedh-panel-strong);
-  border-radius: 18px;
-  border: 1px solid var(--vedh-border);
-  padding: 1.5rem;
-  display: grid;
-  gap: 0.9rem;
-}
-
-header { display: flex; align-items: center; justify-content: space-between; }
-label { display: grid; gap: 0.5rem; }
-input, textarea { 
-  padding: 0.7rem 0.9rem; 
-  border-radius: 10px; 
-  border: 1px solid var(--vedh-border);
-  background: rgba(255,244,237,0.05);
-  color: inherit;
-}
-.actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
-
-.typeahead {
-  margin-top: 0.25rem;
-  list-style: none;
-  padding: 0;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  max-height: 200px;
-  overflow: auto;
-}
-.typeahead li { padding: 0.4rem 0.6rem; cursor: pointer; }
-.typeahead li:hover { background: rgba(255,255,255,0.06); }
-.typeahead li.active { background: rgba(255,255,255,0.12); }
-
-.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
-.chip {
-  display: inline-flex;
-  gap: 0.4rem;
-  align-items: center;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.12);
-  font-size: 0.9rem;
-}
-.chip .remove {
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  padding: 0 0.25rem;
+@media (min-width: bp.$breakpoint-tablet) {
+  .join-game { padding-right: 32px; padding-left: 32px; }
+  .join-layout { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+  .invite-summary { grid-template-columns: 1fr auto; align-items: start; }
 }
 </style>

@@ -24,11 +24,24 @@ type Query {
   games(offset: Int!, limit: Int!): [Game]!
   formats: [GameFormat!]!
   getGame(gameID: String!): Game!
+  gameInvite(gameID: String!, sessionID: String!): GameInvite
   gameLogs(gameID: String!, offset: Int!, limit: Int!): [GameLogEvent!]!
   card(name: String!, id: String): Card
   cards(list: [String!]): [Card!]!
   search(name: String, colors: [String], colorIdentity: [String], keywords: [String]): [Card]
   searchAll(name: String, colors: [String], colorIdentity: [String], keywords: [String]): [Card]
+}
+
+# Deliberately separate from Game: this is the complete public invite
+# surface and cannot expose board state, deck contents, credentials, or logs.
+type GameInvite {
+  ID: String!
+  Format: String!
+  Status: GameStatus!
+  PlayerDisplayNames: [String!]!
+  PlayerCount: Int!
+  Capacity: Int!
+  CreatedAt: Time!
 }
 
 type Subscription {
@@ -296,6 +309,8 @@ input InputCreateGame {
 
 input InputJoinGame {
   ID: String!
+  # Browser funnel identity for the server-owned player_joined event.
+  SessionID: String
   Decklist: String
   BoardState: InputBoardState!
 }

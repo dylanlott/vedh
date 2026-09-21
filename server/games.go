@@ -765,6 +765,22 @@ func (s *graphQLServer) JoinGame(ctx context.Context, input *InputJoinGame) (*Ga
 			"user": authUser.Username,
 		},
 	})
+	if input.SessionID != nil && strings.TrimSpace(*input.SessionID) != "" {
+		gameID := updated.ID
+		userID := authUser.ID
+		role := "invitee"
+		source := "invite"
+		outcome := "success"
+		s.recordProductEvent(ctx, ProductEvent{
+			Name:      "player_joined",
+			SessionID: strings.TrimSpace(*input.SessionID),
+			UserID:    &userID,
+			GameID:    &gameID,
+			Role:      &role,
+			Source:    &source,
+			Outcome:   &outcome,
+		}, false)
+	}
 	recordVedhGameJoinAttempt("success")
 
 	return redactGameForUser(updated, authUser), nil

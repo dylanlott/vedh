@@ -7,6 +7,10 @@ import { createPinia, setActivePinia } from 'pinia';
 // convention.
 vi.mock('../src/services/apollo', () => ({
   apolloClient: { mutate: vi.fn() },
+  onRealtimeConnectionState: vi.fn((listener) => {
+    listener('unavailable');
+    return () => undefined;
+  }),
 }));
 
 const productEvents = vi.hoisted(() => ({

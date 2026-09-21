@@ -64,13 +64,13 @@ const routes: RouteRecordRaw[] = [
     path: '/join',
     name: 'join',
     component: () => import('../views/JoinGameView.vue'),
-    meta: { requiresAuth: true },
+    meta: { public: true },
   },
   {
     path: '/join/:id',
     name: 'join-game',
     component: () => import('../views/JoinGameView.vue'),
-    meta: { requiresAuth: true },
+    meta: { public: true },
   },
   {
     path: '/games/404',

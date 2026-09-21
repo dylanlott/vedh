@@ -5,6 +5,22 @@ import { createClient } from 'graphql-ws';
 import { setContext } from '@apollo/client/link/context';
 import type { DocumentNode } from 'graphql';
 
+export type RealtimeConnectionState = 'idle' | 'connecting' | 'connected' | 'closed' | 'error' | 'unavailable';
+
+let realtimeConnectionState: RealtimeConnectionState = 'unavailable';
+const realtimeListeners = new Set<(state: RealtimeConnectionState) => void>();
+
+function publishRealtimeState(state: RealtimeConnectionState): void {
+  realtimeConnectionState = state;
+  for (const listener of realtimeListeners) listener(state);
+}
+
+export function onRealtimeConnectionState(listener: (state: RealtimeConnectionState) => void): () => void {
+  realtimeListeners.add(listener);
+  listener(realtimeConnectionState);
+  return () => realtimeListeners.delete(listener);
+}
+
 // Prefer Vite dev proxy during development to avoid cross-origin issues.
 let httpUri = import.meta.env.VITE_GRAPHQL_HTTP;
 let wsUri = import.meta.env.VITE_GRAPHQL_WS;
@@ -95,9 +111,16 @@ let wsLink: any = null;
 // For vitest/unit tests, we don’t need subscriptions, so skip wsLink.
 const hasWebSocket = typeof WebSocket !== 'undefined';
 if (wsUri && hasWebSocket) {
+  publishRealtimeState('idle');
   wsLink = new GraphQLWsLink(
     createClient({
       url: wsUri,
+      on: {
+        connecting: () => publishRealtimeState('connecting'),
+        connected: () => publishRealtimeState('connected'),
+        closed: () => publishRealtimeState('closed'),
+        error: () => publishRealtimeState('error'),
+      },
       connectionParams: () => {
         const raw = ((): string | null => {
           try {

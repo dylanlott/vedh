@@ -35,3 +35,8 @@ Original prompt: Make the player area intuitively designed and juice up interact
 - Verified the Node 24 frontend suite (138 passed, 3 skipped) and production build.
 - Ran the web-game Playwright client against `/play` for three iterations; inspected the final screenshot and found no generated console-error artifact.
 - The explicit Phase 2 human taste checkpoint for the complete generated-name cross product remains distinct from machine validation.
+- Implemented Phase 3: a rate-limited public `gameInvite` projection, public `/join/:id`, last-responsible-moment guest creation, canonical deck/commander join, and server-authoritative `player_joined` telemetry.
+- Added explicit board `loading`, `ready`, `degraded`, `reconnecting`, and `failed` states with bounded degraded polling and a reconnect action; `board_ready` now waits for a usable player board plus realtime or active polling.
+- Added board invite sharing with native-share, clipboard, and selectable-manual fallbacks. Telemetry stores the method only and never the URL/clipboard contents.
+- Phase 3 targeted verification: Go invite/privacy/rate-limit/event tests pass; Node 24 type-check passes; frontend suite passes (152 passed, 2 skipped).
+- Ran the web-game Playwright client against a missing public invite and visually verified the safe not-found state; no console-error artifact was emitted.

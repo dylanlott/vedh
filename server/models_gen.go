@@ -110,6 +110,16 @@ type Game struct {
 	PendingWinClaim *PendingWinClaim `json:"PendingWinClaim,omitempty"`
 }
 
+type GameInvite struct {
+	ID                 string     `json:"ID"`
+	Format             string     `json:"Format"`
+	Status             GameStatus `json:"Status"`
+	PlayerDisplayNames []string   `json:"PlayerDisplayNames"`
+	PlayerCount        int        `json:"PlayerCount"`
+	Capacity           int        `json:"Capacity"`
+	CreatedAt          time.Time  `json:"CreatedAt"`
+}
+
 type InputBoardState struct {
 	UserID      string          `json:"UserID"`
 	User        string          `json:"User"`
@@ -194,6 +204,7 @@ type InputGame struct {
 
 type InputJoinGame struct {
 	ID         string           `json:"ID"`
+	SessionID  *string          `json:"SessionID,omitempty"`
 	Decklist   *string          `json:"Decklist,omitempty"`
 	BoardState *InputBoardState `json:"BoardState"`
 }
