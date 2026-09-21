@@ -1,12 +1,41 @@
 # vEDH Deck-to-Game Activation PRD
 
-**Status:** Draft for implementation
+**Status:** Implemented and staging-verified; quiet-beta admission pending
 **Owner:** vEDH
 **Date:** 2026-07-23
 **Code baseline:** `main` at `ef2732a`
 **Primary objective:** Deck-to-game activation
 **Secondary objective:** User acquisition after activation
 **Recommended delivery envelope:** Four weeks for one implementation agent, including stabilization
+
+## Implementation Status — 2026-09-21
+
+**Verified:** ACT-001 through ACT-013 are implemented on
+`reconcile/deck-activation-20260921`. Candidate `59f271c` passed the full local
+release suite and was deployed to isolated Dokku staging:
+
+- API: `https://vedh-api-staging.vedh.xyz`
+- web: `https://vedh-app-staging.vedh.xyz`
+- database: isolated `vedh-api-staging-db` with deterministic public card
+  fixtures only
+
+The staging Rust smoke passed authenticated create/join plus guest host/invite,
+all three Playwright journeys passed, both players were visible on one board,
+account claim survived refresh, provider failure preserved paste recovery, and
+staging run `staging-1789980490` returned zero missing or duplicate activation
+events. Production apps and production data were not changed.
+
+**Remaining hold conditions:**
+
+1. Phase 2 plan `02-06` still requires a human taste review of the complete
+   generated guest-name cross product. Machine coverage and the live guest
+   journey are green; the subjective name review is not being represented as
+   automated.
+2. Keep `DECK_PROVIDER_ENABLED=false` until a human reviews the current
+   Archidekt terms. Paste import is verified and remains the supported path.
+3. The quiet beta has not begun. No product go/no-go is valid until the fixed
+   cohort reaches at least 50 host starts and 50 valid invite views, followed by
+   the documented seven-day claim maturation window.
 
 ## 1. Executive Summary
 
@@ -40,7 +69,7 @@ The first beta targets are evaluated after at least 50 host activation starts an
 - **Technical success:** At least 98% of valid pasted deck entries resolve to a known card or a clearly identified unresolved entry; create/join request error rate remains below 2%.
 - **Post-value acquisition:** At least 15% of activated guest users claim a permanent account within seven days.
 
-### Current-State Findings
+### Baseline Findings at PRD Creation
 
 - All game, join, board, score, and analysis routes require authentication in `app/src/router/index.ts`.
 - Authentication is username/password with a 24-hour JWT stored in browser `localStorage`.

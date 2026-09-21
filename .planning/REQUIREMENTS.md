@@ -28,33 +28,33 @@ Full acceptance criteria, verification steps, and likely-files lists live in
 
 ### Activation
 
-- [ ] **REQ-A1**: As a Commander host, I can load a deck and start a table without creating an account.
+- [x] **REQ-A1**: As a Commander host, I can load a deck and start a table without creating an account.
   `/play` is public, accepts pasted text and supported deck URLs, display name is optional (a readable unique guest name is generated when omitted), a valid preview creates a short-lived guest session and calls the existing `createGame`, and the host lands on `/games/:id`. `board_ready` emits only after the game query succeeds, the current player's board state is present, and the subscription is connected or in a documented degraded state. Authenticated users use the same flow with no guest identity.
   *Implemented by: ACT-004, ACT-005, ACT-006, ACT-009*
 
-- [ ] **REQ-A2**: As a player, I can paste the decklist I already have without reformatting it.
+- [x] **REQ-A2**: As a player, I can paste the decklist I already have without reformatting it.
   The canonical parser accepts at minimum `1 Sol Ring`, `1x Sol Ring`, `1,Sol Ring`, `1, Sol Ring`, `1,"Atraxa, Praetors' Voice"`, and `1 Atraxa, Praetors' Voice`. Blank lines, section headers, and sideboard/maybeboard sections are handled deterministically. Comma-containing names stay intact. The preview shows totals, detected commanders, unresolved cards, warnings, and blocking errors, and never silently drops a row. One parser serves host and join.
   *Implemented by: ACT-002, ACT-003, ACT-004*
   *Precedence note (INFO-1): the PRD clause "at least one public deck-link provider ships in the MVP" is **superseded**. ACT-003 may ship paste-only after a documented no-go. All other clauses stand.*
 
-- [ ] **REQ-A3**: As an invited player, I can understand the table and join it without signup.
+- [x] **REQ-A3**: As an invited player, I can understand the table and join it without signup.
   `/join/:id` is public. A public `gameInvite` query exposes only game ID, format, status, player display names, player count, capacity, and creation time. Nonexistent, finished, and full games are reported before a deck is requested. A valid guest uses the existing `joinGame`. Joining never exposes hidden zones, board state, tokens, credentials, or decklists. No redirect through `/login` or `/signup`.
   *Implemented by: ACT-007, ACT-008*
 
-- [ ] **REQ-A4**: As a host, I have a clear invite control on the board so I can bring my pod in.
+- [x] **REQ-A4**: As a host, I have a clear invite control on the board so I can bring my pod in.
   A single primary invite action in the board header copies `${window.location.origin}/join/${gameID}`, prefers native share with clipboard fallback, confirms success, offers manual copy on failure, and records `invite_copied`/`invite_shared` with source and game ID but never clipboard contents.
   *Implemented by: ACT-009*
 
-- [ ] **REQ-A5**: As an activated guest, I can make my identity permanent without losing the game I am playing.
+- [x] **REQ-A5**: As an activated guest, I can make my identity permanent without losing the game I am playing.
   A non-blocking "Save your games" prompt appears after `board_ready`. Claiming sets a unique username and password on the same user UUID, current games stay associated, a new full-session token replaces the guest token, username conflicts and password errors are recoverable without leaving the board, and dismissal never blocks gameplay.
   *Implemented by: ACT-005, ACT-010*
   *Precedence note (INFO-2): the PRD places claiming in v1.1. The SPEC makes the backend P0 (ACT-005) and includes "Account claim preserves game access after refresh" in the P0 release gate (ACT-013). **SPEC wins — claim is inside this milestone and lands before ACT-013.***
 
-- [ ] **REQ-A6**: As the product owner, I have an authoritative activation funnel.
+- [x] **REQ-A6**: As the product owner, I have an authoritative activation funnel.
   The app records the PRD event vocabulary. `game_created` and `player_joined` are server-authoritative. Client view/start/readiness events carry a random session ID and optional campaign attribution. No deck contents, deck URLs, passwords, JWTs, IP addresses, or card-level game state in event payloads. Events are queryable by day, role, source, and outcome. Prometheus exposes technical counters and histograms; PostgreSQL remains the source for user-funnel analysis.
   *Implemented by: ACT-001, ACT-011, ACT-012*
 
-- [ ] **REQ-A7**: As a new player, I get clear recovery paths when an import or realtime connection fails.
+- [x] **REQ-A7**: As a new player, I get clear recovery paths when an import or realtime connection fails.
   Provider failures offer paste-text fallback without clearing display name or game context. Unresolved cards are correctable inline before create/join. Create/join errors preserve the parsed deck. A failed subscription shows a reconnect action and continues read-only polling when practical. Error messages use product language and never expose raw GraphQL, SQL, or provider responses.
   *Implemented by: ACT-003, ACT-004, ACT-008, ACT-009*
 
@@ -105,33 +105,34 @@ deck-to-board activation; P1 improves post-value acquisition and operating confi
 
 ### Guest join path
 
-- [ ] **REQ-ACT-007**: Safe public invite preview — `gameInvite(gameID)` with a deliberately separate minimal response type returning format, status, display names, player count, capacity, and creation time only; `/join/:id` public and loading preview data before any guest creation; clear nonexistent, finished, and full states; rate-limited and instrumented.
+- [x] **REQ-ACT-007**: Safe public invite preview — `gameInvite(gameID)` with a deliberately separate minimal response type returning format, status, display names, player count, capacity, and creation time only; `/join/:id` public and loading preview data before any guest creation; clear nonexistent, finished, and full states; rate-limited and instrumented.
   `P0 · M · depends_on: ACT-001 · order 7`
 
-- [ ] **REQ-ACT-008**: Guest invite-to-board flow — deck import, commander review, and optional display name below the invite preview; reuse an authenticated identity or create a guest at the last responsible moment; call the existing `joinGame` with the canonical deck representation; preserve context on races such as a table filling up; route to the board and emit invite/join activation events.
+- [x] **REQ-ACT-008**: Guest invite-to-board flow — deck import, commander review, and optional display name below the invite preview; reuse an authenticated identity or create a guest at the last responsible moment; call the existing `joinGame` with the canonical deck representation; preserve context on races such as a table filling up; route to the board and emit invite/join activation events.
   `P0 · L · depends_on: ACT-004, ACT-005, ACT-007 · order 8`
 
-- [ ] **REQ-ACT-009**: Board readiness, reconnect, and invite sharing — explicit loading, ready, degraded, reconnecting, and failed states in the games store; emit `board_ready` only on real game/player/subscription state; reconnect action and bounded polling fallback; primary invite action in the board header preferring native share with clipboard/manual fallback; record only share method, source, and game ID.
+- [x] **REQ-ACT-009**: Board readiness, reconnect, and invite sharing — explicit loading, ready, degraded, reconnecting, and failed states in the games store; emit `board_ready` only on real game/player/subscription state; reconnect action and bounded polling fallback; primary invite action in the board header preferring native share with clipboard/manual fallback; record only share method, source, and game ID.
   `P0 · M · depends_on: ACT-006, ACT-008 · order 9`
 
 ### Post-value acquisition
 
-- [ ] **REQ-ACT-010**: Post-value account claim UI — guest detection and claim in the auth store; non-blocking "Save your games" prompt only after `board_ready`; collect username/password, submit the claim, replace the guest token atomically; preserve board and active subscriptions through success and validation errors; dismissible without affecting gameplay.
+- [x] **REQ-ACT-010**: Post-value account claim UI — guest detection and claim in the auth store; non-blocking "Save your games" prompt only after `board_ready`; collect username/password, submit the claim, replace the guest token atomically; preserve board and active subscriptions through success and validation errors; dismissible without affecting gameplay.
   `P1 · M · depends_on: ACT-005, ACT-009 · order 10`
   *Phasing note (INFO-2): P1 by label, but a declared dependency of the P0 release gate ACT-013, whose acceptance requires "Account claim preserves game access after refresh". **Not deferrable past the MVP gate.***
 
-- [ ] **REQ-ACT-011**: Commander landing page and attribution — rewrite the hero around "paste a Commander deck and start a table"; `/play` as primary CTA with login secondary; compact three-step explanation and an invite/join path; capture only allowlisted UTM/referrer values into the product-event session; preserve attribution through host and invite activation; no marketing claims the MVP cannot support.
+- [x] **REQ-ACT-011**: Commander landing page and attribution — rewrite the hero around "paste a Commander deck and start a table"; `/play` as primary CTA with login secondary; compact three-step explanation and an invite/join path; capture only allowlisted UTM/referrer values into the product-event session; preserve attribution through host and invite activation; no marketing claims the MVP cannot support.
   `P1 · M · depends_on: ACT-001, ACT-006 · order 11`
 
-- [ ] **REQ-ACT-012**: Activation dashboard and quiet-beta runbook — versioned SQL for host activation, invite activation, time-to-board percentiles, failure reason, source, and guest claim; Grafana panels for technical request/import/create/join rate and latency from the new low-cardinality metrics; document the 50-start/view minimum, bot/test filtering, cohort window, and go/no-go review; alert and runbook guidance for provider failure, create/join error rate, and subscription readiness.
+- [x] **REQ-ACT-012**: Activation dashboard and quiet-beta runbook — versioned SQL for host activation, invite activation, time-to-board percentiles, failure reason, source, and guest claim; Grafana panels for technical request/import/create/join rate and latency from the new low-cardinality metrics; document the 50-start/view minimum, bot/test filtering, cohort window, and go/no-go review; alert and runbook guidance for provider failure, create/join error rate, and subscription readiness.
   `P1 · S · depends_on: ACT-001, ACT-009 · order 12`
   *Produces: `docs/analytics/deck-to-game-activation.sql`, `docs/runbooks/deck-to-game-quiet-beta.md` (forward deliverables).*
 
 ### Release gate
 
-- [ ] **REQ-ACT-013**: End-to-end release gate and regression suite — server unit/integration coverage required by the PRD; Rust smoke client extended for guest host and join; isolated-browser Playwright journeys for guest host, invitee join, two-player visibility, provider fallback, and account claim; retain the authenticated create/join E2E as a regression test; add the suite to the release workflow with deterministic fixtures; document staging smoke and rollback/kill-switch steps.
+- [x] **REQ-ACT-013**: End-to-end release gate and regression suite — server unit/integration coverage required by the PRD; Rust smoke client extended for guest host and join; isolated-browser Playwright journeys for guest host, invitee join, two-player visibility, provider fallback, and account claim; retain the authenticated create/join E2E as a regression test; add the suite to the release workflow with deterministic fixtures; document staging smoke and rollback/kill-switch steps.
   `P0 · L · depends_on: ACT-003 through ACT-010 (= ACT-003, 004, 005, 006, 007, 008, 009, 010) · order 13`
   *Produces: `docs/runbooks/deck-to-game-release.md` (forward deliverable).*
+  *Verified 2026-09-21 on isolated Dokku staging at candidate `59f271c`; Rust smoke and all three Playwright journeys passed, and run `staging-1789980490` reported zero missing or duplicate activation events.*
   *Dependency note (INFO-1): ACT-003 may end in a documented no-go. In that branch the acceptance clause "Provider failure proves text-paste fallback" must be reinterpreted against a paste-only build. Both source documents leave this unstated.*
 
 ---

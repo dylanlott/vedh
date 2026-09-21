@@ -18,6 +18,17 @@ If those targets do not exist, staging is **not configured**. Do not reinterpret
 a successful local run as a staging run and do not link staging to
 `vedh-api-db`.
 
+### Verified staging baseline — 2026-09-21
+
+- Candidate: `59f271c`
+- API: `https://vedh-api-staging.vedh.xyz` (TLS verified)
+- web: `https://vedh-app-staging.vedh.xyz` (TLS verified)
+- Rust smoke: authenticated and guest create/invite/join passed
+- Playwright: authenticated regression, guest host/invite/claim/refresh, and
+  provider paste fallback all passed
+- Event verifier: `staging-1789980490` returned `0` mismatches
+- Provider remained disabled; production apps/database were not changed
+
 ## Candidate preflight
 
 Record the candidate SHA and require a clean worktree before any push:

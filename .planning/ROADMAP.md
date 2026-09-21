@@ -43,9 +43,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Measured Deck Import Foundation** - Any familiar decklist reaches a trustworthy server-side preview, and every activation step is recorded privacy-safely (completed 2026-08-08)
 - [ ] **Phase 2: Guest Host Activation** - A logged-out host pastes a deck and lands on a live board without seeing login or signup
-- [ ] **Phase 3: Invite, Join, and Board Readiness** - A shared link takes an invited stranger to that same board, and "on the board" means the board actually works
-- [ ] **Phase 4: Post-Value Acquisition and Funnel Readout** - Activated guests can keep their identity, new arrivals land on a Commander front door, and the funnel can be read against the PRD targets
-- [ ] **Phase 5: Release Gate and Regression Suite** - Guest activation ships only when the full guest journey and the existing authenticated journey both pass
+- [x] **Phase 3: Invite, Join, and Board Readiness** - A shared link takes an invited stranger to that same board, and "on the board" means the board actually works (completed 2026-09-21)
+- [x] **Phase 4: Post-Value Acquisition and Funnel Readout** - Activated guests can keep their identity, new arrivals land on a Commander front door, and the funnel can be read against the PRD targets (completed 2026-09-21)
+- [x] **Phase 5: Release Gate and Regression Suite** - Guest activation ships only when the full guest journey and the existing authenticated journey both pass (completed 2026-09-21)
 
 ## Phase Details
 
@@ -64,7 +64,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. A written decision record either names the first public deck provider and its adapter fetches only allowlisted HTTPS hosts — with redirects, DNS rebinding, private/reserved/link-local addresses, oversized responses, and timeouts all failing closed behind a kill switch — **or** it documents a no-go, and paste-only activation proceeds. Either outcome satisfies this phase.
 
 **Ticket waves**: ACT-001 → ACT-002 → ACT-003 (strictly sequential; each depends on the prior)
-**Open decisions to resolve here**: **OPEN-1 — which public deck provider becomes the first supported URL source.** Status: open. Owned by ACT-003's one-day time-boxed feasibility comparison of public Archidekt and Moxfield access. Do not pre-answer; `/gsd-discuss-phase 1` should pick this up.
+**Resolved decision (OPEN-1)**: Archidekt is the first implemented provider adapter. It remains disabled in staging and production until a human terms review; paste import is the verified release path.
 **Branch note (INFO-1)**: a provider adapter is **not** a fixed MVP commitment. If neither candidate clears the feasibility gate, ACT-003 terminates at a documented no-go and paste-only activation ships. SSRF and reliability controls may not be weakened to force a provider through. Phase 5's release gate depends on ACT-003 either way, so a no-go must not block it — it changes what "provider fallback" means in the gate, not whether the gate can close.
 **Plans**: 10/10 plans executed
 **Contract note**: Phase 1 adds one additive field to the locked `DeckPreview` type —
@@ -187,7 +187,7 @@ Plans:
 
 **Ticket waves**: wave 1 — ACT-010, ACT-011, and ACT-012 all in parallel (every dependency is satisfied by Phases 1-3)
 **Phasing note (INFO-2)**: ACT-010 is labeled P1 but is a declared dependency of the P0 release gate, whose acceptance requires "Account claim preserves game access after refresh." It lands **before** Phase 5. The PRD's deferral of claim to v1.1 is overridden.
-**Open decisions to resolve here**: **OPEN-4 — which operational surface hosts product-funnel queries before a dedicated internal dashboard exists.** Status: open, owned by ACT-012; partially narrowed only (PostgreSQL for funnel, Prometheus/Grafana for technical panels), no surface named. **OPEN-3** returns here for ACT-011's responsive-layout check if it was not settled in Phase 2. `/gsd-discuss-phase 4` should pick these up.
+**Resolved decision (OPEN-4)**: versioned PostgreSQL SQL is the product-funnel surface; Prometheus/Grafana remains the bounded technical-health surface. The SQL fixture and generated dashboard tests gate both halves.
 **Plans**: TBD
 **UI hint**: yes
 
@@ -206,8 +206,9 @@ Plans:
   5. The release can independently switch to paste-only and disable guest creation, with the staging smoke, rollback, and kill-switch steps written down in a release runbook.
 
 **Ticket waves**: wave 1 — ACT-013 (depends on ACT-003 through ACT-010, all delivered in Phases 1-4)
-**Branch note (INFO-1)**: if Phase 1 ended in a provider no-go, criterion 1's "provider failure proves text-paste fallback" is evaluated against a paste-only build — the URL path is absent rather than broken. Both source documents leave this reinterpretation unstated; settle it in `/gsd-discuss-phase 5`.
+**Resolved branch note (INFO-1)**: the Archidekt adapter exists behind the disabled-by-default kill switch. Phase 5 simulated the provider-unavailable response and proved paste fallback without contacting the live provider.
 **Note**: the SPEC suggests beginning ACT-013 coverage alongside implementation from week 2 onward. Earlier phases may land test scaffolding incrementally; the gate itself closes here.
+**Verification**: candidate `59f271c` passed every local gate and isolated Dokku staging. Rust authenticated/guest smoke and all three Playwright journeys passed over verified TLS; staging run `staging-1789980490` returned zero event mismatches. Production was not changed.
 **Plans**: TBD
 
 ## Progress
@@ -219,9 +220,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Measured Deck Import Foundation | 10/10 | Complete    | 2026-08-08 |
 | 2. Guest Host Activation | 5/6 | In Progress|  |
-| 3. Invite, Join, and Board Readiness | 0/TBD | Not started | - |
-| 4. Post-Value Acquisition and Funnel Readout | 0/TBD | Not started | - |
-| 5. Release Gate and Regression Suite | 0/TBD | Not started | - |
+| 3. Invite, Join, and Board Readiness | Implemented | Complete | 2026-09-21 |
+| 4. Post-Value Acquisition and Funnel Readout | Implemented | Complete | 2026-09-21 |
+| 5. Release Gate and Regression Suite | Implemented | Complete | 2026-09-21 |
 
 ## Coverage
 
@@ -229,7 +230,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 - **Product requirements (Layer 1):** 7 of 7 fully covered through their implementing tickets. See the traceability tables in `.planning/REQUIREMENTS.md`.
 - **Dependency graph:** all 13 `depends_on` sets are satisfied in the same phase at an earlier wave, or in an earlier phase. Verified edge by edge.
 - **Locked decisions:** none exist. The ingest set contained one PRD and one SPEC, both unlocked, and zero ADRs. Technical commitments are represented as constraints in `.planning/PROJECT.md`, not as decisions.
-- **Open decisions:** OPEN-1..OPEN-4 remain `status: open` and are surfaced in their owning phase above for `/gsd-discuss-phase` to resolve.
+- **Open decisions:** OPEN-1 through OPEN-4 are resolved. Archidekt remains disabled pending the separate human terms review; that is an enablement precondition, not an implementation gap.
 
 ---
 *Roadmap created: 2026-08-03 from doc ingest of the 2026-07-23 deck-to-game activation PRD and SPEC*

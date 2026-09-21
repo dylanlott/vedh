@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 current_phase: 02
-current_phase_name: guest-host-activation
-status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-08-20T20:03:02.908Z"
-last_activity: 2026-08-20
-last_activity_desc: Plan 02-05 complete
+current_phase_name: guest-host-human-validation
+status: awaiting_human_validation
+stopped_at: Phase 5 complete; 02-06 human taste review pending
+last_updated: "2026-09-21T02:50:33-06:00"
+last_activity: 2026-09-21
+last_activity_desc: Release candidate 59f271c passed isolated Dokku staging
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 4
   total_plans: 16
   completed_plans: 15
-  percent: 20
+  percent: 80
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-03)
 
 **Core value:** A person with a decklist reaches a working, shareable Commander board without registering — and every step of that path is measured.
-**Current focus:** Phase 02 — guest-host-activation
+**Current focus:** Phase 02 plan 06 — human guest-name taste review; implementation and Phase 5 staging verification are complete
 
 ## Current Position
 
-Phase: 02 (guest-host-activation) — EXECUTING
+Phase: 02 (guest-host-human-validation) — HUMAN CHECKPOINT
 Plan: 6 of 6
-Status: Ready to execute
-Last activity: 2026-08-20 — Plan 02-05 complete
+Status: Machine validation complete; human taste review pending
+Last activity: 2026-09-21 — candidate `59f271c` passed local and isolated Dokku staging release gates
 
 Progress: [█████████░] 94%
 
@@ -127,25 +127,24 @@ Precedence resolutions applied at ingest that affect execution:
 
 ### Pending Todos
 
-None yet.
+- Complete `02-06`'s human review of the full generated guest-name cross product.
+- Keep the public provider disabled until a human reviews current Archidekt terms.
+- Explicitly open a fixed UTC quiet-beta cohort before participant outreach; do not make a product go/no-go call before 50 host starts and 50 valid invite views.
 
 ### Blockers/Concerns
 
-Three open decisions carried forward unresolved (`status: open`). Each is surfaced in
-its owning phase for `/gsd-discuss-phase` — do not pre-answer:
+No implementation decision remains open. OPEN-1 through OPEN-4 are resolved in
+the roadmap. The remaining constraints are operational/human gates:
 
-- OPEN-2 (Phase 2, ACT-005): guest expiry 24 hours or seven days; token stays 24h either way
-- OPEN-3 (Phase 2 ACT-004, revisited Phase 4 ACT-011): quiet beta desktop-only or a tablet breakpoint
-- OPEN-4 (Phase 4, ACT-012): operational surface for product-funnel queries pre-dashboard
+- `02-06` is an explicitly subjective generated-name taste review.
+- Archidekt enablement requires a current human terms review; staging is verified
+  with `DECK_PROVIDER_ENABLED=false` and paste fallback.
+- Quiet-beta cohort admission is an external product action and has not started.
 
-OPEN-1 (Phase 1, ACT-003) is resolved: the user selected Moxfield at the 01-07 D-14
-checkpoint, diverging from the feasibility spike's own Archidekt recommendation. This is
-not a fully closed matter, though: two implementation blockers remain before Moxfield can
-be enabled for real (authorization for `api.moxfield.com`; a captured, authorized sample
-response to build a real normalizer from) — see
-`docs/research/deck-provider-feasibility.md` section 5 and
-`.planning/phases/01-measured-deck-import-foundation/01-07-SUMMARY.md`. REQ-ACT-003
-remains open in REQUIREMENTS.md pending those two blockers.
+Release evidence: candidate `59f271c`; verified TLS on the isolated staging API
+and web apps; Rust authenticated/guest smoke passed; all three Playwright
+journeys passed; `staging-1789980490` returned zero missing/duplicate activation
+events. Production apps and data were untouched.
 
 Baseline is an existing working codebase at `main@ef2732a` (verified = HEAD at ingest).
 No greenfield scaffolding — this milestone changes the path to existing value.
@@ -158,6 +157,6 @@ No greenfield scaffolding — this milestone changes the path to existing value.
 
 ## Session Continuity
 
-Last session: 2026-08-20T20:03:02.857Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-09-21T02:50:33-06:00
+Stopped at: Phase 5 complete; waiting for `02-06` human taste review and explicit quiet-beta admission
 Resume file: None

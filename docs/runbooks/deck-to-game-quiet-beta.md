@@ -6,6 +6,10 @@ Run a measured, reversible Commander activation cohort. Product-funnel truth
 comes from PostgreSQL `product_events`; Prometheus/Grafana answers technical
 health questions. Do not substitute request metrics for user conversion.
 
+**Current status (2026-09-21):** staging is verified, but cohort admission has
+not started. Complete the human generated-name taste review and explicitly open
+the fixed UTC cohort before inviting participants.
+
 ## Before admitting traffic
 
 1. Record a fixed UTC cohort start and end. Use the same values in every
@@ -113,4 +117,3 @@ Use the activation panels in **vEDH App Overview**.
 - After any switch or rollback, rerun the staging smoke, verify `/prometheus`,
   and annotate the cohort window so affected traffic is not silently mixed into
   the decision.
-
