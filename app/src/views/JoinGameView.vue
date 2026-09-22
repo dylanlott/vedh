@@ -14,6 +14,8 @@
     <form v-else-if="gameID" @submit.prevent="handleJoin">
       <p>You are about to join game <strong>{{ gameID }}</strong>.</p>
 
+      <DefaultDeckPicker @apply="applyDefaultDeck" />
+
       <label class="stacked">
         <span>Commander(s) — up to 2 (Partners)</span>
         <div class="inline">
@@ -108,6 +110,8 @@ import { useGamesStore } from '../stores/games';
 import { useAuthStore } from '../stores/auth';
 import { apolloClient } from '../services/apollo';
 import { GET_GAME_QUERY, SEARCH_CARDS_QUERY } from '../graphql/queries';
+import DefaultDeckPicker from '../components/games/DefaultDeckPicker.vue';
+import { commanderPickFor, decklistToCsv, type DefaultDeck } from '../decks/defaultDecks';
 import {
   type CommanderPick,
   canAddSecondCommander,
@@ -288,6 +292,11 @@ function clearAllCommanders() {
 
 // Decklist
 const decklist = ref('');
+function applyDefaultDeck(deck: DefaultDeck) {
+  decklist.value = decklistToCsv(deck);
+  selectedCommanders.value = [commanderPickFor(deck)];
+  commanderError.value = '';
+}
 const deckCount = computed(() => {
   if (!decklist.value) return 0;
   let count = 0;

@@ -20,6 +20,7 @@
             <option value="EDH">Commander</option>
           </select>
         </label>
+        <DefaultDeckPicker @apply="applyDefaultDeck" />
         <label @keydown.stop>
           <span>Commander(s) — up to 2 (Partners)</span>
           <input
@@ -94,6 +95,8 @@ import { useGamesStore } from '../../stores/games';
 import { useAuthStore } from '../../stores/auth';
 import { apolloClient } from '../../services/apollo';
 import { SEARCH_CARDS_QUERY } from '../../graphql/queries';
+import DefaultDeckPicker from './DefaultDeckPicker.vue';
+import { commanderPickFor, decklistToCsv, type DefaultDeck } from '../../decks/defaultDecks';
 import {
   type CommanderPick,
   canAddSecondCommander,
@@ -239,6 +242,11 @@ const commanderPlaceholder = computed(() => {
 
 // Decklist raw CSV input
 const decklist = ref('');
+function applyDefaultDeck(deck: DefaultDeck) {
+  decklist.value = decklistToCsv(deck);
+  selectedCommanders.value = [commanderPickFor(deck)];
+  commanderError.value = '';
+}
 const deckCount = computed(() => {
   if (!decklist.value) return 0;
   let count = 0;
